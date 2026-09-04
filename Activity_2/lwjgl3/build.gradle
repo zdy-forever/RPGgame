@@ -22,7 +22,7 @@ application {
     mainClass = 'au.edu.anu.comp2120.lwjgl3.Lwjgl3Launcher'
 }
 
-tasks.named('run', JavaExec) {
+tasks.withType(JavaExec).configureEach {
     workingDir = rootProject.file('assets')
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 
