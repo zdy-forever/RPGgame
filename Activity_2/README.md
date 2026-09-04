@@ -27,6 +27,9 @@ dependencies.
 - `lwjgl3`: desktop launcher and LWJGL3 runtime dependencies.
 - `assets`: textures, maps, audio, fonts, and UI resources.
 
+The Stage 2 package boundaries and collaboration rules are documented in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Run the desktop game
 
 On macOS or Linux:
