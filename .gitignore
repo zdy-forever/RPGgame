@@ -1,0 +1,47 @@
+# Local agent instructions
+agent.md
+
+# Gradle
+.gradle/
+build/
+**/build/
+gradle-app.setting
+
+# Java output
+*.class
+out/
+bin/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+*~
+
+# Machine-local configuration and secrets
+local.properties
+.env
+.env.*
+!.env.example
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Operating system files
+.DS_Store
+Thumbs.db
+.AppleDouble
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+.attach_pid*

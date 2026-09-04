@@ -1,0 +1,35 @@
+plugins {
+    id 'base'
+}
+
+allprojects {
+    group = 'au.edu.anu.comp2120'
+    version = '0.1.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 17
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events 'failed', 'skipped'
+            exceptionFormat = 'full'
+        }
+    }
+}

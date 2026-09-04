@@ -1,0 +1,32 @@
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation project(':core')
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:${gdxVersion}"
+    runtimeOnly "com.badlogicgames.gdx:gdx-platform:${gdxVersion}:natives-desktop"
+
+    // LibGDX 1.14.2 defaults to LWJGL 3.3.3. LWJGL 3.4+ is required for JDK 25.
+    constraints {
+        implementation "org.lwjgl:lwjgl:${lwjgl3Version}"
+        implementation "org.lwjgl:lwjgl-glfw:${lwjgl3Version}"
+        implementation "org.lwjgl:lwjgl-jemalloc:${lwjgl3Version}"
+        implementation "org.lwjgl:lwjgl-openal:${lwjgl3Version}"
+        implementation "org.lwjgl:lwjgl-opengl:${lwjgl3Version}"
+        implementation "org.lwjgl:lwjgl-stb:${lwjgl3Version}"
+    }
+}
+
+application {
+    mainClass = 'au.edu.anu.comp2120.game.lwjgl3.Lwjgl3Launcher'
+}
+
+tasks.named('run', JavaExec) {
+    workingDir = rootProject.file('assets')
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+
+    if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+        jvmArgs '-XstartOnFirstThread'
+    }
+}
