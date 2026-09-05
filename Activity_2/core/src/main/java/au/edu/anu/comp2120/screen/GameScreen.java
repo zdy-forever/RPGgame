@@ -1,64 +1,86 @@
 package au.edu.anu.comp2120.screen;
 
+import au.edu.anu.comp2120.player.Player;
+import au.edu.anu.comp2120.player.PlayerInput;
+import au.edu.anu.comp2120.world.GameMap;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.ScreenUtils;
 
 /**
- * Displays the initial placeholder screen used to verify that the game starts.
+ * Coordinates input, movement, and placeholder rendering for the first playable screen.
  *
  * @author Daoyan Zhu (u7782042)
  */
 public final class GameScreen extends ScreenAdapter {
 
-    private static final String TITLE = "COMP2120 Game Skeleton";
-    private static final float TEXT_MARGIN = 32.0f;
-
-    private final SpriteBatch batch = new SpriteBatch();
-    private final BitmapFont font = new BitmapFont();
+    /** Static collision world for the movement demonstration. */
+    private final GameMap map;
+    /** Player model; gameplay state does not depend on this screen. */
+    private final Player player;
+    /** Adapter for the application's keyboard input. */
+    private final PlayerInput input;
+    /** Geometry-only view owned by this screen. */
+    private final PlaceholderRenderer renderer;
+    /** Whether lifecycle pause has suspended movement. */
+    private boolean paused;
+    /** Discards the first frame's time after startup or resume. */
+    private boolean skipNextUpdate = true;
 
     /**
-     * Creates the placeholder game screen and its rendering resources.
+     * Creates the demo models and drawing resources after graphics initialization.
      */
     public GameScreen() {
-        // Rendering resources are initialized by their field declarations.
+        map = new GameMap(MovementDemoConfig.WORLD_WIDTH, MovementDemoConfig.WORLD_HEIGHT,
+                MovementDemoConfig.WALLS);
+        player = new Player(MovementDemoConfig.PLAYER_SPAWN, MovementDemoConfig.PLAYER_SPEED, map);
+        input = new PlayerInput(Gdx.input);
+        renderer = new PlaceholderRenderer(MovementDemoConfig.WORLD_WIDTH, MovementDemoConfig.WORLD_HEIGHT);
+        renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
 
     /**
-     * Renders a clear background and a small placeholder title.
+     * Updates movement before drawing. Frame stalls are capped to avoid a large resume jump.
      *
      * @param delta seconds elapsed since the previous frame
      */
     @Override
     public void render(float delta) {
-        ScreenUtils.clear(0.08f, 0.10f, 0.16f, 1.0f);
-
-        batch.begin();
-        font.setColor(Color.WHITE);
-        font.draw(batch, TITLE, TEXT_MARGIN, Gdx.graphics.getHeight() - TEXT_MARGIN);
-        batch.end();
+        if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
+            input.update(player, Math.min(delta, MovementDemoConfig.MAX_FRAME_DELTA));
+        }
+        skipNextUpdate = false;
+        renderer.render(map, player);
     }
 
     /**
-     * Updates the drawing projection when the window size changes.
+     * Updates the view without changing player or world coordinates.
      *
      * @param width new window width in pixels
      * @param height new window height in pixels
      */
     @Override
     public void resize(int width, int height) {
-        batch.getProjectionMatrix().setToOrtho2D(0.0f, 0.0f, width, height);
+        renderer.resize(width, height);
+    }
+
+    /** Suspends simulation while the application is paused. */
+    @Override
+    public void pause() {
+        paused = true;
+    }
+
+    /** Resumes simulation without accumulating time spent paused. */
+    @Override
+    public void resume() {
+        paused = false;
+        skipNextUpdate = true;
     }
 
     /**
-     * Releases the temporary rendering resources owned by this screen.
+     * Releases geometry rendering resources owned by this screen.
      */
     @Override
     public void dispose() {
-        font.dispose();
-        batch.dispose();
+        renderer.dispose();
     }
 }
