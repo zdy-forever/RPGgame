@@ -23,6 +23,8 @@ public final class GameSession {
     private GameMap currentMap;
     /** Player instance retained through all map changes. */
     private final Player player;
+    /** Changes after every successful transition, including re-entry to the same map/spawn. */
+    private long transitionVersion;
 
     /**
      * Registers maps and enters the initial map's default spawn.
@@ -71,6 +73,15 @@ public final class GameSession {
     }
 
     /**
+     * Exposes a transition stamp for arrival guards without adding observers or callbacks.
+     *
+     * @return stamp incremented only after successful transitions; compare for inequality
+     */
+    public long getTransitionVersion() {
+        return transitionVersion;
+    }
+
+    /**
      * Looks up a registered map without changing the session.
      *
      * @param mapId stable map ID
@@ -112,5 +123,6 @@ public final class GameSession {
         SpawnPoint spawn = target.getSpawnPoint(spawnId);
         player.enterArea(target, spawn.x(), spawn.y());
         currentMap = target;
+        transitionVersion++;
     }
 }

@@ -2,7 +2,8 @@
 
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
 demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
-player movement, and static rectangle collision using geometric placeholders.
+player movement, static rectangle collision, automatic portals, and unlocked fast
+travel using geometric placeholders.
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
@@ -61,19 +62,34 @@ Git.
 
 ## Map and movement demonstration
 
-The game starts in the Hub. Number keys are temporary debug map selections,
-not portal or quest mechanics. The window title shows the active name/ID and keys.
+The game starts in the Hub. Walk into a purple rectangle to use a portal. Number
+keys now execute fast travel through its unlock checks, replacing unrestricted
+debug map switching. The window title shows the active map and travel feedback.
 
-| Key | Destination | Default size | Spawn |
-| --- | --- | --- | --- |
-| 1 | Hub (`hub`) | 960 x 540 | `entry` |
-| 2 | Training Ground (`battle-training`) | 800 x 600 | `entry` |
-| 3 | Crossroads (`battle-crossroads`) | 1200 x 720 | `entry` |
-| 4 | Hub (`hub`) | 960 x 540 | `north` |
+| Key | Action | Initial state |
+| --- | --- | --- |
+| 1 | Fast travel to Hub `entry` | Unlocked |
+| 2 | Fast travel to Training `entry` | Locked |
+| 3 | Fast travel to Crossroads `entry` | Locked |
+| U | Unlock both Battle fast-travel destinations for this session | Debug only |
+
+The old key 4 map-selection shortcut has been removed. Visiting through a portal
+does not automatically unlock fast travel; future quest/discovery code can call
+`unlockDestination(id)`. Portal enabled state and fast-travel unlock state are
+independent. Closing/restarting the game restores the initial state.
 
 Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
 are obstacles, gold circles mark spawn anchors, and the green rectangle is the
-player. The entire map fits into the window, including maps of different sizes.
+player. Bright purple rectangles are enabled portals; dark purple rectangles are
+disabled examples. The entire map fits into the window, including differently sized maps.
+
+| Portal | Source trigger (x, y, width, height) | Destination |
+| --- | --- | --- |
+| hub-training | Hub (160, 64, 48, 64) | Training `entry` |
+| hub-crossroads | Hub (160, 400, 48, 64) | Crossroads `entry` |
+| hub-disabled | Hub (220, 64, 48, 64), disabled | Crossroads `east` |
+| training-hub | Training (64, 64, 80, 80) | Hub `entry` |
+| crossroads-hub | Crossroads (64, 64, 80, 80) | Hub `north` |
 
 - Hold W/A/S/D to move up/left/down/right. Releasing keys stops movement.
 - Movement supports eight directions. Opposite keys cancel on each axis. W+D
@@ -98,10 +114,13 @@ player. The entire map fits into the window, including maps of different sizes.
 
 To check manually, launch the game, hold each movement key, walk into each side
 of a wall, reverse away from contact, try W+D and opposing keys, and resize the
-window. Use 1/2/3 to switch maps, check that map dimensions and collisions change,
-then use 4 to check the Hub's second spawn. A switch consumes that frame's movement
-update, so holding WASD cannot immediately move the player off the selected spawn.
-The player should remain inside the active map without penetrating grey walls.
+window. Initially press 2/3: the title should report that the destination is locked
+and position should not change. Walk right from the Hub spawn into the nearby
+purple portal to reach Training at (80, 80). Stay still: the overlapping return
+portal must not send you back. Walk fully outside it (for example right past
+x=144), then re-enter to return to Hub. Try U then 1/2/3 to exercise fast travel.
+The disabled dark-purple portal must have no effect. A successful travel command
+consumes the frame, leaving the player exactly at the selected spawn.
 
 ## Map API and extension
 
@@ -125,10 +144,39 @@ The player should remain inside the active map without penetrating grey walls.
 - Colours and spawn markers belong exclusively to `PlaceholderRenderer`. Map
   data has no artwork paths, texture objects, or other rendering dependencies.
 
+## Portal and fast-travel API
+
+- `world/TravelCatalog.java` defines portal routes/regions and initial destination
+  unlock states. `Portal` and `FastTravelDestination` are immutable data snapshots.
+- `TravelSystem` receives the existing `GameSession` and validates duplicate IDs,
+  map/spawn references, and full trigger geometry during registration. It never
+  reimplements player movement or map switching. Source trigger rectangles must
+  be fully walkable; portals are non-solid trigger regions, not obstacles.
+- Call `updatePortals()` once after movement. Full-body interior overlap with an
+  enabled current-map portal triggers it; edge contact alone does not. Overlapping
+  enabled portals choose the first registered match, with at most one transition
+  per call. Disabled portals never execute a transition.
+- On startup inside a portal, after any successful travel, or after an external
+  `GameSession.switchMap`, the body must be observed outside all portal regions
+  before another automatic entry is permitted. This includes disabled regions
+  and same-map re-entry. No timer, animation, or frame-rate-based cooldown is used.
+- `fastTravel(destinationId)` requires a known unlocked destination. Unknown IDs
+  or invalid target placement throw `IllegalArgumentException`; locked travel
+  throws `IllegalStateException`; null IDs throw `NullPointerException`.
+  GameSession validates the full body at execution, preserving old map/player
+  state on failure. Failed automatic portal attempts wait for exit before retry.
+- `unlockDestination(id)` changes in-memory state; repeated calls are harmless.
+  `setPortalEnabled(id, enabled)` changes activation. Getters return immutable
+  snapshots, so presentation cannot bypass these state operations.
+- Coordinate travel on the game-loop thread. Use GameSession for every map/spawn
+  transition so its transition stamp can protect arrivals. Direct calls to
+  `Player.enterArea` are a low-level operation and bypass that session coordination.
+
 ## Current class responsibilities
 
 - `MainGame`: application lifecycle and active-screen selection.
 - `GameSession`: map registration, current map, player ownership, and safe transitions.
+- `TravelSystem`: portal triggering, arrival protection, unlock state, and fast-travel checks.
 - `GameScreen`: coordinates input, simulation, lifecycle, and the temporary view.
 - `Player`: validated position/size/speed and normalized eight-direction movement.
 - `PlayerInput`: translates held WASD keys into movement intent.
@@ -140,6 +188,9 @@ The player should remain inside the active map without penetrating grey walls.
 - `MapCatalog`: built-in Hub and Battle Map definitions.
 - `MapType`: Hub/Battle metadata.
 - `SpawnPoint`: validated world-space placement anchor.
+- `Portal`: source map/region, destination map/spawn, and enabled snapshot.
+- `FastTravelDestination`: named destination and unlocked snapshot.
+- `TravelCatalog`: built-in portal routes and initial destination states.
 - `CollisionBox`: immutable geometry with finite, positive extents.
 - `WalkableArea`: point/body occupancy and collision-resolved movement.
 - `Inventory`: future item storage and item operations.
@@ -149,10 +200,16 @@ The player should remain inside the active map without penetrating grey walls.
 
 This is intentionally a small foundation. Movement currently supports static,
 axis-aligned rectangles and three built-in maps. It does not include dynamic entity
-collision, external map-file loading, portals, bosses, enemies, elemental map rules,
+collision, external map-file loading, bosses, enemies, elemental map rules,
 saved map state, combat, or final artwork. Collision uses X-then-Y
 axis separation rather than a continuous diagonal sweep, so large diagonal steps
 can take a different route around corners than many smaller steps. Normal screen
 updates cap delta to keep this effect limited; each axis still cannot tunnel.
 Player/world model code is independent of LibGDX graphics and asset APIs; future
 artwork can replace the renderer without changing movement or collision rules.
+
+Portal triggers sample overlap once per update, not a continuous swept trigger
+path; a custom very large movement that crosses an entire portal between updates
+can miss it. Built-in regions and the demo frame-time cap avoid that in normal
+play. There is no travel menu, distance/cost restriction, automatic discovery,
+quest gating, persisted unlock state, or portal animation/audio in this branch.

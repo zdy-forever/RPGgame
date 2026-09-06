@@ -13,6 +13,7 @@ Hub -> accept quest -> portal -> combat map -> combat -> rewards
 core/src/main/java/au/edu/anu/comp2120/
 ├── MainGame.java
 ├── GameSession.java
+├── TravelSystem.java
 ├── combat/Damageable.java
 ├── enemy/Enemy.java
 ├── inventory/Inventory.java
@@ -26,10 +27,13 @@ core/src/main/java/au/edu/anu/comp2120/
 │   └── PlaceholderRenderer.java
 └── world/
     ├── CollisionBox.java
+    ├── FastTravelDestination.java
     ├── GameMap.java
     ├── MapCatalog.java
     ├── MapType.java
+    ├── Portal.java
     ├── SpawnPoint.java
+    ├── TravelCatalog.java
     └── WalkableArea.java
 
 lwjgl3/src/main/java/au/edu/anu/comp2120/lwjgl3/
@@ -54,7 +58,7 @@ are documented boundaries but do not have empty packages yet.
   transition methods. Model classes do not require a graphics context.
 - A transition validates the target ID, spawn ID, and full-body occupancy before
   changing player state or current map. Failure preserves the previous state.
-- Placeholder map-selection keys and window titles belong to `GameScreen`;
+- Fast-travel/debug-unlock keys and window-title feedback belong to `GameScreen`;
   geometric rendering and role colours belong to `PlaceholderRenderer`.
 
 ### Player
@@ -85,8 +89,9 @@ are documented boundaries but do not have empty packages yet.
 ### World / Map
 
 - Owns immutable map identity/name/type, dimensions, static collision rectangles,
-  named spawn points, and default-spawn selection. File loading and portals remain
-  future work; this branch adds no encounter or teleport-trigger mechanics.
+  named spawn points, and default-spawn selection. File loading remains future work.
+- `Portal`, `FastTravelDestination`, and `TravelCatalog` add immutable travel data
+  without referencing players, input, rendering, or the screen.
 - Does not implement attacks, dialogue, inventory, or quest rewards.
 - Does not depend on concrete Player, Enemy, NPC, or UI classes.
 - `WalkableArea` exposes point/full-body occupancy and swept X-then-Y movement.
@@ -97,6 +102,25 @@ are documented boundaries but do not have empty packages yet.
   Additional maps use the same class; there are no per-map subclasses.
 - World units have a bottom-left origin (x right, y up), independent of pixels.
   Walkable space is the outer rectangle minus obstacles; edge contact is allowed.
+
+### Portal / Fast Travel
+
+- `TravelSystem` is an application-level coordinator alongside `GameSession`.
+  It owns trigger eligibility, arrival protection, and in-memory unlock/enabled
+  state. Every actual transition calls the existing `GameSession.switchMap`.
+- Portal registration validates source map/region and target map/spawn references.
+  Full-player target occupancy is validated by GameSession when execution occurs.
+- Automatic activation uses positive body/trigger overlap after movement. Only
+  enabled current-map portals can trigger; registration order resolves ties.
+- Arrival suppresses automatic triggering until an update observes the player
+  outside every portal region, including disabled regions. The guard handles
+  startup inside portals, portal arrivals, fast travel, and external/same-map
+  transitions via a session transition stamp. Failed portal attempts also wait
+  for exit before retrying, without changing map/player state.
+- Fast travel requires a known unlocked destination; portal activation does not
+  depend on fast-travel unlock state. Unlocks remain explicit and in-memory.
+- Rendering receives immutable portal snapshots and draws only coloured
+  rectangles. No visual assets, particles, or audio are part of travel logic.
 
 ### NPC / Dialogue
 
@@ -146,7 +170,8 @@ are documented boundaries but do not have empty packages yet.
 
 ```text
 GameScreen -> feature modules (coordination only)
-GameScreen -> GameSession, PlayerInput, PlaceholderRenderer
+GameScreen -> GameSession, TravelSystem, PlayerInput, PlaceholderRenderer
+TravelSystem -> GameSession, Portal/FastTravelDestination data
 GameSession -> GameMap/SpawnPoint, Player (transition coordination)
 Player     -> WalkableArea, CollisionBox (Inventory/combat are future dependencies)
 Enemy      -> WalkableArea, combat contracts
@@ -167,8 +192,12 @@ type-specific branches. This prevents circular dependencies.
 - `Damageable` provides one damage entry point for players, enemies, and bosses.
 - `WalkableArea` exposes collision queries and resolved movement without exposing
   obstacle storage or future map-loader details.
-- `GameSession.switchMap(mapId[, spawnId])` is the transition entry point for
-  future portal/quest callers. It preserves player identity, size, and speed.
+- `GameSession.switchMap(mapId[, spawnId])` remains the transition entry point.
+  It preserves player identity, size, and speed and increments its transition
+  stamp only on success, including same-map re-entry.
+- `TravelSystem.updatePortals()`, `fastTravel(destinationId)`,
+  `unlockDestination(destinationId)`, and `setPortalEnabled(portalId, enabled)`
+  expose travel behaviour without UI or graphics dependencies.
 
 No `PlayerClass`, Observer, Factory, or repository abstraction exists yet.
 `PlayerClass` should become a Strategy only after the first two classes and
