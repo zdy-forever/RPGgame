@@ -35,7 +35,7 @@ final class GameMapTest {
             "45,10,0,1,45,30", "45,80,0,-1,45,60"})
     void stopsAtEveryWallFace(double x, double y, int horizontal, int vertical,
             double expectedX, double expectedY) {
-        GameMap map = new GameMap(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
+        GameMap map = TestMaps.rectangle(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
         Player player = new Player(new CollisionBox(x, y, 10, 10), 100, map);
         player.updateMovement(horizontal, vertical, 10);
         assertEquals(expectedX, player.getX());
@@ -52,7 +52,7 @@ final class GameMapTest {
     /** Thin obstacles stop huge moves even if the endpoint is beyond the wall. */
     @Test
     void doesNotTunnelThroughThinWalls() {
-        GameMap map = new GameMap(1000, 1000, List.of(new CollisionBox(400, 0, 0.001, 1000)));
+        GameMap map = TestMaps.rectangle(1000, 1000, List.of(new CollisionBox(400, 0, 0.001, 1000)));
         CollisionBox start = new CollisionBox(20, 20, 10, 10);
         CollisionBox result = map.move(start, Double.MAX_VALUE, 0);
         assertEquals(390, result.x());
@@ -62,7 +62,7 @@ final class GameMapTest {
     /** Partial body overlap is blocked even when its origin lies outside the wall. */
     @Test
     void checksWholeBodyAndAllowsEdgeContact() {
-        GameMap map = new GameMap(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
+        GameMap map = TestMaps.rectangle(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
         assertFalse(map.isWalkable(new CollisionBox(35, 35, 10, 10)));
         assertTrue(map.isWalkable(new CollisionBox(30, 40, 10, 10)));
         CollisionBox alongEdge = map.move(new CollisionBox(10, 30, 10, 10), 70, 0);
@@ -78,7 +78,7 @@ final class GameMapTest {
         CollisionBox far = new CollisionBox(80, 0, 10, 100);
         CollisionBox start = new CollisionBox(10, 20, 10, 10);
         for (List<CollisionBox> walls : List.of(List.of(near, far), List.of(far, near))) {
-            GameMap map = new GameMap(100, 100, walls);
+            GameMap map = TestMaps.rectangle(100, 100, walls);
             assertEquals(30, map.move(start, 100, 0).x());
         }
     }
@@ -86,7 +86,7 @@ final class GameMapTest {
     /** Point queries reject invalid values and respect map and wall extents. */
     @Test
     void validatesPointQueries() {
-        GameMap map = new GameMap(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
+        GameMap map = TestMaps.rectangle(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
         assertTrue(map.isWalkable(0, 0));
         assertFalse(map.isWalkable(40, 40));
         assertTrue(map.isWalkable(60, 60));
@@ -100,11 +100,11 @@ final class GameMapTest {
     /** Invalid map data and movement requests fail explicitly. */
     @Test
     void rejectsInvalidMapAndMovement() {
-        assertThrows(IllegalArgumentException.class, () -> new GameMap(0, 100, List.of()));
+        assertThrows(IllegalArgumentException.class, () -> TestMaps.rectangle(0, 100, List.of()));
         assertThrows(IllegalArgumentException.class,
-                () -> new GameMap(100, 100, List.of(new CollisionBox(95, 0, 10, 10))));
-        assertThrows(NullPointerException.class, () -> new GameMap(100, 100, null));
-        GameMap map = new GameMap(100, 100, List.of());
+                () -> TestMaps.rectangle(100, 100, List.of(new CollisionBox(95, 0, 10, 10))));
+        assertThrows(NullPointerException.class, () -> TestMaps.rectangle(100, 100, null));
+        GameMap map = TestMaps.rectangle(100, 100, List.of());
         CollisionBox body = new CollisionBox(0, 0, 10, 10);
         assertThrows(IllegalArgumentException.class, () -> map.move(body, Double.NaN, 0));
         assertThrows(IllegalArgumentException.class, () -> map.move(body, 0, Double.POSITIVE_INFINITY));
@@ -118,7 +118,7 @@ final class GameMapTest {
     void protectsObstacleData() {
         List<CollisionBox> source = new ArrayList<>();
         source.add(new CollisionBox(40, 40, 20, 20));
-        GameMap map = new GameMap(100, 100, source);
+        GameMap map = TestMaps.rectangle(100, 100, source);
         source.clear();
         assertEquals(1, map.getObstacles().size());
         assertThrows(UnsupportedOperationException.class, () -> map.getObstacles().clear());
@@ -127,7 +127,7 @@ final class GameMapTest {
     /** Thousands of deterministic moves preserve full-body occupancy and dimensions. */
     @Test
     void repeatedMovesPreserveWalkability() {
-        GameMap map = new GameMap(100, 100, List.of(
+        GameMap map = TestMaps.rectangle(100, 100, List.of(
                 new CollisionBox(30.1, 20.2, 0.003, 50.7),
                 new CollisionBox(60.3, 70.4, 25.5, 0.001)));
         CollisionBox body = new CollisionBox(10.2, 10.3, 7.1, 6.2);
@@ -145,7 +145,7 @@ final class GameMapTest {
     /** Vertical collision uses the resolved horizontal position, preventing corner penetration. */
     @Test
     void diagonalMovementUsesResolvedPositionForSecondAxis() {
-        GameMap map = new GameMap(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
+        GameMap map = TestMaps.rectangle(100, 100, List.of(new CollisionBox(40, 40, 20, 20)));
         CollisionBox result = map.move(new CollisionBox(10, 10, 10, 10), 35, 35);
         assertEquals(45, result.x());
         assertEquals(30, result.y());

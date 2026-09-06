@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.TestMaps;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,7 +20,7 @@ final class PlayerTest {
     /** Tolerance for accumulated decimal time steps. */
     private static final double EPSILON = 1e-9;
     /** Empty test arena. */
-    private final GameMap map = new GameMap(1000, 1000, List.of());
+    private final GameMap map = TestMaps.rectangle(1000, 1000, List.of());
 
     /** Creates a movement test fixture. */
     PlayerTest() {
@@ -64,7 +65,7 @@ final class PlayerTest {
     /** Diagonal input slides vertically when a wall prevents its horizontal component. */
     @Test
     void diagonalMovementSlidesAlongWall() {
-        GameMap wallMap = new GameMap(100, 100, List.of(new CollisionBox(40, 0, 10, 100)));
+        GameMap wallMap = TestMaps.rectangle(100, 100, List.of(new CollisionBox(40, 0, 10, 100)));
         Player player = new Player(new CollisionBox(30, 20, 10, 10), 10, wallMap);
         player.updateMovement(1, 1, 1);
         assertEquals(30, player.getX());
@@ -162,7 +163,7 @@ final class PlayerTest {
     /** Blocked, outside, oversized, and null spawns are rejected. */
     @Test
     void validatesSpawn() {
-        GameMap blockedMap = new GameMap(100, 100, List.of(new CollisionBox(30, 30, 10, 10)));
+        GameMap blockedMap = TestMaps.rectangle(100, 100, List.of(new CollisionBox(30, 30, 10, 10)));
         assertThrows(IllegalArgumentException.class,
                 () -> new Player(new CollisionBox(25, 25, 20, 20), 100, blockedMap));
         assertThrows(IllegalArgumentException.class,
@@ -174,6 +175,21 @@ final class PlayerTest {
         assertThrows(NullPointerException.class, () -> new Player(null, 100, map));
         assertThrows(NullPointerException.class,
                 () -> new Player(new CollisionBox(0, 0, 20, 20), 100, null));
+    }
+
+    /** Invalid area entry leaves both position and the previous collision environment intact. */
+    @Test
+    void rejectsInvalidAreaEntryWithoutMutation() {
+        Player player = player();
+        CollisionBox before = player.getBounds();
+        GameMap destination = TestMaps.rectangle(100, 100, List.of());
+        assertThrows(NullPointerException.class, () -> player.enterArea(null, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> player.enterArea(destination, -1, 0));
+        assertThrows(IllegalArgumentException.class, () -> player.enterArea(destination, Double.NaN, 0));
+        assertThrows(IllegalArgumentException.class, () -> player.enterArea(destination, 90, 90));
+        assertEquals(before, player.getBounds());
+        player.updateMovement(1, 0, 10);
+        assertEquals(980, player.getX());
     }
 
     /**
