@@ -3,7 +3,7 @@ package au.edu.anu.comp2120.player;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import au.edu.anu.comp2120.world.CollisionBox;
-import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.TestMaps;
 import com.badlogic.gdx.Input;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
@@ -34,7 +34,7 @@ final class PlayerInputTest {
                 });
         PlayerInput input = new PlayerInput(keyboard);
         Player player = new Player(new CollisionBox(100, 100, 10, 10), 10,
-                new GameMap(500, 500, List.of()));
+                TestMaps.rectangle(500, 500, List.of()));
         int[] keys = {Input.Keys.W, Input.Keys.A, Input.Keys.S, Input.Keys.D};
         double[][] positions = {{100, 110}, {90, 110}, {90, 100}, {100, 100}};
         for (int i = 0; i < keys.length; i++) {

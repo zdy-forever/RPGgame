@@ -15,7 +15,7 @@ public final class Player {
     /** Movement speed in world units per second. */
     private final double speed;
     /** Collision environment used to validate spawning and resolve movement. */
-    private final WalkableArea area;
+    private WalkableArea area;
 
     /**
      * Creates a player entirely inside a walkable region.
@@ -56,6 +56,27 @@ public final class Player {
         if (length != 0 && distance != 0) {
             bounds = area.move(bounds, horizontal / length * distance, vertical / length * distance);
         }
+    }
+
+    /**
+     * Enters a collision environment at a new bottom-left position, preserving size and speed.
+     * Session coordination should use this method when changing maps. All validation occurs
+     * before either the position or collision environment changes.
+     *
+     * @param destination target collision environment
+     * @param x destination horizontal coordinate
+     * @param y destination vertical coordinate
+     * @throws NullPointerException if destination is null
+     * @throws IllegalArgumentException if the full body cannot occupy the destination
+     */
+    public void enterArea(WalkableArea destination, double x, double y) {
+        Objects.requireNonNull(destination, "destination");
+        CollisionBox nextBounds = new CollisionBox(x, y, bounds.width(), bounds.height());
+        if (!destination.isWalkable(nextBounds)) {
+            throw new IllegalArgumentException("Player does not fit at destination (" + x + ", " + y + ")");
+        }
+        area = destination;
+        bounds = nextBounds;
     }
 
     /**

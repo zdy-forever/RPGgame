@@ -12,14 +12,24 @@ Hub -> accept quest -> portal -> combat map -> combat -> rewards
 ```text
 core/src/main/java/au/edu/anu/comp2120/
 ├── MainGame.java
+├── GameSession.java
 ├── combat/Damageable.java
 ├── enemy/Enemy.java
 ├── inventory/Inventory.java
 ├── npc/NPC.java
-├── player/Player.java
-├── screen/GameScreen.java
+├── player/
+│   ├── Player.java
+│   └── PlayerInput.java
+├── screen/
+│   ├── GameConfig.java
+│   ├── GameScreen.java
+│   └── PlaceholderRenderer.java
 └── world/
+    ├── CollisionBox.java
     ├── GameMap.java
+    ├── MapCatalog.java
+    ├── MapType.java
+    ├── SpawnPoint.java
     └── WalkableArea.java
 
 lwjgl3/src/main/java/au/edu/anu/comp2120/lwjgl3/
@@ -39,15 +49,23 @@ are documented boundaries but do not have empty packages yet.
 - Does not implement movement, combat, AI, quests, dialogue, or inventory rules.
 - May call feature modules, but feature modules must not depend on `GameScreen`.
 - Public surface: LibGDX lifecycle methods on `MainGame` and `GameScreen`.
+- `GameSession` coordinates registered maps, the current map, and the same player
+  instance across transitions. The screen reads its state and invokes its public
+  transition methods. Model classes do not require a graphics context.
+- A transition validates the target ID, spawn ID, and full-body occupancy before
+  changing player state or current map. Failure preserves the previous state.
+- Placeholder map-selection keys and window titles belong to `GameScreen`;
+  geometric rendering and role colours belong to `PlaceholderRenderer`.
 
 ### Player
 
-- Owns player position/state, movement state, current class, and references to
-  inventory/equipment.
+- Currently owns position, collision dimensions, speed, and normalized
+  eight-direction movement. Classes and inventory/equipment remain future work.
 - Does not load maps, store dialogue, implement AI, or calculate shared damage.
-- Depends on `inventory` and the `world`/`combat` contracts.
-- Public surface is currently the constructor. Movement must use `WalkableArea`
-  instead of accessing map internals.
+- Currently depends on world contracts. Inventory/combat dependencies are future work.
+- Public surface: constructor, `updateMovement`, read-only position/geometry/speed,
+  and validated `enterArea`. `GameSession` calls `enterArea` for coordinated map
+  changes. Movement continues to use `WalkableArea` rather than map internals.
 
 ### Combat
 
@@ -66,11 +84,19 @@ are documented boundaries but do not have empty packages yet.
 
 ### World / Map
 
-- Owns map loading, collision, walkable regions, Hub/Combat Map identity, and
-  portals.
+- Owns immutable map identity/name/type, dimensions, static collision rectangles,
+  named spawn points, and default-spawn selection. File loading and portals remain
+  future work; this branch adds no encounter or teleport-trigger mechanics.
 - Does not implement attacks, dialogue, inventory, or quest rewards.
 - Does not depend on concrete Player, Enemy, NPC, or UI classes.
-- Public surface: `WalkableArea.isWalkable(float, float)`.
+- `WalkableArea` exposes point/full-body occupancy and swept X-then-Y movement.
+  The previous collision algorithm is reused unchanged.
+- `GameMap` validates metadata, obstacles, and spawn anchors on construction.
+  Spawn entry separately checks the entering body's complete dimensions.
+- `MapCatalog` supplies one Hub and two Battle Maps as Java data definitions.
+  Additional maps use the same class; there are no per-map subclasses.
+- World units have a bottom-left origin (x right, y up), independent of pixels.
+  Walkable space is the outer rectangle minus obstacles; edge contact is allowed.
 
 ### NPC / Dialogue
 
@@ -120,7 +146,9 @@ are documented boundaries but do not have empty packages yet.
 
 ```text
 GameScreen -> feature modules (coordination only)
-Player     -> Inventory, WalkableArea, combat contracts
+GameScreen -> GameSession, PlayerInput, PlaceholderRenderer
+GameSession -> GameMap/SpawnPoint, Player (transition coordination)
+Player     -> WalkableArea, CollisionBox (Inventory/combat are future dependencies)
 Enemy      -> WalkableArea, combat contracts
 NPC        -> read-only Player API, Quest boundary
 Quest      -> World/NPC/Combat events, Inventory reward API
@@ -137,8 +165,10 @@ type-specific branches. This prevents circular dependencies.
 ## 4. Necessary public interfaces
 
 - `Damageable` provides one damage entry point for players, enemies, and bosses.
-- `WalkableArea` exposes collision queries without exposing tile arrays or map
-  loader details.
+- `WalkableArea` exposes collision queries and resolved movement without exposing
+  obstacle storage or future map-loader details.
+- `GameSession.switchMap(mapId[, spawnId])` is the transition entry point for
+  future portal/quest callers. It preserves player identity, size, and speed.
 
 No `PlayerClass`, Observer, Factory, or repository abstraction exists yet.
 `PlayerClass` should become a Strategy only after the first two classes and
@@ -175,7 +205,7 @@ and Priority 2 is optional polish if time remains.
 | Priority | Feature | Suggested branch |
 | --- | --- | --- |
 | P0 | Player position, WASD movement, and collision checks | `feature/player-movement` |
-| P0 | Hub/combat maps, boundaries, and map switching | `feature/world-maps` |
+| P0 | Hub/combat maps, boundaries, and map switching | `feature/map-system` |
 | P0 | Portals and fast travel between maps | `feature/portal-fast-travel` |
 | P0 | Health, shared damage rules, and attack resolution | `feature/combat-system` |
 | P0 | Enemy state, movement/following, and basic AI | `feature/enemy-ai` |
@@ -242,8 +272,9 @@ commit message.
 ## Decisions still requiring the team
 
 - Confirm the names for Developers B and C.
-- Choose the map format, coordinate unit, and transition spawn-point format
-  before implementing `GameMap` and portals.
+- Current maps use Java rectangle data and named bottom-left spawn anchors in
+  world units. Agree on any future external file format and portal triggers when
+  those features are implemented.
 - Agree on quest objective/reward data and the Inventory reward API before
   creating the `quest` package.
 - Agree on attack target, cooldown, and input rules before defining the

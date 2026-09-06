@@ -1,8 +1,9 @@
 # COMP2120 Group Game
 
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
-demonstrates player movement and static rectangle collision using only geometric
-placeholders. It loads no images, fonts, animation, sound, or music assets.
+demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
+player movement, and static rectangle collision using geometric placeholders.
+It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
 
@@ -58,7 +59,21 @@ the macOS first-thread JVM option when required.
 Build output is written under each module's `build/` directory and is ignored by
 Git.
 
-## Movement demonstration
+## Map and movement demonstration
+
+The game starts in the Hub. Number keys are temporary debug map selections,
+not portal or quest mechanics. The window title shows the active name/ID and keys.
+
+| Key | Destination | Default size | Spawn |
+| --- | --- | --- | --- |
+| 1 | Hub (`hub`) | 960 x 540 | `entry` |
+| 2 | Training Ground (`battle-training`) | 800 x 600 | `entry` |
+| 3 | Crossroads (`battle-crossroads`) | 1200 x 720 | `entry` |
+| 4 | Hub (`hub`) | 960 x 540 | `north` |
+
+Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
+are obstacles, gold circles mark spawn anchors, and the green rectangle is the
+player. The entire map fits into the window, including maps of different sizes.
 
 - Hold W/A/S/D to move up/left/down/right. Releasing keys stops movement.
 - Movement supports eight directions. Opposite keys cancel on each axis. W+D
@@ -73,28 +88,58 @@ Git.
 - Coordinates use a bottom-left origin, positive x right, and positive y up.
   World coordinates are independent of screen pixels; resizing letterboxes the
   view without changing map bounds, position, collision size, or movement speed.
-- Tune speed, spawn/size, world dimensions, walls, and the frame-time limit in
-  `screen/MovementDemoConfig.java`. This is temporary demo configuration, not a
-  final map format. The player and map constructors also accept explicit values.
+- Tune player speed/size and the frame-time limit in `screen/GameConfig.java`.
+  Define map IDs, names, types, dimensions, walls, and spawns in
+  `world/MapCatalog.java`. These are ordinary Java data definitions; no external
+  JSON loader or new dependencies have been introduced.
 - Speed is measured in world units/second. The screen caps simulation time per
   frame at 0.1 seconds and discards the first update after startup/resume, so a
   stall does not cause a large jump. Model tests can exercise larger deltas.
 
 To check manually, launch the game, hold each movement key, walk into each side
 of a wall, reverse away from contact, try W+D and opposing keys, and resize the
-window. The player should remain inside the map without penetrating grey walls.
+window. Use 1/2/3 to switch maps, check that map dimensions and collisions change,
+then use 4 to check the Hub's second spawn. A switch consumes that frame's movement
+update, so holding WASD cannot immediately move the player off the selected spawn.
+The player should remain inside the active map without penetrating grey walls.
+
+## Map API and extension
+
+- `GameMap` is immutable data plus the existing collision implementation. Its
+  walkable space is the map rectangle minus static obstacles. IDs are unique
+  within a `GameSession`; names and `MapType` describe the map's role.
+- Every map requires named `SpawnPoint` anchors and an existing default spawn.
+  Coordinates specify the entering body's bottom-left corner. Map construction
+  checks the anchor; entry checks that the entire player fits at that point.
+- `GameSession` owns the current map and one persistent player. Use
+  `switchMap(mapId)` for default entry or `switchMap(mapId, spawnId)` for a named
+  spawn. Re-entering the same map also resets the player to the requested spawn.
+- Unknown IDs and blocked/oversized entries throw `IllegalArgumentException`;
+  null arguments throw `NullPointerException`. A failed transition preserves the
+  old map, player position, and collision environment. Size and speed are retained
+  across successful transitions. Coordinate session changes on the game-loop thread.
+- Add another `GameMap` definition to `MapCatalog.createMaps()` to register a new
+  level. No new subclass or movement/collision implementation is needed. A future
+  caller can select it by ID through `GameSession`; add a debug key separately if
+  it should be reachable through this temporary demo UI.
+- Colours and spawn markers belong exclusively to `PlaceholderRenderer`. Map
+  data has no artwork paths, texture objects, or other rendering dependencies.
 
 ## Current class responsibilities
 
 - `MainGame`: application lifecycle and active-screen selection.
+- `GameSession`: map registration, current map, player ownership, and safe transitions.
 - `GameScreen`: coordinates input, simulation, lifecycle, and the temporary view.
 - `Player`: validated position/size/speed and normalized eight-direction movement.
 - `PlayerInput`: translates held WASD keys into movement intent.
-- `MovementDemoConfig`: central demo geometry and movement tuning.
+- `GameConfig`: shared player dimensions, speed, and frame-time tuning.
 - `PlaceholderRenderer`: renders solid rectangles with `ShapeRenderer`.
 - `Enemy`: future hostile entity.
 - `NPC`: future non-player character.
-- `GameMap`: immutable rectangular map and swept static-obstacle collision.
+- `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
+- `MapCatalog`: built-in Hub and Battle Map definitions.
+- `MapType`: Hub/Battle metadata.
+- `SpawnPoint`: validated world-space placement anchor.
 - `CollisionBox`: immutable geometry with finite, positive extents.
 - `WalkableArea`: point/body occupancy and collision-resolved movement.
 - `Inventory`: future item storage and item operations.
@@ -103,8 +148,9 @@ window. The player should remain inside the map without penetrating grey walls.
 ## Scope
 
 This is intentionally a small foundation. Movement currently supports static,
-axis-aligned rectangles and a single demo map. It does not include dynamic entity
-collision, map loading, portals, combat, or final artwork. Collision uses X-then-Y
+axis-aligned rectangles and three built-in maps. It does not include dynamic entity
+collision, external map-file loading, portals, bosses, enemies, elemental map rules,
+saved map state, combat, or final artwork. Collision uses X-then-Y
 axis separation rather than a continuous diagonal sweep, so large diagonal steps
 can take a different route around corners than many smaller steps. Normal screen
 updates cap delta to keep this effect limited; each axis still cannot tunnel.

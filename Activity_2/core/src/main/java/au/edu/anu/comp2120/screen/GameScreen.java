@@ -1,22 +1,22 @@
 package au.edu.anu.comp2120.screen;
 
-import au.edu.anu.comp2120.player.Player;
+import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.player.PlayerInput;
 import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.MapCatalog;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
 
 /**
- * Coordinates input, movement, and placeholder rendering for the first playable screen.
+ * Coordinates the map session, existing movement input, and geometry-only map presentation.
  *
  * @author Daoyan Zhu (u7782042)
  */
 public final class GameScreen extends ScreenAdapter {
 
-    /** Static collision world for the movement demonstration. */
-    private final GameMap map;
-    /** Player model; gameplay state does not depend on this screen. */
-    private final Player player;
+    /** Current-map and player coordination, independent of this screen's lifecycle. */
+    private final GameSession session;
     /** Adapter for the application's keyboard input. */
     private final PlayerInput input;
     /** Geometry-only view owned by this screen. */
@@ -30,12 +30,12 @@ public final class GameScreen extends ScreenAdapter {
      * Creates the demo models and drawing resources after graphics initialization.
      */
     public GameScreen() {
-        map = new GameMap(MovementDemoConfig.WORLD_WIDTH, MovementDemoConfig.WORLD_HEIGHT,
-                MovementDemoConfig.WALLS);
-        player = new Player(MovementDemoConfig.PLAYER_SPAWN, MovementDemoConfig.PLAYER_SPEED, map);
+        session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
+                GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
         input = new PlayerInput(Gdx.input);
-        renderer = new PlaceholderRenderer(MovementDemoConfig.WORLD_WIDTH, MovementDemoConfig.WORLD_HEIGHT);
-        renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        GameMap map = session.getCurrentMap();
+        renderer = new PlaceholderRenderer((float) map.getBounds().width(), (float) map.getBounds().height());
+        updateMapView();
     }
 
     /**
@@ -46,10 +46,42 @@ public final class GameScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
-            input.update(player, Math.min(delta, MovementDemoConfig.MAX_FRAME_DELTA));
+            if (handleMapInput()) {
+                updateMapView();
+            } else {
+                input.update(session.getPlayer(), Math.min(delta, GameConfig.MAX_FRAME_DELTA));
+            }
         }
         skipNextUpdate = false;
-        renderer.render(map, player);
+        renderer.render(session.getCurrentMap(), session.getPlayer());
+    }
+
+    /**
+     * Handles temporary map-selection shortcuts; a switch consumes the movement update.
+     *
+     * @return true if a map/spawn selection was applied this frame
+     */
+    private boolean handleMapInput() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
+            session.switchMap(MapCatalog.HUB);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
+            session.switchMap(MapCatalog.TRAINING);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
+            session.switchMap(MapCatalog.CROSSROADS);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
+            session.switchMap(MapCatalog.HUB, "north");
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    /** Updates viewport dimensions and the native window title after a map change. */
+    private void updateMapView() {
+        GameMap map = session.getCurrentMap();
+        renderer.showMap(map, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        Gdx.graphics.setTitle("COMP2120 | " + map.getName() + " [" + map.getId()
+                + "] | WASD move | 1 Hub | 2 Training | 3 Crossroads | 4 Hub north");
     }
 
     /**

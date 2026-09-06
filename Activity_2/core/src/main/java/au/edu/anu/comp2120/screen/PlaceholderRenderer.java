@@ -3,6 +3,8 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.MapType;
+import au.edu.anu.comp2120.world.SpawnPoint;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -15,9 +17,13 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlaceholderRenderer implements Disposable {
+    /** Radius of temporary spawn markers in world units. */
+    private static final float SPAWN_MARKER_RADIUS = 5;
+    /** Number of segments in a temporary circular marker. */
+    private static final int SPAWN_MARKER_SEGMENTS = 12;
     /** GPU resource used exclusively for simple geometry. */
     private final ShapeRenderer shapes = new ShapeRenderer();
-    /** Fixed-size world view; resizing adds letterboxing instead of changing map geometry. */
+    /** View fitted to the current map; window resizing never changes collision geometry. */
     private final FitViewport viewport;
 
     /**
@@ -31,7 +37,7 @@ public final class PlaceholderRenderer implements Disposable {
     }
 
     /**
-     * Draws the floor, obstacles, and player using only immutable geometry.
+     * Draws map-role colours, obstacles, debug spawn markers, and the player using geometry.
      *
      * @param map collision world to display
      * @param player player to display
@@ -41,15 +47,36 @@ public final class PlaceholderRenderer implements Disposable {
         viewport.apply();
         shapes.setProjectionMatrix(viewport.getCamera().combined);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0.08f, 0.10f, 0.16f, 1);
+        if (map.getType() == MapType.HUB) {
+            shapes.setColor(0.08f, 0.18f, 0.22f, 1);
+        } else {
+            shapes.setColor(0.24f, 0.11f, 0.10f, 1);
+        }
         draw(map.getBounds());
         shapes.setColor(0.55f, 0.58f, 0.65f, 1);
         for (CollisionBox obstacle : map.getObstacles()) {
             draw(obstacle);
         }
+        shapes.setColor(0.95f, 0.75f, 0.20f, 1);
+        for (SpawnPoint spawn : map.getSpawnPoints().values()) {
+            shapes.circle((float) spawn.x(), (float) spawn.y(),
+                    SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
+        }
         shapes.setColor(0.20f, 0.85f, 0.60f, 1);
         draw(player.getBounds());
         shapes.end();
+    }
+
+    /**
+     * Fits the view to a newly selected map without creating new GPU resources.
+     *
+     * @param map map whose dimensions define the visible world
+     * @param width current window width
+     * @param height current window height
+     */
+    public void showMap(GameMap map, int width, int height) {
+        viewport.setWorldSize((float) map.getBounds().width(), (float) map.getBounds().height());
+        resize(width, height);
     }
 
     /**

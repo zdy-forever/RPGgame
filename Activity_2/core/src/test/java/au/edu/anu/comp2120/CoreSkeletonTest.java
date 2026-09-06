@@ -8,6 +8,7 @@ import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.TestMaps;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +31,7 @@ final class CoreSkeletonTest {
     @Test
     void constructsCorePlaceholdersWithoutGraphics() {
         assertDoesNotThrow(() -> {
-            GameMap map = new GameMap(100, 100, List.of());
+            GameMap map = TestMaps.rectangle(100, 100, List.of());
             new Player(new CollisionBox(10, 10, 10, 10), 20, map);
             new Enemy();
             new NPC();
