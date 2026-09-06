@@ -5,6 +5,8 @@ import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapType;
 import au.edu.anu.comp2120.world.SpawnPoint;
+import au.edu.anu.comp2120.world.Portal;
+import java.util.List;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -37,12 +39,13 @@ public final class PlaceholderRenderer implements Disposable {
     }
 
     /**
-     * Draws map-role colours, obstacles, debug spawn markers, and the player using geometry.
+     * Draws map geometry, spawn markers, portal placeholders, and the player.
      *
      * @param map collision world to display
      * @param player player to display
+     * @param portals immutable portal snapshots; only current-map entries are drawn
      */
-    public void render(GameMap map, Player player) {
+    public void render(GameMap map, Player player, List<Portal> portals) {
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         viewport.apply();
         shapes.setProjectionMatrix(viewport.getCamera().combined);
@@ -56,6 +59,16 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.setColor(0.55f, 0.58f, 0.65f, 1);
         for (CollisionBox obstacle : map.getObstacles()) {
             draw(obstacle);
+        }
+        for (Portal portal : portals) {
+            if (portal.sourceMapId().equals(map.getId())) {
+                if (portal.enabled()) {
+                    shapes.setColor(0.65f, 0.25f, 0.85f, 1);
+                } else {
+                    shapes.setColor(0.28f, 0.22f, 0.32f, 1);
+                }
+                draw(portal.trigger());
+            }
         }
         shapes.setColor(0.95f, 0.75f, 0.20f, 1);
         for (SpawnPoint spawn : map.getSpawnPoints().values()) {

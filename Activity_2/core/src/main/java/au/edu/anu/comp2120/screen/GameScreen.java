@@ -1,9 +1,11 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.GameSession;
+import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.player.PlayerInput;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapCatalog;
+import au.edu.anu.comp2120.world.TravelCatalog;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
@@ -17,6 +19,10 @@ public final class GameScreen extends ScreenAdapter {
 
     /** Current-map and player coordination, independent of this screen's lifecycle. */
     private final GameSession session;
+    /** Portal trigger/unlock state; delegates every map transition to the existing session. */
+    private final TravelSystem travel;
+    /** Brief travel feedback shown in the native window title without a font asset. */
+    private String travelStatus = "Walk into purple portals; U unlocks fast travel (debug)";
     /** Adapter for the application's keyboard input. */
     private final PlayerInput input;
     /** Geometry-only view owned by this screen. */
@@ -32,6 +38,7 @@ public final class GameScreen extends ScreenAdapter {
     public GameScreen() {
         session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
+        travel = new TravelSystem(session, TravelCatalog.createPortals(), TravelCatalog.createDestinations());
         input = new PlayerInput(Gdx.input);
         GameMap map = session.getCurrentMap();
         renderer = new PlaceholderRenderer((float) map.getBounds().width(), (float) map.getBounds().height());
@@ -46,33 +53,52 @@ public final class GameScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
-            if (handleMapInput()) {
+            try {
+                if (handleTravelInput()) {
+                    updateMapView();
+                } else {
+                    input.update(session.getPlayer(), Math.min(delta, GameConfig.MAX_FRAME_DELTA));
+                    if (travel.updatePortals()) {
+                        travelStatus = "Arrived by portal; leave the portal area before re-entry";
+                        updateMapView();
+                    }
+                }
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                travelStatus = failure.getMessage();
                 updateMapView();
-            } else {
-                input.update(session.getPlayer(), Math.min(delta, GameConfig.MAX_FRAME_DELTA));
             }
         }
         skipNextUpdate = false;
-        renderer.render(session.getCurrentMap(), session.getPlayer());
+        renderer.render(session.getCurrentMap(), session.getPlayer(),
+                travel.getPortals(session.getCurrentMap().getId()));
     }
 
     /**
-     * Handles temporary map-selection shortcuts; a switch consumes the movement update.
+     * Handles fast-travel shortcuts and an explicit temporary debug unlock key.
      *
-     * @return true if a map/spawn selection was applied this frame
+     * @return true if a travel command consumed this frame's movement update
+     * @throws IllegalArgumentException if a configured destination or spawn is invalid
+     * @throws IllegalStateException if a selected destination is locked
      */
-    private boolean handleMapInput() {
+    private boolean handleTravelInput() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.U)) {
+            travel.unlockDestination(TravelCatalog.TRAINING_ENTRY);
+            travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);
+            travelStatus = "Fast travel unlocked for this session (debug)";
+            return true;
+        }
+        String destination;
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            session.switchMap(MapCatalog.HUB);
+            destination = TravelCatalog.HUB_ENTRY;
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            session.switchMap(MapCatalog.TRAINING);
+            destination = TravelCatalog.TRAINING_ENTRY;
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-            session.switchMap(MapCatalog.CROSSROADS);
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
-            session.switchMap(MapCatalog.HUB, "north");
+            destination = TravelCatalog.CROSSROADS_ENTRY;
         } else {
             return false;
         }
+        travel.fastTravel(destination);
+        travelStatus = "Fast travel: " + travel.getDestination(destination).name();
         return true;
     }
 
@@ -81,7 +107,7 @@ public final class GameScreen extends ScreenAdapter {
         GameMap map = session.getCurrentMap();
         renderer.showMap(map, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.graphics.setTitle("COMP2120 | " + map.getName() + " [" + map.getId()
-                + "] | WASD move | 1 Hub | 2 Training | 3 Crossroads | 4 Hub north");
+                + "] | 1 Hub | 2 Training | 3 Crossroads | " + travelStatus);
     }
 
     /**

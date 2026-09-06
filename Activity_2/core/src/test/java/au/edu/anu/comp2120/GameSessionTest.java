@@ -170,6 +170,20 @@ final class GameSessionTest {
         assertEquals(MapCatalog.CROSSROADS, session.getCurrentMap().getId());
     }
 
+    /** The transition stamp changes on same-map success but never on a rejected transition. */
+    @Test
+    void transitionVersionTracksOnlySuccessfulEntry() {
+        GameSession session = demo();
+        assertEquals(0, session.getTransitionVersion());
+        session.switchMap(MapCatalog.HUB);
+        assertEquals(1, session.getTransitionVersion());
+        session.switchMap(MapCatalog.HUB);
+        assertEquals(2, session.getTransitionVersion());
+        assertThrows(IllegalArgumentException.class, () -> session.switchMap("missing"));
+        assertThrows(IllegalArgumentException.class, () -> session.switchMap(MapCatalog.HUB, "missing"));
+        assertEquals(2, session.getTransitionVersion());
+    }
+
     /**
      * Creates the same world session used by the screen without any LibGDX initialization.
      *
