@@ -24,22 +24,29 @@ public final class PlaceholderRenderer implements Disposable {
     /** Number of segments in a temporary circular marker. */
     private static final int SPAWN_MARKER_SEGMENTS = 12;
     /** GPU resource used exclusively for simple geometry. */
-    private final ShapeRenderer shapes = new ShapeRenderer();
-    /** View fitted to the current map; window resizing never changes collision geometry. */
+    private final ShapeRenderer shapes;
+    /** Fixed-size world view; window resizing adds letterboxing instead of changing its extent. */
     private final FitViewport viewport;
 
     /**
      * Creates drawing resources after LibGDX has initialized its graphics context.
      *
-     * @param worldWidth visible world width
-     * @param worldHeight visible world height
+     * @param worldWidth positive finite visible world width, independent of map dimensions
+     * @param worldHeight positive finite visible world height, independent of map dimensions
+     * @throws IllegalArgumentException if view dimensions are not positive and finite
      */
     public PlaceholderRenderer(float worldWidth, float worldHeight) {
+        if (!Float.isFinite(worldWidth) || !Float.isFinite(worldHeight)
+                || worldWidth <= 0 || worldHeight <= 0) {
+            throw new IllegalArgumentException("Camera view dimensions must be positive and finite");
+        }
         viewport = new FitViewport(worldWidth, worldHeight);
+        shapes = new ShapeRenderer();
     }
 
     /**
-     * Draws map geometry, spawn markers, portal placeholders, and the player.
+     * Follows the player's centre with map clamping, then draws the placeholder scene.
+     * Position is recalculated from current data every frame, including the first frame after travel.
      *
      * @param map collision world to display
      * @param player player to display
@@ -47,6 +54,10 @@ public final class PlaceholderRenderer implements Disposable {
      */
     public void render(GameMap map, Player player, List<Portal> portals) {
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
+        CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
+                viewport.getWorldWidth(), viewport.getWorldHeight());
+        viewport.getCamera().position.set((float) (view.x() + view.width() / 2),
+                (float) (view.y() + view.height() / 2), 0);
         viewport.apply();
         shapes.setProjectionMatrix(viewport.getCamera().combined);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -81,26 +92,15 @@ public final class PlaceholderRenderer implements Disposable {
     }
 
     /**
-     * Fits the view to a newly selected map without creating new GPU resources.
-     *
-     * @param map map whose dimensions define the visible world
-     * @param width current window width
-     * @param height current window height
-     */
-    public void showMap(GameMap map, int width, int height) {
-        viewport.setWorldSize((float) map.getBounds().width(), (float) map.getBounds().height());
-        resize(width, height);
-    }
-
-    /**
-     * Preserves the world aspect ratio and centres the camera on resize.
+     * Resizes the screen viewport without recentering the camera or changing its world extent.
+     * Zero/negative window dimensions (for example during minimization) preserve the last view.
      *
      * @param width window width in screen units
      * @param height window height in screen units
      */
     public void resize(int width, int height) {
         if (width > 0 && height > 0) {
-            viewport.update(width, height, true);
+            viewport.update(width, height, false);
         }
     }
 

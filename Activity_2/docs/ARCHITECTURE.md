@@ -22,6 +22,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── Player.java
 │   └── PlayerInput.java
 ├── screen/
+│   ├── CameraFollow.java
 │   ├── GameConfig.java
 │   ├── GameScreen.java
 │   └── PlaceholderRenderer.java
@@ -60,6 +61,28 @@ are documented boundaries but do not have empty packages yet.
   changing player state or current map. Failure preserves the previous state.
 - Fast-travel/debug-unlock keys and window-title feedback belong to `GameScreen`;
   geometric rendering and role colours belong to `PlaceholderRenderer`.
+- `CameraFollow` calculates a visible rectangle using only subject/map bounds and
+  viewport world dimensions. `PlaceholderRenderer` applies its centre before
+  drawing; the player, map, and travel modules have no camera dependencies.
+
+### Camera / Scrolling
+
+- The current camera follows the player rectangle centre directly, independently
+  on both axes. This provides continuous horizontal and vertical scrolling for
+  the current open rectangular maps; room snapping and cinematic effects are absent.
+- `GameConfig` defines a fixed 640 x 360 world-unit view, independent of map size.
+  Maps are no longer scaled to fit the whole map into the window on transition.
+- On a large map axis, clamp the view inside the map. On an equal/smaller axis,
+  centre the map with equal solid-background margins instead of using an inverted
+  clamp interval. Map/player geometry is never modified for camera purposes.
+- The existing `FitViewport` maintains world extent and aspect ratio on window
+  resize. Its resize call does not recenter the camera; minimized/zero-size
+  windows leave the previous valid screen viewport in place.
+- Follow is stateless: every draw uses current map/player bounds, so portal and
+  fast-travel arrivals snap to their valid view without stale bounds or lag.
+- Pure mathematical tests cover targets, all map edges/corners, small/equal/mixed
+  axes, alternate viewport dimensions, and actual map/spawn transitions. Graphics
+  lifecycle and visual resize checks remain desktop verification concerns.
 
 ### Player
 
@@ -171,6 +194,8 @@ are documented boundaries but do not have empty packages yet.
 ```text
 GameScreen -> feature modules (coordination only)
 GameScreen -> GameSession, TravelSystem, PlayerInput, PlaceholderRenderer
+PlaceholderRenderer -> CameraFollow, read-only player/map/portal geometry
+CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data
 GameSession -> GameMap/SpawnPoint, Player (transition coordination)
 Player     -> WalkableArea, CollisionBox (Inventory/combat are future dependencies)
@@ -198,6 +223,8 @@ type-specific branches. This prevents circular dependencies.
 - `TravelSystem.updatePortals()`, `fastTravel(destinationId)`,
   `unlockDestination(destinationId)`, and `setPortalEnabled(portalId, enabled)`
   expose travel behaviour without UI or graphics dependencies.
+- `CameraFollow.viewFor(subjectBounds, mapBounds, viewWidth, viewHeight)` returns
+  the visible world rectangle without reading input or mutating gameplay state.
 
 No `PlayerClass`, Observer, Factory, or repository abstraction exists yet.
 `PlayerClass` should become a Strategy only after the first two classes and
