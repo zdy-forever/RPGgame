@@ -40,8 +40,7 @@ public final class GameScreen extends ScreenAdapter {
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
         travel = new TravelSystem(session, TravelCatalog.createPortals(), TravelCatalog.createDestinations());
         input = new PlayerInput(Gdx.input);
-        GameMap map = session.getCurrentMap();
-        renderer = new PlaceholderRenderer((float) map.getBounds().width(), (float) map.getBounds().height());
+        renderer = new PlaceholderRenderer(GameConfig.CAMERA_VIEW_WIDTH, GameConfig.CAMERA_VIEW_HEIGHT);
         updateMapView();
     }
 
@@ -102,10 +101,10 @@ public final class GameScreen extends ScreenAdapter {
         return true;
     }
 
-    /** Updates viewport dimensions and the native window title after a map change. */
+    /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
         GameMap map = session.getCurrentMap();
-        renderer.showMap(map, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.graphics.setTitle("COMP2120 | " + map.getName() + " [" + map.getId()
                 + "] | 1 Hub | 2 Training | 3 Crossroads | " + travelStatus);
     }

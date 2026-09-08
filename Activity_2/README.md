@@ -3,7 +3,7 @@
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
 demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
-travel using geometric placeholders.
+travel, and a map-bounded follow camera using geometric placeholders.
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
@@ -81,7 +81,8 @@ independent. Closing/restarting the game restores the initial state.
 Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
 are obstacles, gold circles mark spawn anchors, and the green rectangle is the
 player. Bright purple rectangles are enabled portals; dark purple rectangles are
-disabled examples. The entire map fits into the window, including differently sized maps.
+disabled examples. A fixed-size camera view scrolls over maps larger than the
+view, instead of fitting the entire map into the window.
 
 | Portal | Source trigger (x, y, width, height) | Destination |
 | --- | --- | --- |
@@ -104,7 +105,8 @@ disabled examples. The entire map fits into the window, including differently si
 - Coordinates use a bottom-left origin, positive x right, and positive y up.
   World coordinates are independent of screen pixels; resizing letterboxes the
   view without changing map bounds, position, collision size, or movement speed.
-- Tune player speed/size and the frame-time limit in `screen/GameConfig.java`.
+- Tune player speed/size, camera world-view dimensions, and the frame-time limit
+  in `screen/GameConfig.java`.
   Define map IDs, names, types, dimensions, walls, and spawns in
   `world/MapCatalog.java`. These are ordinary Java data definitions; no external
   JSON loader or new dependencies have been introduced.
@@ -121,6 +123,48 @@ portal must not send you back. Walk fully outside it (for example right past
 x=144), then re-enter to return to Hub. Try U then 1/2/3 to exercise fast travel.
 The disabled dark-purple portal must have no effect. A successful travel command
 consumes the frame, leaving the player exactly at the selected spawn.
+
+## Camera behaviour and verification
+
+- `CameraFollow.viewFor(subjectBounds, mapBounds, viewWidth, viewHeight)` computes
+  the visible world rectangle using only immutable geometry. `PlaceholderRenderer`
+  applies its centre to the LibGDX camera before drawing. Player and world rules
+  have no camera dependency.
+- The default view is 640 x 360 world units (`GameConfig.CAMERA_VIEW_WIDTH` and
+  `CAMERA_VIEW_HEIGHT`). It follows the player's rectangle centre directly on both
+  axes, providing continuous horizontal/vertical scrolling. There is no room
+  snapping, interpolation, camera shake, zoom animation, or cutscene state.
+- For a map axis larger than the view, the view origin is clamped between the
+  map's minimum coordinate and its maximum coordinate minus the visible extent.
+  The camera stops at the edge while the player continues toward the map boundary.
+- For a map axis smaller than or equal to the view, that axis stays centred on the
+  map, independent of player movement. The remaining area is solid background with
+  equal margins. A negative visible-rectangle origin in this case is deliberate;
+  it does not create negative gameplay boundaries or move the player's coordinates.
+- The `FitViewport` preserves the fixed world extent and aspect ratio on resize,
+  adding letterboxing/pillarboxing as needed. Resize does not recenter the camera;
+  zero-sized/minimized windows retain the last valid viewport. Different window
+  sizes do not reveal extra map area or change follow/clamp calculations.
+- After portal/fast travel, the next draw uses the new map and player's spawn
+  directly. No previous-map camera position or clamp interval is retained.
+
+To check manually:
+
+1. Launch with `./gradlew lwjgl3:run`, press U then 3 to enter Crossroads.
+2. Walk right from its entry along the unobstructed lower part of the map. The
+   view begins scrolling once the player reaches its centre, then stops at the
+   right boundary. Reverse direction and verify the left boundary similarly.
+3. Re-enter Crossroads with 3 and walk up near the left side to check vertical
+   scrolling and the top boundary; reverse toward the bottom. Avoid re-entering
+   the return portal if you want to stay on the same map during the check.
+4. Resize the window wide, tall, and small while stationary and while moving.
+   Shapes must retain their proportions and the same world region must remain
+   visible. Minimize/restore and check that the camera still follows normally.
+5. Use 1/2/3 or the portals and check that the new spawn is visible immediately.
+6. Small-map centring is covered by JUnit. For an optional visual check, temporarily
+   set the configured view to 1280 x 720 and relaunch: Hub should remain centred
+   with equal background margins even while the player moves. Restore 640 x 360
+   afterward. Existing demo maps were not changed merely to test this case.
 
 ## Map API and extension
 
@@ -180,8 +224,9 @@ consumes the frame, leaving the player exactly at the selected spawn.
 - `GameScreen`: coordinates input, simulation, lifecycle, and the temporary view.
 - `Player`: validated position/size/speed and normalized eight-direction movement.
 - `PlayerInput`: translates held WASD keys into movement intent.
-- `GameConfig`: shared player dimensions, speed, and frame-time tuning.
-- `PlaceholderRenderer`: renders solid rectangles with `ShapeRenderer`.
+- `GameConfig`: shared player dimensions, speed, camera view size, and frame-time tuning.
+- `CameraFollow`: stateless subject-centre, map-clamp, and small-map view mathematics.
+- `PlaceholderRenderer`: applies the follow camera and renders shapes through a fixed `FitViewport`.
 - `Enemy`: future hostile entity.
 - `NPC`: future non-player character.
 - `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
