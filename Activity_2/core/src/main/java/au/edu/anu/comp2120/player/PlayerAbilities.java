@@ -1,0 +1,237 @@
+package au.edu.anu.comp2120.player;
+
+import au.edu.anu.comp2120.combat.Attack;
+import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.combat.CombatSystem;
+import au.edu.anu.comp2120.combat.Combatant;
+import au.edu.anu.comp2120.combat.Faction;
+import au.edu.anu.comp2120.world.CollisionBox;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * Common ability execution, slot cooldowns and collision-safe dash, independent of input/rendering.
+ * The owner calls update once, then advances the shared CombatSystem once for all actors.
+ * Slot cooldowns replace the pipeline's per-source delay for these attacks: submissions use zero
+ * source delay, preserving one canonical player receiver and all existing hit/death rules.
+ * Use one controller per player, called only on the game-loop thread.
+ * @author Daoyan Zhu (u7782042)
+ */
+public final class PlayerAbilities {
+    /** Existing player; owns position, collision environment and health. */
+    private final Player player;
+    /** Shared arena pipeline; this controller never directly damages a target. */
+    private final CombatSystem combat;
+    /** Immutable replacement point for shared ability tuning. */
+    private final AbilityLoadout loadout;
+    /** Remaining per-slot seconds, measured from successful triggering. */
+    private final double[] cooldowns = new double[AbilitySlot.values().length];
+    /** Last invocation per attack slot for observational active-state queries. */
+    private final EnumMap<AbilitySlot, Attack> attacks = new EnumMap<>(AbilitySlot.class);
+    /** Current canonical player adapter, replaced by the existing map coordinator. */
+    private Combatant source;
+    /** Horizontal inset from the player's movement body to its independent hurtbox. */
+    private double insetX;
+    /** Vertical inset from the player's movement body to its independent hurtbox. */
+    private double insetY;
+    /** Preserved hurtbox width, independent of placeholder rendering. */
+    private double hurtWidth;
+    /** Preserved hurtbox height, independent of placeholder rendering. */
+    private double hurtHeight;
+    /** Last horizontal intent; facing right is the initial default. */
+    private int facingX = 1;
+    /** Last vertical intent. */
+    private int facingY;
+    /** Normalized horizontal direction captured when a dash starts. */
+    private double dashX;
+    /** Normalized vertical direction captured when a dash starts. */
+    private double dashY;
+    /** Remaining dash movement time; a wall may shorten distance but not refund cooldown. */
+    private double dashRemaining;
+
+    /**
+     * Attaches abilities to an existing canonical player and an injectable placeholder loadout.
+     * @param player existing player model
+     * @param source registered player combat adapter
+     * @param combat shared combat pipeline
+     * @param loadout validated common ability tuning
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter
+     */
+    public PlayerAbilities(Player player, Combatant source, CombatSystem combat, AbilityLoadout loadout) {
+        this.player = Objects.requireNonNull(player, "player");
+        this.combat = Objects.requireNonNull(combat, "combat");
+        this.loadout = Objects.requireNonNull(loadout, "loadout");
+        bindAfterTransition(source);
+    }
+
+    /**
+     * Consumes one command: dash has priority, otherwise the first ready O/K/J attack wins.
+     * An active dash ignores attacks and steering; other attack slots may overlap across frames.
+     * Requests are not buffered. Timers age after requests, matching combat-core's start-step sample.
+     * Normal movement uses only the frame time left after a dash; there is no double movement.
+     * Dead/unregistered owners cannot move or trigger abilities; cooldown time still passes.
+     * @param delta finite non-negative simulation seconds with representable ordinary movement
+     * @param command immutable frame intent
+     * @return accepted slot (the triggered event), or empty if no request succeeded
+     * @throws NullPointerException if command is null
+     * @throws IllegalArgumentException if delta is invalid or attack geometry is unrepresentable
+     */
+    public Optional<AbilitySlot> update(double delta, PlayerCommand command) {
+        Objects.requireNonNull(command, "command");
+        if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(player.getSpeed() * delta)) {
+            throw new IllegalArgumentException("Ability delta must give finite non-negative movement");
+        }
+        Optional<AbilitySlot> triggered = Optional.empty();
+        if (available()) {
+            boolean wasDashing = dashRemaining > 0;
+            if (!wasDashing && (command.horizontal() != 0 || command.vertical() != 0)) {
+                facingX = command.horizontal();
+                facingY = command.vertical();
+            }
+            if (!wasDashing && command.dash() && getState(AbilitySlot.DASH) == AbilityState.READY) {
+                double length = Math.hypot(facingX, facingY);
+                dashX = facingX / length;
+                dashY = facingY / length;
+                dashRemaining = loadout.dash().duration();
+                cooldowns[AbilitySlot.DASH.ordinal()] = loadout.dash().cooldown();
+                triggered = Optional.of(AbilitySlot.DASH);
+            }
+            boolean dashFrame = dashRemaining > 0;
+            double dashTime = Math.min(delta, dashRemaining);
+            if (dashTime > 0) {
+                double distance = loadout.dash().speed() * dashTime;
+                player.moveBy(dashX * distance, dashY * distance);
+                dashRemaining = Math.max(0, dashRemaining - dashTime);
+            }
+            player.updateMovement(command.horizontal(), command.vertical(), delta - dashTime);
+            syncHurtbox();
+            if (!dashFrame) {
+                if (command.ultimate() && triggerAttack(AbilitySlot.ULTIMATE, loadout.ultimate())) {
+                    triggered = Optional.of(AbilitySlot.ULTIMATE);
+                } else if (command.special() && triggerAttack(AbilitySlot.SPECIAL, loadout.special())) {
+                    triggered = Optional.of(AbilitySlot.SPECIAL);
+                } else if (command.light() && triggerAttack(AbilitySlot.LIGHT, loadout.light())) {
+                    triggered = Optional.of(AbilitySlot.LIGHT);
+                }
+            }
+        } else {
+            dashRemaining = 0;
+        }
+        for (int i = 0; i < cooldowns.length; i++) {
+            cooldowns[i] = Math.max(0, cooldowns[i] - delta);
+        }
+        return triggered;
+    }
+
+    /**
+     * Reports a slot's current lifecycle, giving death/unregistration precedence over active time.
+     * @param slot ability slot
+     * @return current lifecycle state; triggered is returned by update instead
+     * @throws NullPointerException if slot is null
+     */
+    public AbilityState getState(AbilitySlot slot) {
+        Objects.requireNonNull(slot, "slot");
+        if (!available()) {
+            return AbilityState.UNAVAILABLE;
+        }
+        Attack attack = attacks.get(slot);
+        if ((slot == AbilitySlot.DASH && dashRemaining > 0) || (attack != null && attack.isActive())) {
+            return AbilityState.ACTIVE;
+        }
+        return getCooldownRemaining(slot) > 0 ? AbilityState.COOLDOWN : AbilityState.READY;
+    }
+
+    /**
+     * Returns time until this slot's cooldown expires; active duration is reported separately.
+     * @param slot ability slot
+     * @return remaining simulation seconds
+     * @throws NullPointerException if slot is null
+     */
+    public double getCooldownRemaining(AbilitySlot slot) {
+        return cooldowns[Objects.requireNonNull(slot, "slot").ordinal()];
+    }
+
+    /**
+     * Rebinds after the owner clears the old combat scope and registers the new player adapter.
+     * Cancels dash/active observations, preserves cooldowns to prevent travel bypass, resets facing.
+     * The map coordinator must cancel old pipeline attacks before calling this method.
+     * @param next new canonical adapter with the new spawn's independent hurtbox
+     * @throws NullPointerException if next is null
+     * @throws IllegalArgumentException if next is not this player's registered PLAYER adapter
+     */
+    public void bindAfterTransition(Combatant next) {
+        Objects.requireNonNull(next, "source");
+        if (next.getEntity() != player || next.getFaction() != Faction.PLAYER
+                || !combat.getCombatants().contains(next)) {
+            throw new IllegalArgumentException("Abilities require the canonical registered player adapter");
+        }
+        source = next;
+        insetX = next.getHurtbox().x() - player.getX();
+        insetY = next.getHurtbox().y() - player.getY();
+        hurtWidth = next.getHurtbox().width();
+        hurtHeight = next.getHurtbox().height();
+        attacks.clear();
+        dashRemaining = 0;
+        facingX = 1;
+        facingY = 0;
+    }
+
+    /**
+     * Explicit debug/respawn reset: cancels this source's attacks and all ability timers.
+     * Does not restore HP, reposition the player, or reset other actors' cooldowns.
+     * @throws IllegalArgumentException if the source is no longer registered
+     */
+    public void reset() {
+        combat.getCooldownRemaining(source);
+        combat.unregister(source);
+        combat.register(source);
+        Arrays.fill(cooldowns, 0);
+        attacks.clear();
+        dashRemaining = 0;
+        facingX = 1;
+        facingY = 0;
+    }
+
+    /**
+     * Submits one area invocation through the shared pipeline, then starts only its slot cooldown.
+     * @param slot attack slot
+     * @param area area attack tuning
+     * @return true if combat accepted a new invocation
+     * @throws IllegalArgumentException if the computed rectangle is unrepresentable
+     */
+    private boolean triggerAttack(AbilitySlot slot, AbilityLoadout.AreaAttack area) {
+        if (getState(slot) != AbilityState.READY) {
+            return false;
+        }
+        CollisionBox body = source.getHurtbox();
+        double range = area.range();
+        CollisionBox hitbox = new CollisionBox(body.x() - range, body.y() - range,
+                body.width() + 2 * range, body.height() + 2 * range);
+        AttackSpec spec = area.attack();
+        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(), 0);
+        Optional<Attack> accepted = combat.tryAttack(source, invocation, hitbox);
+        if (accepted.isEmpty()) {
+            return false;
+        }
+        attacks.put(slot, accepted.get());
+        cooldowns[slot.ordinal()] = spec.cooldownSeconds();
+        return true;
+    }
+
+    /**
+     * Checks life and scope identity without constructing an alias receiver.
+     * @return true if this source may act in the current arena
+     */
+    private boolean available() {
+        return player.isAlive() && combat.getCombatants().contains(source);
+    }
+
+    /** Updates independent hurtbox geometry after normal or dash movement. */
+    private void syncHurtbox() {
+        source.setHurtbox(new CollisionBox(player.getX() + insetX, player.getY() + insetY,
+                hurtWidth, hurtHeight));
+    }
+}

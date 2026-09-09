@@ -21,6 +21,33 @@ final class PlayerInputTest {
     PlayerInputTest() {
     }
 
+    /** Actual J/K/L/O mappings use newly pressed keys rather than held-key repetition. */
+    @Test
+    void mapsAllAbilityKeysAndSamplesSimultaneousIntent() {
+        Set<Integer> held = new HashSet<>();
+        Set<Integer> pressed = new HashSet<>();
+        Input keyboard = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),
+                new Class<?>[] {Input.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "isKeyPressed" -> held.contains((Integer) args[0]);
+                    case "isKeyJustPressed" -> pressed.contains((Integer) args[0]);
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        PlayerInput input = new PlayerInput(keyboard);
+        int[] keys = {Input.Keys.J, Input.Keys.K, Input.Keys.L, Input.Keys.O};
+        for (int i = 0; i < keys.length; i++) {
+            pressed.clear();
+            pressed.add(keys[i]);
+            assertEquals(new PlayerCommand(0, 0, i == 0, i == 1, i == 2, i == 3), input.sample());
+        }
+        held.addAll(Set.of(Input.Keys.W, Input.Keys.D, Input.Keys.J, Input.Keys.K, Input.Keys.L, Input.Keys.O));
+        pressed.clear();
+        assertEquals(new PlayerCommand(1, 1, false, false, false, false), input.sample());
+        pressed.addAll(Set.of(Input.Keys.J, Input.Keys.K, Input.Keys.L, Input.Keys.O));
+        assertEquals(new PlayerCommand(1, 1, true, true, true, true), input.sample());
+        held.addAll(Set.of(Input.Keys.A, Input.Keys.S));
+        assertEquals(new PlayerCommand(0, 0, true, true, true, true), input.sample());
+    }
+
     /** Pressing, releasing, opposing, and diagonal keys obey normalized movement rules. */
     @Test
     void mapsHeldKeysAndCancelsOpposites() {

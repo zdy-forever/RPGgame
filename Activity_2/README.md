@@ -240,9 +240,10 @@ To check manually:
   validated healing/restoration. Existing constructors remain valid and use
   each entity's `DEFAULT_MAX_HP` (currently 100). Custom capacities use
   `new Player(bounds, speed, area, maxHp)` or `new Enemy(maxHp)`.
-- Movement and map/portal/fast-travel transitions preserve HP. This branch does
-  not decide whether dead players may move/travel: future gameplay coordination
-  should apply that policy using `isAlive()`. The combat pipeline rejects attacks
+- Movement and map/portal/fast-travel transitions preserve HP. The health model
+  does not decide whether dead players may move/travel. The common ability controller
+  now blocks dead-player movement and abilities; debug fast travel remains allowed.
+  The combat pipeline rejects attacks
   from dead sources; health itself owns no input, AI, effects, or respawn workflow.
 - Use the model on the game-loop thread. It does not depend on LibGDX or load assets.
 
@@ -329,7 +330,9 @@ AttackSpec + registered source + world hitbox
   All future damage formulas should extend the shared calculation boundary.
 - Cooldown is per registered source across attack types, measured from creation.
   A zero cooldown intentionally allows distinct invocations; it does not remove the
-  once-per-target rule. `clear()` cancels old attacks and removes registrations/cooldowns
+  once-per-target rule. PlayerAbilities owns independent slot cooldowns and submits
+  attacks with zero source-level delay; EnemyAI still uses the source-level delay.
+  `clear()` cancels old attacks and removes registrations/cooldowns
   without healing actors. `CombatDemo` uses the existing session transition stamp for
   every map change, including same-map re-entry, portals, and fast travel.
 - The owner updates hurtboxes after movement, then submits attacks, then calls `update`
@@ -340,7 +343,10 @@ Temporary controls (not final character skills):
 
 | Key | Debug action |
 | --- | --- |
-| J | One player strike; holding the key does not auto-repeat |
+| J | Light attack: 25 damage, 96-unit extension, 0.25 s active, 0.5 s cooldown |
+| K | Special attack: 40 damage, 120-unit extension, 0.3 s active, 2 s cooldown |
+| L | Dash: 600 units/s for 0.2 s (120 units unobstructed), 1 s cooldown |
+| O | Ultimate: 75 damage, 180-unit extension, 0.5 s active, 8 s cooldown |
 | R | Restore player/enemy HP, reset AI awareness, and clear attacks/cooldowns; no repositioning |
 
 1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. Two red enemies
@@ -367,16 +373,72 @@ Temporary controls (not final character skills):
 
 All tuning is in `GameConfig`; neither combat models nor detection import rendering
 or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
-the native title rather than loading fonts. `CombatDemo` only handles temporary input
-requests, placement, player hurtbox synchronization, and reset/transition policy.
-It updates every EnemyAI, then advances the shared CombatSystem exactly once.
+the native title rather than loading fonts. `CombatDemo` delegates common movement/ability
+execution to `PlayerAbilities`, coordinates placement and reset/transition policy,
+updates every EnemyAI, then advances the shared CombatSystem exactly once.
 
 Combat limitations: fixed axis-aligned hitboxes, discrete overlap samples, no wall
 occlusion/line-of-sight or projectile motion, and no armour, knockback, attack wind-up,
-invulnerability, combos, classes, elements, bosses, or final skill inputs. This debug
-strike may hit through nearby walls. Dead-player movement/travel is still allowed;
-only attacking is disabled. Enemy HP is not persisted across transitions. Pause freezes
+invulnerability, combos, classes, elements, bosses, or final class skills. These debug
+area attacks may hit through nearby walls. Dead-player movement/abilities are blocked
+by the common controller; debug fast travel remains allowed. Enemy HP is not persisted across transitions. Pause freezes
 combat, and the existing frame-time cap discards excess stall time.
+
+### Common player abilities
+
+- `PlayerInput.sample()` converts held WASD and newly pressed J/K/L/O into one
+  immutable `PlayerCommand`. Holding an ability key does not repeat it; failed
+  requests are not queued. No keyboard adapter chooses damage or a player class.
+- `AbilityLoadout` supplies validated attack/dash tuning; the placeholder defaults
+  live together in `GameConfig.PLAYER_ABILITIES`. Different common loadouts can be
+  injected without changing key mapping, collision, health or hit resolution.
+- `PlayerAbilities.update(delta, command)` returns the accepted slot as the
+  **triggered event**. `getState(slot)` reports READY, ACTIVE, COOLDOWN, or
+  UNAVAILABLE (dead/unregistered). Each slot owns its cooldown, measured from a
+  successful trigger. Attack active time comes from the actual combat invocation.
+  Requests are checked before that frame's elapsed time is deducted, consistently
+  with combat-core; becoming ready at the end of a step requires a fresh request.
+- A ready L request wins over attacks. An active dash ignores new attack requests
+  and steering. Otherwise the first ready requested attack wins in O, K, J order.
+  Only one new ability starts per frame, but distinct attack slots may overlap
+  across frames. No input can bypass its slot's cooldown, including zero-time spam.
+- Dash captures normalized WASD direction, or the last movement intent when idle
+  (initially right). It calls the existing player's swept collision resolver, so
+  thin walls and map boundaries stop it; diagonal sliding follows normal movement.
+  The burst uses only its remaining duration, then ordinary movement uses leftover
+  frame time. Blocked distance is not refunded. There is no dash damage or immunity.
+- The controller updates the independent player hurtbox after movement and submits
+  area attacks to the existing `CombatSystem`. It never applies damage itself.
+  Core combat handles hostile filtering, once-per-invocation hits, HP and death.
+- Fast travel consumes input before simulation. Portals are checked at the player's
+  final position after movement/combat. Arrival immediately clears old-map attacks
+  and cancels dash. The same controller retains slot cooldowns across all successful
+  transitions, including re-entry, so travel cannot recharge abilities. This is
+  not a save system; restarting the application still starts a fresh session.
+- Pause freezes timing; R explicitly clears arena attacks, dash and cooldowns and
+  restores HP. Restoring Health alone does not reset ability cooldowns.
+
+Manual checks: run `./gradlew lwjgl3:run`, press U then 2, and try J/K/O near enemies.
+The native title shows each key's lifecycle and HP; yellow rectangles show actual
+attack hitboxes. Hold keys and then tap rapidly to verify no automatic repeat or
+cooldown bypass. Try WASD+L against a wall and near each map edge, then L without
+WASD to check remembered facing. Press all four keys to check dash priority. Dash
+or attack, travel with 1/2/3, and confirm active effects stop without resetting slot
+cooldowns. Use R to recover after death.
+
+Ability limitations: these are all-direction rectangular placeholder attacks, not
+weapon skills. No targeting cursor, projectiles, energy economy, combo buffer,
+animation, invulnerability, enemy-body collision or art assets are implemented.
+Portal checks use final body overlap, not a swept dash/portal trigger; a thin trigger
+may be crossed without arrival. World obstacles still use swept collision and cannot
+be tunnelled through. A future class can reuse the command slots/timing and submit
+its own geometry to combat-core; specialised projectile/weapon execution is not built here.
+
+Run ability-specific checks with:
+
+```bash
+./gradlew core:test --tests '*PlayerAbilitiesTest' --tests '*AbilityLoadoutTest' --tests '*PlayerInputTest' --tests '*CombatDemoTest'
+```
 
 Run combat-specific checks with:
 
@@ -473,7 +535,11 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `Attack`: one invocation's identifier, hitbox, active lifetime, and hit ledger.
 - `CombatSystem`: registration, cooldowns, hit detection, damage calculation, and delivery.
 - `CombatDemo`: battle enemy collection, player requests, AI/combat update order, and map/reset cleanup.
-- `PlayerInput`: translates held WASD keys into movement intent.
+- `PlayerInput`: translates held WASD and edge-triggered J/K/L/O into a `PlayerCommand`.
+- `PlayerCommand`: immutable movement and common ability intent, without keyboard dependencies.
+- `PlayerAbilities`: common attack execution, independent cooldowns, dash, and lifecycle queries.
+- `AbilityLoadout`: validated immutable common area-attack and dash tuning.
+- `AbilitySlot` / `AbilityState`: stable slot identifiers and observational lifecycle values.
 - `GameConfig`: shared player, camera, combat-debug, and frame-time tuning.
 - `CameraFollow`: stateless subject-centre, map-clamp, and small-map view mathematics.
 - `PlaceholderRenderer`: applies the follow camera and renders shapes through a fixed `FitViewport`.
