@@ -25,11 +25,16 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── Projectile.java
 │   └── ProjectileSpec.java
 ├── enemy/
+│   ├── Boss.java
+│   ├── BossConfig.java
+│   ├── BossState.java
 │   ├── Enemy.java
 │   ├── EnemyAI.java
 │   ├── EnemyConfig.java
 │   └── EnemyState.java
-├── inventory/Inventory.java
+├── inventory/
+│   ├── Inventory.java
+│   └── MaterialDrop.java
 ├── npc/NPC.java
 ├── player/
 │   ├── AbilityLoadout.java
@@ -332,6 +337,45 @@ are documented boundaries but do not have empty packages yet.
 - KatanaAbilitiesTest exercises eight-direction J/K hits, exact range boundaries,
   captured facing, active-window late entry, repeated-hit prevention, cooldown recovery,
   special/ultimate tuning, lethal/invalid targets, death and dash wall/map collision.
+
+### Boss encounters and material drops
+
+- Boss is a small encounter coordinator in `enemy`, composed of an existing Enemy
+  health owner and EnemyAI navigation controller. The canonical Combatant wraps that
+  Enemy; Boss does not introduce a second Damageable/Health identity. Collision body
+  and hurtbox come from EnemyAI and are independent of final visual dimensions.
+- EnemyAI's three-argument update optionally disables basic attack submission while
+  preserving detection/loss hysteresis, A*, collision and attack readiness. Its original
+  update delegates with submission enabled, preserving ordinary enemy behavior.
+- BossConfig holds max HP, EnemyConfig navigation, threshold, transition duration,
+  immutable ordered per-phase Pattern lists and material metadata. Patterns compose
+  existing AttackSpec/AttackShape, with cooldown >= active duration and reach >= stopping
+  distance. Boss advances the cycle only after CombatSystem accepts a cast.
+- Phase 1 changes to phase 2 at the inclusive HP threshold, never reverses on healing,
+  and pauses new movement/attacks once. CombatSystem.cancelAttacks cancels this source's
+  fixed/projectile invocations without resetting registrations or cooldowns. It is also
+  reused by unregister; other sources and damage ledgers remain unchanged.
+- Boss.update runs before the arena's single combat update; synchronizeOutcome runs
+  afterwards to process settled HP. Outcome handling is never called inside a damage
+  receiver callback. Death wins over phase change and latches the encounter as defeated.
+- MaterialDrop is immutable data in `inventory`: unique reward ID, material type,
+  quantity, map ID and collision rectangle. Boss creates it once on defeat at its last
+  valid location. getDrop/claimDrop provide a minimal read/one-time-transfer boundary;
+  Inventory remains untouched because it has no storage API yet. Future adapters must
+  check pickup distance and capacity before claiming, on the simulation thread.
+- CombatDemo owns a single optional sentinel on Crossroads, alongside existing enemies.
+  Safe placement candidates and provisional pattern tuning are in GameConfig. Map changes
+  clear registrations/attacks; reset replaces the Boss rather than reviving the rewarded
+  instance. Unclaimed drops are not persisted and old-scope Bosses cannot expose/claim
+  rewards after detachment. Multiple Boss instances can share the same combat system.
+- PlaceholderRenderer draws the existing large enemy hurtbox and gold MaterialDrop
+  rectangles. The native title displays phase/HP/state/material text, with no asset load.
+  There is no Boss UI, cutscene, animation, pickup UI or inventory rewrite.
+- Limitations: two static rectangular pattern cycles, conservative navigation corridors,
+  no actor-body collision, no post-cast wall clipping, no save/defeat persistence. An
+  attack requires an initially clear target corridor but secondary area targets may be
+  hit through walls. A defeated encounter stays stopped even if its Health is restored;
+  a deliberate new encounter/reset is needed to fight and reward it again.
 
 ### Enemy
 

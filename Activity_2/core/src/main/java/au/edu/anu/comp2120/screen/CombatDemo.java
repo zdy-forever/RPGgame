@@ -7,6 +7,8 @@ import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
 import au.edu.anu.comp2120.enemy.EnemyAI;
+import au.edu.anu.comp2120.enemy.Boss;
+import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.player.PlayerAbilities;
 import au.edu.anu.comp2120.player.PlayerCommand;
 import au.edu.anu.comp2120.player.AbilitySlot;
@@ -14,12 +16,14 @@ import au.edu.anu.comp2120.player.PlayerClass;
 import au.edu.anu.comp2120.player.PlayerClasses;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapType;
+import au.edu.anu.comp2120.world.MapCatalog;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Graphics-free arena adapter coordinating player requests and multiple basic enemy controllers.
+ * Graphics-free arena adapter coordinating player requests, basic enemies and an optional Boss encounter.
  * Owns temporary placement/reset policy, not AI decisions, hit detection, or damage rules.
  * Screen input supplies commands; common abilities own execution while rendering reads geometry.
  *
@@ -36,6 +40,8 @@ public final class CombatDemo {
     private Combatant player;
     /** Independent enemy controllers in this arena; Hub contains none. */
     private final List<EnemyAI> enemies = new ArrayList<>();
+    /** Optional current-scope encounter; only Crossroads receives the placeholder sentinel. */
+    private Boss boss;
     /** Last synchronized transition stamp, including re-entry to the same map. */
     private long transitionVersion = Long.MIN_VALUE;
 
@@ -65,7 +71,7 @@ public final class CombatDemo {
     /**
      * Coordinates common player movement/abilities, enemy decisions and one shared combat step.
      * Transitions discard commands and cancel active abilities, preserving slot cooldowns.
-     * Reset consumes commands and explicitly restores health and all arena/ability cooldowns.
+     * Reset consumes commands, restores health/cooldowns and recreates the Boss encounter without old loot.
      * @param delta finite non-negative seconds with representable player/enemy movement
      * @param command movement and ability requests sampled once by the input adapter
      * @param reset whether the explicit debug reset was requested
@@ -90,6 +96,7 @@ public final class CombatDemo {
     public void update(double delta, PlayerCommand command, boolean reset, PlayerClass classSelection) {
         Objects.requireNonNull(command, "command");
         if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(GameConfig.BASIC_ENEMY.speed() * delta)
+                || !Double.isFinite(GameConfig.SENTINEL.navigation().speed() * delta)
                 || !Double.isFinite(session.getPlayer().getSpeed() * delta)) {
             throw new IllegalArgumentException("Demo delta must be finite and non-negative");
         }
@@ -107,6 +114,7 @@ public final class CombatDemo {
                 ai.resetAwareness();
                 combat.register(ai.getCombatant());
             }
+            createBoss();
             return;
         }
         if (classSelection != null) {
@@ -116,7 +124,13 @@ public final class CombatDemo {
         for (EnemyAI ai : enemies) {
             ai.update(player, delta);
         }
+        if (boss != null) {
+            boss.update(player, delta);
+        }
         combat.update(delta);
+        if (boss != null) {
+            boss.synchronizeOutcome();
+        }
     }
 
     /**
@@ -144,6 +158,22 @@ public final class CombatDemo {
     }
 
     /**
+     * Exposes the optional encounter for diagnostics and future pickup integration.
+     * @return current Boss, empty in maps without a valid encounter placement
+     */
+    public Optional<Boss> getBoss() {
+        return Optional.ofNullable(boss);
+    }
+
+    /**
+     * Returns unclaimed current-map reward data for the geometry-only view.
+     * @return immutable list containing zero or one Boss material drop
+     */
+    public List<MaterialDrop> getDrops() {
+        return boss == null ? List.of() : boss.getDrop().stream().toList();
+    }
+
+    /**
      * Exposes current common ability lifecycle for diagnostics, independent of rendering.
      * @return persistent player ability controller
      */
@@ -153,7 +183,7 @@ public final class CombatDemo {
 
     /**
      * Formats HP feedback for the native window title, requiring no font asset.
-     * @return player HP, per-enemy HP/state, and temporary key hints
+     * @return player/enemy HP, Boss phase/state/reward feedback and temporary key hints
      */
     public String getStatus() {
         StringBuilder status = new StringBuilder("HP ")
@@ -162,6 +192,13 @@ public final class CombatDemo {
             EnemyAI ai = enemies.get(i);
             status.append(" | E").append(i + 1).append(' ')
                     .append(ai.getEnemy().getHealth().getCurrentHp()).append(' ').append(ai.getState());
+        }
+        if (boss != null) {
+            status.append(" | ").append(boss.getName()).append(' ').append(boss.getHealth().getCurrentHp())
+                    .append('/').append(boss.getHealth().getMaxHp()).append(" P").append(boss.getPhase())
+                    .append(' ').append(boss.getState());
+            boss.getDrop().ifPresent(drop -> status.append(" Drop ").append(drop.materialId())
+                    .append(" x").append(drop.quantity()));
         }
         return status.append(" | ").append(session.getPlayer().getPlayerClass().getDisplayName())
                 .append(" [F1 Archer/F2 Mage/F3 Katana] | J ").append(abilities.getState(AbilitySlot.LIGHT))
@@ -194,8 +231,28 @@ public final class CombatDemo {
                         GameConfig.BASIC_ENEMY, combat));
             }
         }
+        createBoss();
         transitionVersion = session.getTransitionVersion();
         return true;
+    }
+
+    /**
+     * Creates a fresh debug encounter after scope clear/reset, without changing map definitions.
+     * Skips blocked or actor-overlapping placements; no invalid Boss is forced into a map.
+     * Unclaimed loot belongs to the previous encounter and is discarded on reset/travel.
+     */
+    private void createBoss() {
+        boss = null;
+        if (!session.getCurrentMap().getId().equals(MapCatalog.CROSSROADS)) {
+            return;
+        }
+        for (CollisionBox placement : GameConfig.BOSS_PLACEMENTS) {
+            if (session.getCurrentMap().isWalkable(placement) && !placement.overlaps(session.getPlayer().getBounds())
+                    && enemies.stream().noneMatch(ai -> placement.overlaps(ai.getBounds()))) {
+                boss = new Boss("sentinel", "Sentinel", placement, session.getCurrentMap(), GameConfig.SENTINEL, combat);
+                return;
+            }
+        }
     }
 
     /**
