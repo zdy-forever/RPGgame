@@ -8,7 +8,7 @@ import java.util.Objects;
  *
  * @param type non-blank attack label, not an entity class or elemental damage rule
  * @param damage non-negative raw integer damage per target
- * @param activeSeconds positive finite active duration in simulation seconds
+ * @param activeSeconds positive finite area active duration or projectile launch window in seconds
  * @param cooldownSeconds finite non-negative attacker cooldown from attack creation
  * @author Daoyan Zhu (u7782042)
  */
@@ -17,7 +17,7 @@ public record AttackSpec(String type, int damage, double activeSeconds, double c
      * Validates immutable tuning before an attack can consume cooldown or mutate health.
      * @param type non-blank attack label
      * @param damage non-negative damage
-     * @param activeSeconds positive finite active duration
+     * @param activeSeconds positive finite area duration or projectile launch window
      * @param cooldownSeconds finite non-negative cooldown
      * @throws NullPointerException if type is null
      * @throws IllegalArgumentException if the label, damage, or timing is invalid

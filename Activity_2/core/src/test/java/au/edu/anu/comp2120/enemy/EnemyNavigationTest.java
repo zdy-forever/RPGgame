@@ -199,5 +199,11 @@ final class EnemyNavigationTest {
         public CollisionBox move(CollisionBox bounds, double deltaX, double deltaY) {
             return map.move(bounds, deltaX, deltaY);
         }
+
+        /** {@inheritDoc} */
+        @Override
+        public double firstBlock(CollisionBox bounds, double deltaX, double deltaY) {
+            return map.firstBlock(bounds, deltaX, deltaY);
+        }
     }
 }

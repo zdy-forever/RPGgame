@@ -6,7 +6,7 @@ package au.edu.anu.comp2120.player;
  * @author Daoyan Zhu (u7782042)
  */
 public enum PlayerClass {
-    /** Bow-oriented class; projectiles are future work. */
+    /** Bow-oriented class using shared straight-projectile prototypes. */
     ARCHER("archer", "Archer"),
     /** Magic-oriented class; spells and elements are future work. */
     MAGE("mage", "Mage"),

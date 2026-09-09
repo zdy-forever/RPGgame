@@ -91,6 +91,18 @@ final class PlayerClassTest {
             Attack attack = f.combat().getActiveAttacks().get(0);
             assertSame(f.source(), attack.getSource());
             assertEquals(tuning.attack().type(), attack.getSpecification().type());
+            if (tuning.projectile() != null) {
+                assertNotNull(attack.getProjectile());
+                assertEquals(tuning.projectile().lifetime(), attack.getRemainingSeconds());
+                assertEquals(tuning.projectile().count(), f.combat().getActiveAttacks().size());
+                assertEquals(tuning.projectile().size(), attack.getHitbox().width());
+                assertEquals(tuning.attack().cooldownSeconds(), f.abilities().getCooldownRemaining(slot));
+                assertEquals(1000, front.getHealth().getCurrentHp());
+                f.tick(0.2, command(slot));
+                assertTrue(front.getHealth().getCurrentHp() < 1000);
+                assertEquals(1000, behind.getHealth().getCurrentHp());
+                continue;
+            }
             assertEquals(tuning.attack().activeSeconds(), attack.getRemainingSeconds());
             assertEquals(tuning.attack().cooldownSeconds(), f.abilities().getCooldownRemaining(slot));
             assertEquals(tuning.shape().create(f.source().getHurtbox(), tuning.range(), 1, 0), attack.getHitbox());

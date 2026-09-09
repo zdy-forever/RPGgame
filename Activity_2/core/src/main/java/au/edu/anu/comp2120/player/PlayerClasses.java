@@ -1,11 +1,13 @@
 package au.edu.anu.comp2120.player;
 
 import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.combat.ProjectileSpec;
 import java.util.Map;
 import java.util.Objects;
 
 /**
- * Central built-in placeholder class definitions, without Player subclasses or asset lookups.
+ * Central built-in class definitions, including Archer projectile prototypes and other placeholders.
+ * No Player subclasses or asset lookups are needed.
  * Values demonstrate class differences; they are not final skill designs or balance decisions.
  * @author Daoyan Zhu (u7782042)
  */
@@ -15,10 +17,13 @@ public final class PlayerClasses {
     /** Complete immutable catalog; all mutable ability state stays in each player's controller. */
     private static final Map<PlayerClass, ClassDefinition> DEFINITIONS = Map.of(
             PlayerClass.ARCHER, new ClassDefinition(PlayerClass.ARCHER, new AbilityLoadout(
-                    attack("archer-light", 20, 0.15, 0.45, 160, AttackShape.FORWARD),
-                    attack("archer-special", 35, 0.25, 2.5, 220, AttackShape.FORWARD),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("archer-light", 20, 0.15, 0.45),
+                            480, AttackShape.FORWARD, new ProjectileSpec(600, 6, 1.2, 1, 0)),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("archer-special", 45, 0.25, 2.5),
+                            640, AttackShape.FORWARD, new ProjectileSpec(800, 8, 1.2, 1, 0)),
                     new AbilityLoadout.Dash(650, 0.2, 1.2),
-                    attack("archer-ultimate", 65, 0.4, 8, 260, AttackShape.FORWARD))),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("archer-ultimate", 30, 0.4, 8),
+                            500, AttackShape.FORWARD, new ProjectileSpec(550, 6, 1.2, 5, 40)))),
             PlayerClass.MAGE, new ClassDefinition(PlayerClass.MAGE, new AbilityLoadout(
                     attack("light", 25, 0.25, 0.5, 96, AttackShape.AREA),
                     attack("special", 40, 0.3, 2, 120, AttackShape.AREA),

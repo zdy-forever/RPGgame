@@ -222,4 +222,12 @@ public final class Player implements Damageable {
     public double getSpeed() {
         return speed;
     }
+
+    /**
+     * Supplies the current collision contract to launches without exposing map switching authority.
+     * @return current collision environment, captured by each projectile at launch
+     */
+    public WalkableArea getCollisionArea() {
+        return area;
+    }
 }

@@ -211,6 +211,28 @@ public final class GameMap implements WalkableArea {
         return new CollisionBox(x, y, body.width(), body.height());
     }
 
+    /** {@inheritDoc} */
+    @Override
+    public double firstBlock(CollisionBox body, double deltaX, double deltaY) {
+        if (!isWalkable(body) || !Double.isFinite(deltaX) || !Double.isFinite(deltaY)) {
+            throw new IllegalArgumentException("Sweep requires a walkable body and finite displacement");
+        }
+        double first = Double.POSITIVE_INFINITY;
+        if (deltaX != 0) {
+            first = Math.min(first, (deltaX > 0 ? bounds.right() - body.right() : bounds.x() - body.x()) / deltaX);
+        }
+        if (deltaY != 0) {
+            first = Math.min(first, (deltaY > 0 ? bounds.top() - body.top() : bounds.y() - body.y()) / deltaY);
+        }
+        if (first > 1) {
+            first = Double.POSITIVE_INFINITY;
+        }
+        for (CollisionBox wall : obstacles) {
+            first = Math.min(first, CollisionSweep.entry(body, deltaX, deltaY, wall));
+        }
+        return first;
+    }
+
     /**
      * Checks full containment in the outer map boundary.
      *

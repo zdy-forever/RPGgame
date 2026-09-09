@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.List;
 
 /**
  * Common ability execution, slot cooldowns and collision-safe dash, independent of input/rendering.
@@ -26,7 +27,9 @@ public final class PlayerAbilities {
     private final CombatSystem combat;
     /** Remaining per-slot seconds, measured from successful triggering. */
     private final double[] cooldowns = new double[AbilitySlot.values().length];
-    /** Last invocation per attack slot for observational active-state queries. */
+    /** Short projectile launch windows, separate from longer flight lifetimes and slot cooldowns. */
+    private final double[] launchWindows = new double[AbilitySlot.values().length];
+    /** Last area invocation or leading volley member; flight lifecycle is owned by CombatSystem. */
     private final EnumMap<AbilitySlot, Attack> attacks = new EnumMap<>(AbilitySlot.class);
     /** Current canonical player adapter, replaced by the existing map coordinator. */
     private Combatant source;
@@ -82,6 +85,7 @@ public final class PlayerAbilities {
     /**
      * Selects a definition without replacing Player, Health, combat registration or cooldown clocks.
      * Same-definition, dead/stale-source, active-attack and active-dash requests are rejected.
+     * Projectile launch windows and any still-flying arrow also prevent class switching.
      * Remaining cooldown seconds, facing, position, movement speed and HP are preserved exactly.
      * This is a debug/code selection foundation, not a class-unlock or selection-UI workflow.
      * @param definition validated next class definition
@@ -91,6 +95,7 @@ public final class PlayerAbilities {
     public boolean selectClass(ClassDefinition definition) {
         Objects.requireNonNull(definition, "class definition");
         if (definition.equals(player.getClassDefinition()) || !available() || dashRemaining > 0
+                || Arrays.stream(launchWindows).anyMatch(remaining -> remaining > 0)
                 || combat.getActiveAttacks().stream().anyMatch(attack -> attack.getSource() == source)) {
             return false;
         }
@@ -104,6 +109,7 @@ public final class PlayerAbilities {
      * Requests are not buffered. Timers age after requests, matching combat-core's start-step sample.
      * Normal movement uses only the frame time left after a dash; there is no double movement.
      * Dead/unregistered owners cannot move or trigger abilities; cooldown time still passes.
+     * Projectile readiness uses the short launch window and cooldown, not the whole flight lifetime.
      * @param delta finite non-negative simulation seconds with representable ordinary movement
      * @param command immutable frame intent
      * @return accepted slot (the triggered event), or empty if no request succeeded
@@ -154,6 +160,7 @@ public final class PlayerAbilities {
         }
         for (int i = 0; i < cooldowns.length; i++) {
             cooldowns[i] = Math.max(0, cooldowns[i] - delta);
+            launchWindows[i] = Math.max(0, launchWindows[i] - delta);
         }
         return triggered;
     }
@@ -170,7 +177,8 @@ public final class PlayerAbilities {
             return AbilityState.UNAVAILABLE;
         }
         Attack attack = attacks.get(slot);
-        if ((slot == AbilitySlot.DASH && dashRemaining > 0) || (attack != null && attack.isActive())) {
+        if ((slot == AbilitySlot.DASH && dashRemaining > 0) || launchWindows[slot.ordinal()] > 0
+                || (attack != null && attack.getProjectile() == null && attack.isActive())) {
             return AbilityState.ACTIVE;
         }
         return getCooldownRemaining(slot) > 0 ? AbilityState.COOLDOWN : AbilityState.READY;
@@ -206,6 +214,7 @@ public final class PlayerAbilities {
         hurtWidth = next.getHurtbox().width();
         hurtHeight = next.getHurtbox().height();
         attacks.clear();
+        Arrays.fill(launchWindows, 0);
         dashRemaining = 0;
         facingX = 1;
         facingY = 0;
@@ -221,6 +230,7 @@ public final class PlayerAbilities {
         combat.unregister(source);
         combat.register(source);
         Arrays.fill(cooldowns, 0);
+        Arrays.fill(launchWindows, 0);
         attacks.clear();
         dashRemaining = 0;
         facingX = 1;
@@ -228,26 +238,36 @@ public final class PlayerAbilities {
     }
 
     /**
-     * Delegates hitbox construction, submits to the shared pipeline, then starts only the slot cooldown.
+     * Submits shape or projectile delivery to the shared pipeline, then starts the slot cooldown.
      * @param slot attack slot
-     * @param area area attack tuning
+     * @param area common attack tuning and optional flight mode
      * @return true if combat accepted a new invocation
-     * @throws IllegalArgumentException if the computed rectangle is unrepresentable
+     * @throws IllegalArgumentException if the computed geometry or projectile spawn is invalid
      * @throws NullPointerException if a custom shape incorrectly returns null
      */
     private boolean triggerAttack(AbilitySlot slot, AbilityLoadout.AreaAttack area) {
         if (getState(slot) != AbilityState.READY) {
             return false;
         }
-        CollisionBox hitbox = Objects.requireNonNull(area.shape().create(source.getHurtbox(), area.range(),
-                facingX, facingY), "attack shape result");
         AttackSpec spec = area.attack();
         AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(), 0);
-        Optional<Attack> accepted = combat.tryAttack(source, invocation, hitbox);
+        Optional<Attack> accepted;
+        if (area.projectile() != null) {
+            List<Attack> volley = combat.tryProjectiles(source, invocation, area.projectile(), area.range(),
+                    facingX, facingY, player.getCollisionArea());
+            accepted = volley.stream().findFirst();
+        } else {
+            CollisionBox hitbox = Objects.requireNonNull(area.shape().create(source.getHurtbox(), area.range(),
+                    facingX, facingY), "attack shape result");
+            accepted = combat.tryAttack(source, invocation, hitbox);
+        }
         if (accepted.isEmpty()) {
             return false;
         }
         attacks.put(slot, accepted.get());
+        if (area.projectile() != null) {
+            launchWindows[slot.ordinal()] = spec.activeSeconds();
+        }
         cooldowns[slot.ordinal()] = spec.cooldownSeconds();
         return true;
     }
