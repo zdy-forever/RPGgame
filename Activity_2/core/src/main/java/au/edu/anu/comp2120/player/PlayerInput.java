@@ -2,6 +2,7 @@ package au.edu.anu.comp2120.player;
 
 import com.badlogic.gdx.Input;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Translates held WASD and newly pressed J/K/L/O into intents without owning gameplay rules.
@@ -31,6 +32,24 @@ public final class PlayerInput {
         return new PlayerCommand(horizontal(), vertical(),
                 input.isKeyJustPressed(Input.Keys.J), input.isKeyJustPressed(Input.Keys.K),
                 input.isKeyJustPressed(Input.Keys.L), input.isKeyJustPressed(Input.Keys.O));
+    }
+
+    /**
+     * Samples debug class selection separately from shared J/K/L/O commands.
+     * F1/F2/F3 select Archer/Mage/Katana; simultaneous presses prefer F1 then F2 then F3.
+     * @return newly requested class, or empty; held keys do not auto-repeat
+     */
+    public Optional<PlayerClass> sampleClassSelection() {
+        if (input.isKeyJustPressed(Input.Keys.F1)) {
+            return Optional.of(PlayerClass.ARCHER);
+        }
+        if (input.isKeyJustPressed(Input.Keys.F2)) {
+            return Optional.of(PlayerClass.MAGE);
+        }
+        if (input.isKeyJustPressed(Input.Keys.F3)) {
+            return Optional.of(PlayerClass.KATANA);
+        }
+        return Optional.empty();
     }
 
     /**

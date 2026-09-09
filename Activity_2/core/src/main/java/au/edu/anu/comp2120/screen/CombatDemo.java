@@ -10,6 +10,8 @@ import au.edu.anu.comp2120.enemy.EnemyAI;
 import au.edu.anu.comp2120.player.PlayerAbilities;
 import au.edu.anu.comp2120.player.PlayerCommand;
 import au.edu.anu.comp2120.player.AbilitySlot;
+import au.edu.anu.comp2120.player.PlayerClass;
+import au.edu.anu.comp2120.player.PlayerClasses;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapType;
 import java.util.List;
@@ -71,6 +73,21 @@ public final class CombatDemo {
      * @throws IllegalArgumentException if delta is invalid, before state changes
      */
     public void update(double delta, PlayerCommand command, boolean reset) {
+        update(delta, command, reset, null);
+    }
+
+    /**
+     * Adds debug class selection to the normal coordinated simulation step.
+     * Transition/reset take priority; otherwise a selection attempt consumes new movement/ability
+     * input, even if unsafe to switch. Existing dash/attacks and simulation time still advance.
+     * @param delta finite non-negative seconds with representable player/enemy movement
+     * @param command shared movement/ability intent
+     * @param reset whether debug restoration was requested
+     * @param classSelection newly requested class, or null when no selection was requested
+     * @throws NullPointerException if command is null
+     * @throws IllegalArgumentException if delta is invalid, before state changes
+     */
+    public void update(double delta, PlayerCommand command, boolean reset, PlayerClass classSelection) {
         Objects.requireNonNull(command, "command");
         if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(GameConfig.BASIC_ENEMY.speed() * delta)
                 || !Double.isFinite(session.getPlayer().getSpeed() * delta)) {
@@ -92,7 +109,10 @@ public final class CombatDemo {
             }
             return;
         }
-        abilities.update(delta, command);
+        if (classSelection != null) {
+            abilities.selectClass(PlayerClasses.get(classSelection));
+        }
+        abilities.update(delta, classSelection != null ? PlayerCommand.NONE : command);
         for (EnemyAI ai : enemies) {
             ai.update(player, delta);
         }
@@ -143,7 +163,8 @@ public final class CombatDemo {
             status.append(" | E").append(i + 1).append(' ')
                     .append(ai.getEnemy().getHealth().getCurrentHp()).append(' ').append(ai.getState());
         }
-        return status.append(" | J ").append(abilities.getState(AbilitySlot.LIGHT))
+        return status.append(" | ").append(session.getPlayer().getPlayerClass().getDisplayName())
+                .append(" [F1 Archer/F2 Mage/F3 Katana] | J ").append(abilities.getState(AbilitySlot.LIGHT))
                 .append(" K ").append(abilities.getState(AbilitySlot.SPECIAL))
                 .append(" L ").append(abilities.getState(AbilitySlot.DASH))
                 .append(" O ").append(abilities.getState(AbilitySlot.ULTIMATE))
@@ -162,7 +183,7 @@ public final class CombatDemo {
         player = new Combatant(session.getPlayer(), Faction.PLAYER, playerHurtbox());
         combat.register(player);
         if (abilities == null) {
-            abilities = new PlayerAbilities(session.getPlayer(), player, combat, GameConfig.PLAYER_ABILITIES);
+            abilities = new PlayerAbilities(session.getPlayer(), player, combat);
         } else {
             abilities.bindAfterTransition(player);
         }
