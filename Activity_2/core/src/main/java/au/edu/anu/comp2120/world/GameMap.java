@@ -133,6 +133,7 @@ public final class GameMap implements WalkableArea {
      *
      * @return immutable world boundary
      */
+    @Override
     public CollisionBox getBounds() {
         return bounds;
     }

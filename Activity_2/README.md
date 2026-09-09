@@ -5,7 +5,7 @@ demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera using geometric placeholders. Player and
 enemy models share validated integer health and one attack pipeline, independent
-of the demonstration view. Battle maps include a stationary combat-debug dummy.
+of the demonstration view. Battle maps include multiple basic autonomous enemies.
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
@@ -341,42 +341,121 @@ Temporary controls (not final character skills):
 | Key | Debug action |
 | --- | --- |
 | J | One player strike; holding the key does not auto-repeat |
-| H | One stationary dummy strike; no enemy AI |
-| R | Restore player/dummy HP and clear attacks/cooldowns; no repositioning |
+| R | Restore player/enemy HP, reset AI awareness, and clear attacks/cooldowns; no repositioning |
 
-1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. A red dummy
-   appears near the entry. It is non-solid; its placement is checked against map walls.
+1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. Two red enemies
+   appear near the entry and begin approaching. Placement is checked against map
+   walls, the player, and earlier spawns. Hub has no enemies.
 2. The cyan outlines are hurtboxes. The player's is inset from its green body,
    demonstrating independence from visual size. Press J: a yellow attack rectangle
-   lasts 0.25 simulation seconds, and the native title's dummy HP changes 100 -> 75.
-3. Stand still: one rectangle must not keep reducing HP. Press J again after at
-   least 0.5 simulation seconds to apply another 25 damage. Fast presses during
-   cooldown are ignored. Four successful strikes make the dummy grey and dead.
-4. Press R, then H: player HP changes 100 -> 75 through the same pipeline. Repeat
-   with cooldown gaps to reach zero; J must then do no damage until R restores HP.
-5. Walk upward far enough from the dummy and press J/H to verify misses. The debug
-   attack expands 96 units around the source hurtbox in all directions; it is not
-   a directional/class-specific weapon attack.
+   lasts 0.25 simulation seconds. Each enemy it hits loses 25 HP once per invocation.
+3. Stand still and watch the title change from CHASE to ATTACK. In range each enemy
+   stops and automatically requests a 10-damage attack, with a one-second cooldown
+   and 0.2-second active hitbox. Multiple enemies each have their own cooldown.
+   The former H manual enemy-attack shortcut has been removed.
+4. Press J with at least 0.5 seconds between successful strikes to kill enemies.
+   Dead enemies become grey, report DEAD, and stop moving/attacking. Press R to
+   restore all HP and clear attacks/cooldowns; positions do not reset. A dead player
+   cannot attack, and enemies stop pursuing it. R allows normal decisions to resume.
+5. Run away (player speed 180, enemy speed 80). Beyond the loss radius, enemies
+   become IDLE and stop where they are. Re-enter the detection radius to reacquire.
+   Use map obstacles to verify that pursuit routes around walls rather than crossing them. J remains a debug
+   rectangle extending 96 units around the source, not a final directional weapon.
 6. Attack then fast-travel or enter a portal. Old yellow rectangles disappear and
    cannot damage actors on the new map. Player HP is preserved; each new battle
-   scope gets a fresh dummy. Hub has no dummy. Resize still uses the existing camera.
+   scope gets fresh enemies. Resize still uses the existing camera.
 
 All tuning is in `GameConfig`; neither combat models nor detection import rendering
 or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
 the native title rather than loading fonts. `CombatDemo` only handles temporary input
-requests, placement, hurtbox synchronization, and reset/transition policy.
+requests, placement, player hurtbox synchronization, and reset/transition policy.
+It updates every EnemyAI, then advances the shared CombatSystem exactly once.
 
 Combat limitations: fixed axis-aligned hitboxes, discrete overlap samples, no wall
 occlusion/line-of-sight or projectile motion, and no armour, knockback, attack wind-up,
 invulnerability, combos, classes, elements, bosses, or final skill inputs. This debug
 strike may hit through nearby walls. Dead-player movement/travel is still allowed;
-only attacking is disabled. Dummy HP is not persisted across transitions. Pause freezes
+only attacking is disabled. Enemy HP is not persisted across transitions. Pause freezes
 combat, and the existing frame-time cap discards excess stall time.
 
 Run combat-specific checks with:
 
 ```bash
 ./gradlew core:test --tests '*Combat*Test'
+```
+
+## Basic enemy AI
+
+- `Enemy` still owns only shared Health. `EnemyAI` composes that entity with one
+  collision body, a stable Combatant, the current WalkableArea, and immutable
+  `EnemyConfig`. Construction validates spawn geometry before registering the actor.
+  There is no duplicate health, damage calculation, or cooldown timer in AI.
+- `EnemyState` is a simple enum-based finite-state model, not separate State-pattern
+  classes or a behaviour tree. IDLE acquires a living registered hostile target at
+  centre distance <= detectionRange. CHASE/ATTACK keep tracking until distance is
+  greater than loseRange. This hysteresis avoids flicker around the detection edge.
+- CHASE uses direct, normalized, delta-based movement when a full-body corridor is
+  clear, otherwise follows cached A* waypoints around obstacles. Actual movement still
+  uses the existing `WalkableArea.move` X-then-Y swept collision. One distance budget
+  is shared across all waypoints consumed in a frame, so route turns cannot multiply
+  speed. Direct/final approaches stop at attack range. Attack-distance comparison
+  tolerates four coordinate ULPs solely for rounding; map bounds are not relaxed.
+- ATTACK stops movement and calls `CombatSystem.tryAttack` with the configured
+  AttackSpec and a fixed square of half-size attackRange, centred on the enemy.
+  Detection/decision ranges are Euclidean centre distances; damage still uses the
+  common rectangular hitbox/hurtbox pipeline. AI requests an attack only when the
+  conservative body-to-target corridor is clear, avoiding strikes initiated through
+  walls. An attack can hit other valid targets
+  in that square. AI never calls takeDamage directly or advances shared combat time.
+- Missing, dead, friendly, self, or unregistered targets cause IDLE. A detached old
+  controller cannot pursue actors in a new arena. DEAD reflects zero Health immediately,
+  even after combat settlement in the same frame, and prevents movement/attack requests.
+  Ordinary healing cannot revive; explicit debug restoration resets awareness.
+- `GameConfig.BASIC_ENEMY` configures speed 80, detection radius 200, loss radius 260,
+  attack radius 44, damage 10, active time 0.2 seconds, and cooldown 1 second. Speed
+  and all radii must be positive and finite, attack <= detection <= loss, and an
+  autonomous attack must have a positive cooldown. Invalid time/overflowing movement
+  distance is rejected. `ENEMY_COUNT`, `ENEMY_SIZE`, and `ENEMY_SPAWN_OFFSET` configure
+  the temporary battle-map demonstration. Existing built-in battle entries support
+  two enemies; a map with fewer safe placement candidates gets fewer or none.
+- `EnemyConfig` additionally configures `pathCellSize` (default 16 world units) and
+  `repathSeconds` (default 0.5). The existing five-argument constructor remains valid.
+  `AStarPathfinder` builds a bounded four-neighbour navigation grid from full-body
+  occupancy, not textures or tile artwork. Each edge and off-grid connector checks
+  the entire swept envelope, so thin walls and diagonal corners cannot be skipped.
+  A priority queue uses travelled cost plus an admissible Euclidean stand-off-distance
+  heuristic, with stable tie-breaking. Map edges are included even when dimensions
+  are not multiples of cell size. `WalkableArea.getBounds()` bounds the search.
+- Each controller keeps its own waypoint index and target snapshot. Clear direct
+  approaches skip A*. A moving target is replanned at the configured interval while
+  blocked; unchanged valid routes are reused. No-route results are also throttled,
+  leaving the enemy still rather than repeatedly walking into a wall. Death, target
+  loss, reset, and arena replacement discard route state. Detection/loss radii still
+  apply while detouring; A* does not grant unlimited pursuit.
+- Each enemy has independent health, state, geometry, and per-source combat cooldown.
+  The arena owns a normal list of controllers; there is no singleton enemy or ECS.
+  Initial spawn candidates do not overlap, but moving entities are not solid to one
+  another, so enemies can later overlap. Movement/attack pause with the existing loop.
+
+Navigation limitations: the grid is a discrete approximation. Narrow, off-grid passages
+may require smaller cell spacing, and a sealed region correctly returns no route.
+Grids above 20,000 nodes are rejected instead of allocating unbounded search data.
+Collision occupancy is cached for static maps; rebuild the pathfinder if terrain changes.
+Conservative rectangular corridors may choose longer routes than an exact line sweep.
+There is no patrol, home return, dynamic entity avoidance, or crowd pathfinding.
+Detection remains distance-based. The enemy's attack-initiation clearance check does
+not add global wall occlusion to combat-core: player attacks and collateral hits still
+use its existing overlap rules. No animation, audio, particles, loot, or enemy-state
+persistence is implemented. HP/state use the title; geometry remains placeholder-only.
+
+To check the new detour behaviour manually, lure enemies near the first Training wall
+(x=240..264, ending at y=380), then move around its top opening to the opposite side
+while staying within the loss radius. Enemies should follow the opening, not push into
+the wall. Automated navigation tests also traverse both alternating Training walls,
+check moving-target replanning, and verify that repeated no-route queries are throttled.
+
+```bash
+./gradlew core:test --tests '*Enemy*Test' --tests '*CombatDemoTest'
 ```
 
 ## Current class responsibilities
@@ -393,12 +472,16 @@ Run combat-specific checks with:
 - `AttackSpec`: reusable validated attack tuning.
 - `Attack`: one invocation's identifier, hitbox, active lifetime, and hit ledger.
 - `CombatSystem`: registration, cooldowns, hit detection, damage calculation, and delivery.
-- `CombatDemo`: temporary battle dummy, attack requests, hurtbox sync, and map/reset cleanup.
+- `CombatDemo`: battle enemy collection, player requests, AI/combat update order, and map/reset cleanup.
 - `PlayerInput`: translates held WASD keys into movement intent.
 - `GameConfig`: shared player, camera, combat-debug, and frame-time tuning.
 - `CameraFollow`: stateless subject-centre, map-clamp, and small-map view mathematics.
 - `PlaceholderRenderer`: applies the follow camera and renders shapes through a fixed `FitViewport`.
-- `Enemy`: minimal hostile entity with independent shared health; no AI or rendering yet.
+- `Enemy`: hostile entity with independent shared health, composed by EnemyAI.
+- `EnemyAI`: one actor's decisions, cached navigation route, and collision-constrained geometry.
+- `EnemyConfig`: validated movement/ranges, shared attack tuning, and navigation resolution/timing.
+- `AStarPathfinder`: bounded full-body grid search, clear direct approaches, and safe route segments.
+- `EnemyState`: IDLE, CHASE, ATTACK, and DEAD diagnostics.
 - `NPC`: future non-player character.
 - `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
 - `MapCatalog`: built-in Hub and Battle Map definitions.
@@ -416,7 +499,7 @@ Run combat-specific checks with:
 
 This is intentionally a small foundation. Movement currently supports static,
 axis-aligned rectangles and three built-in maps. It does not include dynamic entity
-collision, external map-file loading, bosses, enemy AI, elemental map rules,
+collision, external map-file loading, bosses, crowd navigation, elemental map rules,
 saved map state, final character skills, or final artwork. Collision uses X-then-Y
 axis separation rather than a continuous diagonal sweep, so large diagonal steps
 can take a different route around corners than many smaller steps. Normal screen

@@ -22,7 +22,11 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── Damageable.java
 │   ├── Faction.java
 │   └── Health.java
-├── enemy/Enemy.java
+├── enemy/
+│   ├── Enemy.java
+│   ├── EnemyAI.java
+│   ├── EnemyConfig.java
+│   └── EnemyState.java
 ├── inventory/Inventory.java
 ├── npc/NPC.java
 ├── player/
@@ -35,6 +39,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── GameScreen.java
 │   └── PlaceholderRenderer.java
 └── world/
+    ├── AStarPathfinder.java
     ├── CollisionBox.java
     ├── FastTravelDestination.java
     ├── GameMap.java
@@ -142,11 +147,13 @@ are documented boundaries but do not have empty packages yet.
   survive re-registration. Clear cancels all attacks/registrations/cooldowns without
   changing HP, and invocation identifiers are not reused after clear.
 - `screen/CombatDemo` is an asset-free debug adapter, not part of core combat rules.
-  It places a static enemy near valid battle-map entries, submits the same strike
-  for player and enemy, and clears scopes using GameSession's transition stamp.
-  J requests a player strike, H a dummy strike, and R explicitly restores HP and
-  clears attacks. GameScreen only routes these requests. PlaceholderRenderer draws
-  hurtbox/hitbox rectangles; HP uses native window-title text.
+  It places multiple enemies near valid battle-map entries and clears scopes using
+  GameSession's transition stamp. J requests a player strike; enemies now attack
+  automatically through EnemyAI, replacing the former H shortcut. R explicitly
+  restores HP, resets AI awareness, and clears attacks/cooldowns without repositioning.
+  GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
+  HP and AI states use native window-title text. All AI updates precede exactly one
+  shared combat update per simulation step.
 - No projectile simulation, wall occlusion, armour, skills, elements, combos, or
   damage effects are implemented. Future class/AI code supplies attack tuning and
   geometry to this pipeline instead of applying Health damage separately. Receivers
@@ -154,13 +161,51 @@ are documented boundaries but do not have empty packages yet.
 
 ### Enemy
 
-- Owns enemy state and, later, enemy decision-making.
+- Owns enemy health, per-enemy decision state, and collision-constrained pursuit.
 - Does not define separate damage formulas, load maps, or handle player input.
-- Currently depends on `combat`; geometry/world integration remains future work.
+- Depends on `combat` and `world` contracts, never on screens or graphics APIs.
 - Constructors create full, independently owned `Health`, using `DEFAULT_MAX_HP`
   or an explicit capacity. Implements `Damageable` by delegation and exposes
-  `getHealth()` with the same semantics as Player. Only the debug adapter instantiates
-  a stationary dummy; no AI or general enemy-spawn system is added.
+  `getHealth()` with the same semantics as Player. Health/damage implementation is unchanged.
+- `EnemyAI` composes Enemy, an independent CollisionBox, WalkableArea, EnemyConfig,
+  and a registered Combatant. A normal collection supports multiple controllers;
+  no ECS, entity inheritance hierarchy, or singleton enemy is introduced.
+- `EnemyState` is an enum-based finite-state model: IDLE acquires within detection
+  radius; CHASE approaches through WalkableArea.move; ATTACK stops and requests
+  attacks via CombatSystem; DEAD disables movement/new requests. Loss beyond a
+  separately configured larger radius returns to IDLE without teleporting home.
+- Ranges use centre distance. Attack comparison has a four-coordinate-ULP allowance
+  to absorb normalized-movement rounding at the stop boundary. Map collision stays
+  unchanged. Large steps stop at attack range instead of overshooting the target.
+- Clear pursuit stays direct; blocked pursuit uses `world/AStarPathfinder`. The
+  bounded four-neighbour grid samples full-body placements and validates complete
+  edge envelopes, including off-grid connectors and thin-wall/corner clearance.
+  Queue priority is travelled distance plus an admissible Euclidean stand-off
+  heuristic. Grid membership is static; search arrays are local to each query.
+- EnemyAI caches a route, waypoint index, target snapshot, and replan timer. All
+  waypoint motion shares one speed-times-delta budget and uses WalkableArea.move.
+  Moving-target and failed-path retries are throttled; clear direct approaches
+  bypass A*. Death, lost targets, resets, and map changes discard route state.
+  AI also checks a conservative clear corridor before initiating an attack.
+- AI owns no damage formula or cooldown clock. The arena updates all AI, then one
+  CombatSystem update settles hits, health/death, and timing. A health-aware state
+  getter reports death immediately after settlement. Invalid/dead/friendly/absent
+  targets and controllers removed from the arena stop pursuing.
+- EnemyConfig validates positive finite speed/ranges, attack <= detection <= loss,
+  and positive autonomous cooldown. GameConfig supplies demo values; generic AI
+  accepts per-enemy tuning through its constructor.
+- Navigation defaults are a 16-unit grid and a 0.5-second blocked-path replan
+  interval, configurable through EnemyConfig with a backward-compatible constructor.
+  WalkableArea exposes outer bounds for finite navigation. Grids over 20,000 nodes
+  fail explicitly; grid resolution can miss passages narrower than its sampling.
+- Demo spawn candidates are checked against map geometry/player/earlier enemies;
+  later movement has no dynamic actor collision. New battle scopes create fresh
+  enemies, while player HP is retained. This is not a persistent spawn/save system.
+- No behaviour trees, patrol/home return, crowd avoidance, or dynamic navigation
+  graph updates are implemented. Sealed areas return no route; thin/off-grid
+  passages may need finer sampling. Static-map collision occupancy is cached.
+  AI attack-initiation clearance is not global combat occlusion; existing player
+  attacks and collateral overlap hits retain their previous rules.
 
 ### World / Map
 
@@ -248,7 +293,9 @@ are documented boundaries but do not have empty packages yet.
 GameScreen -> feature modules (coordination only)
 GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
 PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
-CombatDemo -> GameSession, Enemy, CombatSystem, Combatant, AttackSpec
+CombatDemo -> GameSession, EnemyAI/EnemyConfig, Enemy, CombatSystem, Combatant, AttackSpec
+EnemyAI    -> Enemy, EnemyState, EnemyConfig, WalkableArea, AStarPathfinder, CombatSystem, Combatant
+AStarPathfinder -> WalkableArea, CollisionBox (no entity, input, or graphics dependencies)
 CombatSystem -> Combatant, Attack, AttackSpec, Damageable, CollisionBox
 CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data

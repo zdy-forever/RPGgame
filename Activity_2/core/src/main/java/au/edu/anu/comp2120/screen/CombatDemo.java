@@ -7,15 +7,17 @@ import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
+import au.edu.anu.comp2120.enemy.EnemyAI;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapType;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Objects;
 
 /**
- * Small graphics-free adapter for testing combat against a stationary dummy in battle maps.
- * Owns temporary placement/reset policy, not hit detection or damage rules. Screen input supplies
- * booleans; rendering reads geometry. No enemy AI or final player skill is implemented here.
+ * Graphics-free arena adapter coordinating player requests and multiple basic enemy controllers.
+ * Owns temporary placement/reset policy, not AI decisions, hit detection, or damage rules.
+ * Screen input supplies booleans; rendering reads geometry. No final player skill is implemented here.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -24,15 +26,13 @@ public final class CombatDemo {
     private final GameSession session;
     /** Reused arena pipeline, cleared on every successful map transition. */
     private final CombatSystem combat = new CombatSystem();
-    /** Same attack tuning for both directions of the debug demonstration. */
+    /** Temporary player attack tuning; enemies supply their own shared AttackSpec through AI. */
     private final AttackSpec strike = new AttackSpec("debug-strike", GameConfig.COMBAT_DAMAGE,
             GameConfig.COMBAT_ACTIVE_SECONDS, GameConfig.COMBAT_COOLDOWN_SECONDS);
     /** Player adapter in the current scope, following the existing player's movement. */
     private Combatant player;
-    /** Temporary dummy entity, or null in Hub/when no valid nearby placement exists. */
-    private Enemy enemy;
-    /** Dummy's independent hurtbox adapter, or null when no dummy is present. */
-    private Combatant dummy;
+    /** Independent enemy controllers in this arena; Hub contains none. */
+    private final List<EnemyAI> enemies = new ArrayList<>();
     /** Last synchronized transition stamp, including re-entry to the same map. */
     private long transitionVersion = Long.MIN_VALUE;
 
@@ -47,17 +47,16 @@ public final class CombatDemo {
     }
 
     /**
-     * Refreshes hurtboxes, handles explicit debug requests, and delegates combat simulation.
+     * Refreshes hurtboxes, handles player requests, updates every AI, then advances combat once.
      * Map changes discard that frame's combat requests and old attacks; reset also consumes requests.
-     * Travel does not heal the player; reset explicitly does. A new map receives a fresh dummy.
-     * @param delta finite non-negative simulation seconds
+     * Travel does not heal the player; reset explicitly does. A new map receives fresh enemies.
+     * @param delta finite non-negative simulation seconds with representable enemy movement
      * @param playerAttack whether the player requested one strike
-     * @param enemyAttack whether a debug command requested one dummy strike
-     * @param reset whether to clear attacks/cooldowns and restore both actors' HP
+     * @param reset whether to clear attacks/cooldowns, reset awareness, and restore all actors' HP
      * @throws IllegalArgumentException if delta is invalid, before any state change
      */
-    public void update(double delta, boolean playerAttack, boolean enemyAttack, boolean reset) {
-        if (!Double.isFinite(delta) || delta < 0) {
+    public void update(double delta, boolean playerAttack, boolean reset) {
+        if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(GameConfig.BASIC_ENEMY.speed() * delta)) {
             throw new IllegalArgumentException("Demo delta must be finite and non-negative");
         }
         if (syncMap()) {
@@ -68,17 +67,18 @@ public final class CombatDemo {
             combat.clear();
             session.getPlayer().getHealth().restoreFull();
             combat.register(player);
-            if (dummy != null) {
-                enemy.getHealth().restoreFull();
-                combat.register(dummy);
+            for (EnemyAI ai : enemies) {
+                ai.getEnemy().getHealth().restoreFull();
+                ai.resetAwareness();
+                combat.register(ai.getCombatant());
             }
             return;
         }
         if (playerAttack) {
             combat.tryAttack(player, strike, strikeBox(player.getHurtbox()));
         }
-        if (enemyAttack && dummy != null) {
-            combat.tryAttack(dummy, strike, strikeBox(dummy.getHurtbox()));
+        for (EnemyAI ai : enemies) {
+            ai.update(player, delta);
         }
         combat.update(delta);
     }
@@ -100,13 +100,26 @@ public final class CombatDemo {
     }
 
     /**
+     * Returns current enemy controllers for state/geometry diagnostics.
+     * @return immutable membership snapshot; individual controllers retain live state
+     */
+    public List<EnemyAI> getEnemies() {
+        return List.copyOf(enemies);
+    }
+
+    /**
      * Formats HP feedback for the native window title, requiring no font asset.
-     * @return player/dummy HP and temporary key hints
+     * @return player HP, per-enemy HP/state, and temporary key hints
      */
     public String getStatus() {
-        return "HP " + session.getPlayer().getHealth().getCurrentHp()
-                + " | Dummy " + (enemy == null ? "none (battle maps only)" : enemy.getHealth().getCurrentHp())
-                + " | J attack | H dummy attack | R reset HP";
+        StringBuilder status = new StringBuilder("HP ")
+                .append(session.getPlayer().getHealth().getCurrentHp());
+        for (int i = 0; i < enemies.size(); i++) {
+            EnemyAI ai = enemies.get(i);
+            status.append(" | E").append(i + 1).append(' ')
+                    .append(ai.getEnemy().getHealth().getCurrentHp()).append(' ').append(ai.getState());
+        }
+        return status.append(" | J attack | R reset HP").toString();
     }
 
     /**
@@ -120,14 +133,11 @@ public final class CombatDemo {
         combat.clear();
         player = new Combatant(session.getPlayer(), Faction.PLAYER, playerHurtbox());
         combat.register(player);
-        enemy = null;
-        dummy = null;
+        enemies.clear();
         if (session.getCurrentMap().getType() == MapType.BATTLE) {
-            CollisionBox placement = findDummyPlacement();
-            if (placement != null) {
-                enemy = new Enemy();
-                dummy = new Combatant(enemy, Faction.ENEMY, placement);
-                combat.register(dummy);
+            for (CollisionBox placement : findEnemyPlacements()) {
+                enemies.add(new EnemyAI(new Enemy(), placement, session.getCurrentMap(),
+                        GameConfig.BASIC_ENEMY, combat));
             }
         }
         transitionVersion = session.getTransitionVersion();
@@ -146,21 +156,27 @@ public final class CombatDemo {
     }
 
     /**
-     * Tries four nearby positions using current map collision data, without an enemy spawn manager.
-     * @return first walkable non-overlapping rectangle, or null when none fits
+     * Tries four nearby candidates using current map collision data and limits their count.
+     * Placement avoids the player and earlier enemies; later movement has no entity-body collision.
+     * @return walkable non-overlapping rectangles, possibly fewer than the configured count
      */
-    private CollisionBox findDummyPlacement() {
+    private List<CollisionBox> findEnemyPlacements() {
         CollisionBox body = session.getPlayer().getBounds();
-        double offset = GameConfig.COMBAT_DUMMY_OFFSET;
-        double[][] offsets = {{offset, 0}, {-offset, 0}, {0, offset}, {0, -offset}};
+        List<CollisionBox> placements = new ArrayList<>();
+        double offset = GameConfig.ENEMY_SPAWN_OFFSET;
+        double[][] offsets = {{offset, 0}, {0, offset}, {-offset, 0}, {0, -offset}};
         for (double[] shift : offsets) {
             CollisionBox candidate = new CollisionBox(body.x() + shift[0], body.y() + shift[1],
-                    GameConfig.COMBAT_DUMMY_SIZE, GameConfig.COMBAT_DUMMY_SIZE);
-            if (session.getCurrentMap().isWalkable(candidate) && !candidate.overlaps(body)) {
-                return candidate;
+                    GameConfig.ENEMY_SIZE, GameConfig.ENEMY_SIZE);
+            if (session.getCurrentMap().isWalkable(candidate) && !candidate.overlaps(body)
+                    && placements.stream().noneMatch(candidate::overlaps)) {
+                placements.add(candidate);
+                if (placements.size() == GameConfig.ENEMY_COUNT) {
+                    break;
+                }
             }
         }
-        return null;
+        return placements;
     }
 
     /**

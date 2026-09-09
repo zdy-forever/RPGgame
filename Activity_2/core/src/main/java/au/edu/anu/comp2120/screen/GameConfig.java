@@ -1,5 +1,8 @@
 package au.edu.anu.comp2120.screen;
 
+import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.enemy.EnemyConfig;
+
 /**
  * Shared player, camera, combat-debug, and timing configuration for the asset-free demonstration.
  * World units are independent of window pixels; x points right and y points up.
@@ -29,10 +32,15 @@ public final class GameConfig {
     public static final double COMBAT_RANGE = 96;
     /** Inset separating the player's hurtbox from its movement collision/placeholder body. */
     public static final double COMBAT_HURTBOX_INSET = 4;
-    /** Static dummy hurtbox width and height. */
-    public static final double COMBAT_DUMMY_SIZE = 28;
-    /** Distance from entry used when looking for a nearby walkable dummy position. */
-    public static final double COMBAT_DUMMY_OFFSET = 96;
+    /** Enemy collision and placeholder width/height in world units. */
+    public static final double ENEMY_SIZE = 28;
+    /** Distance from entry used for candidate enemy placements. */
+    public static final double ENEMY_SPAWN_OFFSET = 96;
+    /** Maximum number of temporary autonomous enemies created in each battle arena. */
+    public static final int ENEMY_COUNT = 2;
+    /** Basic AI tuning: speed, detection/loss/attack radii, and shared attack timing/damage. */
+    public static final EnemyConfig BASIC_ENEMY = new EnemyConfig(80, 200, 260, 44,
+            new AttackSpec("enemy-basic", 10, 0.2, 1));
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

@@ -54,7 +54,7 @@ public final class PlaceholderRenderer implements Disposable {
      * @param map collision world to display
      * @param player player to display
      * @param portals immutable portal snapshots; only current-map entries are drawn
-     * @param combatants current-scope actors for dummy rectangles and hurtbox outlines
+     * @param combatants current-scope actors for enemy rectangles and hurtbox outlines
      * @param attacks active current-scope invocations for temporary hitbox outlines
      */
     public void render(GameMap map, Player player, List<Portal> portals,

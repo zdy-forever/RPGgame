@@ -4,7 +4,8 @@ import au.edu.anu.comp2120.combat.Damageable;
 import au.edu.anu.comp2120.combat.Health;
 
 /**
- * Minimal hostile entity with shared health; AI, attacks, geometry, and rendering remain future work.
+ * Hostile entity owning shared health. EnemyAI composes this model with movement and decisions;
+ * health and damage remain independent of AI, geometry, and rendering.
  *
  * @author Daoyan Zhu (u7782042)
  */
