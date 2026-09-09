@@ -13,6 +13,8 @@ import au.edu.anu.comp2120.enemy.EnemyState;
 import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.player.AbilityState;
 import au.edu.anu.comp2120.player.PlayerCommand;
+import au.edu.anu.comp2120.player.PlayerClass;
+import au.edu.anu.comp2120.player.PlayerClasses;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapCatalog;
@@ -34,6 +36,76 @@ import org.junit.jupiter.params.provider.EnumSource;
 final class CombatDemoTest {
     /** Creates an isolated demo test fixture. */
     CombatDemoTest() {
+    }
+
+    /**
+     * Real session transitions preserve selected class, identity, HP, cooldowns and combat integration.
+     * @param type chosen class
+     */
+    @ParameterizedTest
+    @EnumSource(PlayerClass.class)
+    void classSelectionSurvivesTravelAndReset(PlayerClass type) {
+        GameSession session = session(MapCatalog.HUB);
+        CombatDemo demo = new CombatDemo(session);
+        var sharedPlayer = session.getPlayer();
+        var health = sharedPlayer.getHealth();
+        sharedPlayer.takeDamage(25);
+        demo.update(0, PlayerCommand.NONE, false, type);
+        assertEquals(type, sharedPlayer.getPlayerClass());
+        assertTrue(demo.getStatus().contains(type.getDisplayName()));
+        demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
+        double cooldown = demo.getAbilities().getCooldownRemaining(AbilitySlot.ULTIMATE);
+        List<Attack> old = demo.getActiveAttacks();
+        session.switchMap(MapCatalog.TRAINING);
+        CollisionBox spawn = sharedPlayer.getBounds();
+        demo.update(0, new PlayerCommand(1, 0, true, true, true, true), false, PlayerClass.MAGE);
+        assertSame(sharedPlayer, session.getPlayer());
+        assertSame(health, sharedPlayer.getHealth());
+        assertEquals(type, sharedPlayer.getPlayerClass());
+        assertEquals(75, health.getCurrentHp());
+        assertEquals(spawn, sharedPlayer.getBounds());
+        assertEquals(cooldown, demo.getAbilities().getCooldownRemaining(AbilitySlot.ULTIMATE));
+        assertTrue(old.stream().noneMatch(Attack::isActive));
+        demo.update(0, true, false);
+        assertEquals(PlayerClasses.get(type).abilities().light().attack().type(),
+                demo.getActiveAttacks().get(0).getSpecification().type());
+        demo.update(0, PlayerCommand.NONE, true, PlayerClass.MAGE);
+        assertEquals(type, sharedPlayer.getPlayerClass());
+        assertEquals(100, health.getCurrentHp());
+        assertEquals(0, demo.getAbilities().getCooldownRemaining(AbilitySlot.ULTIMATE));
+    }
+
+    /** Class selection consumes simultaneous new actions; rejected attempts do not freeze existing activity. */
+    @Test
+    void debugSelectionHasDeterministicFramePriority() {
+        GameSession session = session(MapCatalog.HUB);
+        CombatDemo demo = new CombatDemo(session);
+        CollisionBox before = session.getPlayer().getBounds();
+        PlayerCommand all = new PlayerCommand(1, 1, true, true, true, true);
+        demo.update(0.1, all, false, PlayerClass.ARCHER);
+        assertEquals(PlayerClass.ARCHER, session.getPlayer().getPlayerClass());
+        assertEquals(before, session.getPlayer().getBounds());
+        assertTrue(demo.getActiveAttacks().isEmpty());
+        demo.update(0, new PlayerCommand(0, 1, false, false, true, false), false);
+        demo.update(0.1, all, false, PlayerClass.MAGE);
+        assertEquals(PlayerClass.ARCHER, session.getPlayer().getPlayerClass());
+        assertEquals(before.y() + 65, session.getPlayer().getY(), 1e-9);
+        assertTrue(demo.getActiveAttacks().isEmpty());
+        demo.update(0, all, true, PlayerClass.KATANA);
+        assertEquals(PlayerClass.ARCHER, session.getPlayer().getPlayerClass());
+        assertEquals(AbilityState.READY, demo.getAbilities().getState(AbilitySlot.DASH));
+    }
+
+    /** Invalid frame arguments cannot mutate selection; a null class means no selection request. */
+    @Test
+    void classSelectionValidatesFrameBeforeMutation() {
+        GameSession session = session(MapCatalog.HUB);
+        CombatDemo demo = new CombatDemo(session);
+        assertThrows(IllegalArgumentException.class, () -> demo.update(Double.NaN,
+                PlayerCommand.NONE, true, PlayerClass.ARCHER));
+        assertDoesNotThrow(() -> demo.update(0, PlayerCommand.NONE, false, null));
+        assertThrows(NullPointerException.class, () -> demo.update(0, null, false, PlayerClass.ARCHER));
+        assertEquals(PlayerClasses.DEFAULT, session.getPlayer().getPlayerClass());
     }
 
     /**

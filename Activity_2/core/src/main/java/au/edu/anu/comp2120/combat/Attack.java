@@ -6,7 +6,7 @@ import java.util.IdentityHashMap;
 import java.util.Set;
 
 /**
- * One system-created attack invocation with a fixed hitbox and a lifetime hit ledger.
+ * One system-created attack invocation with a lifetime hit ledger and fixed or projectile geometry.
  * Public access is observational; only the owning combat system advances or resolves it.
  * Identity, rather than type, distinguishes repeated attacks using the same specification.
  *
@@ -19,11 +19,13 @@ public final class Attack {
     private final Combatant source;
     /** Validated reusable tuning. */
     private final AttackSpec specification;
-    /** Fixed world-space attack geometry sampled at creation, not tied to a sprite or source motion. */
+    /** Initial/fixed geometry; projectile invocations expose their live flight geometry instead. */
     private final CollisionBox hitbox;
+    /** Optional straight flight owned by the same pipeline; null for unchanged area attacks. */
+    private final Projectile projectile;
     /** Receivers already settled by this invocation, tracked by object identity. */
     private final Set<Damageable> hitEntities = Collections.newSetFromMap(new IdentityHashMap<>());
-    /** Time remaining in the active interval; zero means expired or cancelled. */
+    /** Fixed-area active time; projectile invocations use their own flight lifetime instead. */
     private double remainingSeconds;
 
     /**
@@ -34,10 +36,23 @@ public final class Attack {
      * @param hitbox validated immutable hitbox
      */
     Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox) {
+        this(id, source, specification, hitbox, null);
+    }
+
+    /**
+     * Creates a fixed or projectile-backed invocation after pipeline validation.
+     * @param id unique positive ID
+     * @param source canonical registered source
+     * @param specification damage and timing tuning
+     * @param hitbox initial world geometry
+     * @param projectile flight model, or null for an area attack
+     */
+    Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox, Projectile projectile) {
         this.id = id;
         this.source = source;
         this.specification = specification;
         this.hitbox = hitbox;
+        this.projectile = projectile;
         remainingSeconds = specification.activeSeconds();
     }
 
@@ -66,19 +81,28 @@ public final class Attack {
     }
 
     /**
-     * Returns immutable detection geometry, also suitable for debug outlines.
-     * @return fixed world-space hitbox
+     * Returns immutable current detection geometry, also suitable for debug outlines or arrow bodies.
+     * @return current projectile body or fixed area hitbox
      */
     public CollisionBox getHitbox() {
-        return hitbox;
+        return projectile == null ? hitbox : projectile.getBounds();
     }
 
     /**
-     * Returns the remaining active time, not wall-clock time.
+     * Exposes projectile observations without granting movement or damage mutation.
+     * @return flight model, or null for a fixed area attack
+     */
+    public Projectile getProjectile() {
+        return projectile;
+    }
+
+    /**
+     * Returns remaining area active time or projectile flight lifetime, not wall-clock time.
+     * A projectile's flight time is independent of its specification's short launch window.
      * @return finite non-negative seconds
      */
     public double getRemainingSeconds() {
-        return remainingSeconds;
+        return projectile == null ? remainingSeconds : projectile.getRemainingSeconds();
     }
 
     /**
@@ -86,7 +110,7 @@ public final class Attack {
      * @return true while remaining duration is positive
      */
     public boolean isActive() {
-        return remainingSeconds > 0;
+        return projectile == null ? remainingSeconds > 0 : projectile.isActive();
     }
 
     /**
@@ -117,5 +141,8 @@ public final class Attack {
     /** Cancels this invocation so retained public references also report expiration. */
     void cancel() {
         remainingSeconds = 0;
+        if (projectile != null) {
+            projectile.cancel();
+        }
     }
 }

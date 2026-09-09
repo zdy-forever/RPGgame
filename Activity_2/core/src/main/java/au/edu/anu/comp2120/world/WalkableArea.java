@@ -44,4 +44,16 @@ public interface WalkableArea {
      * @throws IllegalArgumentException if the starting body or displacement is invalid
      */
     CollisionBox move(CollisionBox bounds, double deltaX, double deltaY);
+
+    /**
+     * Finds the first blocking contact along a straight path, without axis sliding.
+     * Used by projectiles; ordinary actor movement still uses move.
+     * @param bounds starting full body, which must be walkable
+     * @param deltaX finite horizontal displacement
+     * @param deltaY finite vertical displacement
+     * @return fraction in [0, 1] at a blocking contact, or positive infinity for a clear step
+     * @throws NullPointerException if bounds is null
+     * @throws IllegalArgumentException if the starting body or displacement is invalid
+     */
+    double firstBlock(CollisionBox bounds, double deltaX, double deltaY);
 }
