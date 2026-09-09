@@ -21,15 +21,31 @@ import java.util.Optional;
 public final class CombatSystem {
     /** Maximum simultaneously retained projectiles; a volley is accepted or rejected as a whole. */
     public static final int MAX_PROJECTILES = 256;
+    /** Maximum live derived invocations, bounding reaction fan-out across updates. */
+    public static final int MAX_DERIVED_ATTACKS = 64;
     /** Canonical registered adapters and their remaining per-source cooldowns. */
     private final Map<Combatant, Double> cooldowns = new LinkedHashMap<>();
     /** Active invocations in creation order. */
     private final List<Attack> attacks = new ArrayList<>();
+    /** Sparse current-scope attachments keyed by canonical receiver adapters, never shared across maps. */
+    private final Map<Combatant, ElementStatus> elements = new LinkedHashMap<>();
+    /** Pure immutable reaction table and attachment duration, replaceable without class-specific logic. */
+    private final ElementRules elementRules;
     /** Last issued identifier, retained across arena clears. */
     private long lastAttackId;
 
     /** Creates an empty combat scope with no graphics resources. */
     public CombatSystem() {
+        this(ElementRules.PROTOTYPE);
+    }
+
+    /**
+     * Creates a combat scope with explicit centralized elemental rules.
+     * @param elementRules immutable attachment/reaction configuration
+     * @throws NullPointerException if elementRules is null
+     */
+    public CombatSystem(ElementRules elementRules) {
+        this.elementRules = Objects.requireNonNull(elementRules, "element rules");
     }
 
     /**
@@ -61,6 +77,7 @@ public final class CombatSystem {
         if (cooldowns.remove(combatant) == null) {
             return false;
         }
+        elements.remove(combatant);
         cancelAttacks(combatant);
         return true;
     }
@@ -174,6 +191,9 @@ public final class CombatSystem {
      * a source killed earlier in the same step cannot deliver a later attack.
      * Projectiles instead sweep their capped flight segment against current target hurtboxes and
      * static walls, choosing the nearest hit. Walls win equal-time ties; targets tie by registration.
+     * Attachments are sampled during hit settlement and aged once afterwards, including new attachments.
+     * Derived attacks created this step are queued in the same list but first resolve next update;
+     * they cannot create reactions or children. Zero-time updates are valid but do not repeat settled hits.
      * @param delta finite non-negative elapsed simulation seconds
      * @throws IllegalArgumentException if delta is negative or non-finite; no state changes occur
      */
@@ -181,7 +201,7 @@ public final class CombatSystem {
         if (!Double.isFinite(delta) || delta < 0) {
             throw new IllegalArgumentException("Combat delta must be finite and non-negative");
         }
-        for (Attack attack : attacks) {
+        for (Attack attack : List.copyOf(attacks)) {
             if (!attack.getSource().getEntity().isAlive()) {
                 attack.cancel();
                 continue;
@@ -199,7 +219,15 @@ public final class CombatSystem {
                 attack.advance(delta);
             }
         }
+        for (Attack attack : attacks) {
+            if (!attack.getSource().getEntity().isAlive()) {
+                attack.cancel();
+            }
+        }
         attacks.removeIf(attack -> !attack.isActive());
+        elements.replaceAll((target, status) -> status.advance(delta));
+        elements.entrySet().removeIf(entry -> !entry.getKey().getEntity().isAlive()
+                || entry.getValue().element() == ElementType.NONE);
         cooldowns.replaceAll((source, remaining) -> Math.max(0, remaining - delta));
     }
 
@@ -220,6 +248,18 @@ public final class CombatSystem {
     }
 
     /**
+     * Returns a read-only attachment snapshot; dead actors always report no attachment.
+     * @param target canonical registered target
+     * @return current status or EMPTY
+     * @throws NullPointerException if target is null
+     * @throws IllegalArgumentException if target is not registered
+     */
+    public ElementStatus getElementStatus(Combatant target) {
+        getCooldownRemaining(target);
+        return target.getEntity().isAlive() ? elements.getOrDefault(target, ElementStatus.EMPTY) : ElementStatus.EMPTY;
+    }
+
+    /**
      * Returns an immutable list of registered actor adapters in deterministic order.
      * @return membership snapshot; the actors retain their live health and geometry
      */
@@ -236,13 +276,14 @@ public final class CombatSystem {
     }
 
     /**
-     * Cancels all attacks and removes registrations/cooldowns without changing any entity health.
+     * Cancels all attacks and removes registrations/cooldowns/attachments without changing entity health.
      * Use at scene/map transitions; callers must register the new scope's actors afterward.
      */
     public void clear() {
         attacks.forEach(Attack::cancel);
         attacks.clear();
         cooldowns.clear();
+        elements.clear();
     }
 
     /**
@@ -305,18 +346,59 @@ public final class CombatSystem {
      * @param target valid receiver
      */
     private void deliverDamage(Attack attack, Combatant target) {
-        target.getEntity().takeDamage(calculateDamage(attack));
+        ElementType incoming = attack.getSpecification().element();
+        ElementRules.Reaction reaction = attack.isDerived() || incoming == ElementType.NONE ? null
+                : elementRules.find(getElementStatus(target).element(), incoming).orElse(null);
+        target.getEntity().takeDamage(calculateDamage(attack, reaction));
         attack.recordHit(target.getEntity());
+        if (!target.getEntity().isAlive() || reaction != null) {
+            elements.remove(target);
+        } else if (!attack.isDerived() && incoming != ElementType.NONE) {
+            elements.put(target, new ElementStatus(incoming, elementRules.attachmentSeconds()));
+        }
+        if (reaction != null && reaction.derived() != null) {
+            enqueueDerived(attack, target, reaction);
+        }
     }
 
     /**
-     * Central damage calculation boundary. Current rules use validated raw damage unchanged;
-     * future armour or modifiers belong here, not in individual character attack implementations.
+     * Central damage calculation boundary for ordinary, elemental and derived hits.
+     * Adds reaction bonus with saturation to prevent integer overflow; future armour/modifiers belong here.
      * Health remains responsible for saturating lethal damage at zero.
      * @param attack invocation that passed detection
+     * @param reaction matched rule, or null for ordinary/non-reacting/derived hits
      * @return non-negative damage to deliver through Damageable
      */
-    private int calculateDamage(Attack attack) {
-        return attack.getSpecification().damage();
+    private int calculateDamage(Attack attack, ElementRules.Reaction reaction) {
+        long total = (long) attack.getSpecification().damage() + (reaction == null ? 0 : reaction.bonusDamage());
+        return (int) Math.min(Integer.MAX_VALUE, total);
+    }
+
+    /**
+     * Queues one-generation geometry for a confirmed reaction; never recursively delivers damage.
+     * Children retain the incoming attacker, have their own ID/ledger, and do not charge cooldown.
+     * Full capacity, exhausted IDs or unrepresentable effect geometry skip only the optional child;
+     * the triggering damage/attachment consumption has already settled and is never retried.
+     * @param parent confirmed direct elemental invocation
+     * @param target reacting target, including one killed by the triggering hit
+     * @param reaction matched rule containing a derived effect
+     */
+    private void enqueueDerived(Attack parent, Combatant target, ElementRules.Reaction reaction) {
+        if (parent.isDerived() || lastAttackId == Long.MAX_VALUE
+                || attacks.stream().filter(attack -> attack.isActive() && attack.isDerived()).count() >= MAX_DERIVED_ATTACKS) {
+            return;
+        }
+        ElementRules.DerivedEffect effect = reaction.derived();
+        CollisionBox body = target.getHurtbox();
+        CollisionBox hitbox;
+        try {
+            hitbox = new CollisionBox(body.x() + body.width() / 2 - effect.radius(),
+                    body.y() + body.height() / 2 - effect.radius(), effect.radius() * 2, effect.radius() * 2);
+        } catch (IllegalArgumentException invalidGeometry) {
+            return;
+        }
+        AttackSpec specification = new AttackSpec("reaction-" + reaction.id(), effect.damage(), effect.activeSeconds(),
+                0, ElementType.NONE);
+        attacks.add(new Attack(++lastAttackId, parent.getSource(), specification, hitbox, null, parent.getId()));
     }
 }

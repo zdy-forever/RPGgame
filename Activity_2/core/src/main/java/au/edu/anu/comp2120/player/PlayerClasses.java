@@ -10,7 +10,7 @@ import java.util.Objects;
  * No Player subclasses or asset lookups are needed.
  * Values demonstrate class differences; they are not final skill designs or balance decisions.
  * Mage uses a straight magic bolt for J, fixed surrounding pulses for K/O, and the shared
- * collision-safe dash for L. Stable attack IDs identify spells without implementing elements.
+ * collision-safe dash for L. Built-in attacks use NONE; elemental tags remain opt-in configuration.
  * Katana uses forward light/heavy slashes and a single-hit surrounding ultimate, with the
  * existing faster dash. Slashes capture facing/geometry at invocation, not from a sprite.
  * @author Daoyan Zhu (u7782042)

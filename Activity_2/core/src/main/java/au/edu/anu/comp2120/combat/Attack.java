@@ -15,6 +15,8 @@ import java.util.Set;
 public final class Attack {
     /** Monotonic identifier within the owning system, never reset by clearing a map. */
     private final long id;
+    /** Triggering direct attack ID for a derived invocation, or zero for an ordinary attack. */
+    private final long parentAttackId;
     /** Registered source adapter retained for the lifetime of this invocation. */
     private final Combatant source;
     /** Validated reusable tuning. */
@@ -48,7 +50,21 @@ public final class Attack {
      * @param projectile flight model, or null for an area attack
      */
     Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox, Projectile projectile) {
+        this(id, source, specification, hitbox, projectile, 0);
+    }
+
+    /**
+     * Creates an invocation with provenance after validation by the owning pipeline.
+     * @param id unique positive invocation ID
+     * @param source canonical source
+     * @param specification immutable damage/timing/element data
+     * @param hitbox fixed or initial geometry
+     * @param projectile optional flight, null for a fixed attack
+     * @param parentAttackId triggering direct ID, or zero for an ordinary invocation
+     */
+    Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox, Projectile projectile, long parentAttackId) {
         this.id = id;
+        this.parentAttackId = parentAttackId;
         this.source = source;
         this.specification = specification;
         this.hitbox = hitbox;
@@ -62,6 +78,22 @@ public final class Attack {
      */
     public long getId() {
         return id;
+    }
+
+    /**
+     * Reports provenance for diagnostics and the one-generation reaction guard.
+     * @return triggering direct attack ID, or zero for ordinary attacks
+     */
+    public long getParentAttackId() {
+        return parentAttackId;
+    }
+
+    /**
+     * Identifies children which cannot attach elements or trigger further reactions.
+     * @return true for a system-derived attack
+     */
+    public boolean isDerived() {
+        return parentAttackId != 0;
     }
 
     /**
