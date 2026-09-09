@@ -29,6 +29,8 @@ final class EnemyConfigTest {
         assertEquals(40, config.loseRange());
         assertEquals(40, config.attackRange());
         assertSame(attack, config.attack());
+        assertEquals(16, config.pathCellSize());
+        assertEquals(0.5, config.repathSeconds());
     }
 
     /**
@@ -42,6 +44,8 @@ final class EnemyConfigTest {
         assertThrows(IllegalArgumentException.class, () -> new EnemyConfig(80, invalid, 260, 40, attack));
         assertThrows(IllegalArgumentException.class, () -> new EnemyConfig(80, 200, invalid, 40, attack));
         assertThrows(IllegalArgumentException.class, () -> new EnemyConfig(80, 200, 260, invalid, attack));
+        assertThrows(IllegalArgumentException.class, () -> new EnemyConfig(80, 200, 260, 40, attack, invalid, 0.5));
+        assertThrows(IllegalArgumentException.class, () -> new EnemyConfig(80, 200, 260, 40, attack, 16, invalid));
     }
 
     /** Ranges must nest and their square hitbox diameter must remain representable. */

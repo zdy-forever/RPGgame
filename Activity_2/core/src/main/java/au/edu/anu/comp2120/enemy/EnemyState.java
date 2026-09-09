@@ -8,7 +8,7 @@ package au.edu.anu.comp2120.enemy;
 public enum EnemyState {
     /** No eligible target is currently being pursued. */
     IDLE,
-    /** Moving directly toward a detected target through map collision. */
+    /** Following a direct approach or A* waypoints toward a detected target through map collision. */
     CHASE,
     /** In attack range, stationary and requesting attacks through the shared cooldown. */
     ATTACK,

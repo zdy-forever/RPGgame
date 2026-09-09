@@ -304,7 +304,7 @@ final class EnemyAITest {
         assertEquals(0, combat.getCooldownRemaining(ai.getCombatant()));
     }
 
-    /** Thin walls block a large direct chase without teleporting through them. */
+    /** A full-height sealing wall has no route; the enemy waits rather than walking into it. */
     @Test
     void collisionStopsChaseAtThinWall() {
         GameMap walls = TestMaps.rectangle(1000, 1000, List.of(new CollisionBox(160, 0, 2, 1000)));
@@ -312,17 +312,17 @@ final class EnemyAITest {
         arena.register(target);
         EnemyAI blocked = new EnemyAI(new Enemy(), new CollisionBox(100, 100, 20, 20), walls, config, arena);
         blocked.update(target, 100);
-        assertEquals(140, blocked.getBounds().x());
+        assertEquals(100, blocked.getBounds().x());
         assertEquals(EnemyState.CHASE, blocked.getState());
         assertTrue(walls.isWalkable(blocked.getBounds()));
         assertTrue(arena.getActiveAttacks().isEmpty());
         blocked.update(target, 100);
-        assertEquals(140, blocked.getBounds().x());
+        assertEquals(100, blocked.getBounds().x());
     }
 
-    /** Existing X-then-Y collision permits wall sliding without crossing the blocked axis. */
+    /** An unreachable diagonal target does not produce aimless wall sliding or corner cutting. */
     @Test
-    void diagonalChaseCanSlideAlongWall() {
+    void unreachableDiagonalTargetDoesNotSlideAimlessly() {
         GameMap walls = TestMaps.rectangle(1000, 1000, List.of(new CollisionBox(120, 0, 2, 1000)));
         CombatSystem arena = new CombatSystem();
         target.setHurtbox(new CollisionBox(200, 200, 20, 20));
@@ -330,7 +330,7 @@ final class EnemyAITest {
         EnemyAI blocked = new EnemyAI(new Enemy(), new CollisionBox(100, 100, 20, 20), walls, config, arena);
         blocked.update(target, 0.1);
         assertEquals(100, blocked.getBounds().x());
-        assertTrue(blocked.getBounds().y() > 100);
+        assertEquals(100, blocked.getBounds().y());
         assertTrue(walls.isWalkable(blocked.getBounds()));
     }
 
@@ -338,11 +338,11 @@ final class EnemyAITest {
      * Even malformed external target geometry beyond the arena cannot pull an enemy across its edges.
      * @param targetX target x outside a small arena
      * @param targetY target y outside a small arena
-     * @param expectedX final enemy x at contact
-     * @param expectedY final enemy y at contact
+     * @param expectedX unchanged enemy x when no valid navigation goal exists
+     * @param expectedY unchanged enemy y when no valid navigation goal exists
      */
     @ParameterizedTest
-    @CsvSource({"-100,40,0,40", "200,40,80,40", "40,-100,40,0", "40,200,40,80"})
+    @CsvSource({"-100,40,40,40", "200,40,40,40", "40,-100,40,40", "40,200,40,40"})
     void preservesAllMapBoundaries(double targetX, double targetY, double expectedX, double expectedY) {
         GameMap small = TestMaps.rectangle(100, 100, List.of());
         CombatSystem arena = new CombatSystem();

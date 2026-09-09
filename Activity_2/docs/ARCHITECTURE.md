@@ -39,6 +39,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── GameScreen.java
 │   └── PlaceholderRenderer.java
 └── world/
+    ├── AStarPathfinder.java
     ├── CollisionBox.java
     ├── FastTravelDestination.java
     ├── GameMap.java
@@ -176,6 +177,16 @@ are documented boundaries but do not have empty packages yet.
 - Ranges use centre distance. Attack comparison has a four-coordinate-ULP allowance
   to absorb normalized-movement rounding at the stop boundary. Map collision stays
   unchanged. Large steps stop at attack range instead of overshooting the target.
+- Clear pursuit stays direct; blocked pursuit uses `world/AStarPathfinder`. The
+  bounded four-neighbour grid samples full-body placements and validates complete
+  edge envelopes, including off-grid connectors and thin-wall/corner clearance.
+  Queue priority is travelled distance plus an admissible Euclidean stand-off
+  heuristic. Grid membership is static; search arrays are local to each query.
+- EnemyAI caches a route, waypoint index, target snapshot, and replan timer. All
+  waypoint motion shares one speed-times-delta budget and uses WalkableArea.move.
+  Moving-target and failed-path retries are throttled; clear direct approaches
+  bypass A*. Death, lost targets, resets, and map changes discard route state.
+  AI also checks a conservative clear corridor before initiating an attack.
 - AI owns no damage formula or cooldown clock. The arena updates all AI, then one
   CombatSystem update settles hits, health/death, and timing. A health-aware state
   getter reports death immediately after settlement. Invalid/dead/friendly/absent
@@ -183,11 +194,18 @@ are documented boundaries but do not have empty packages yet.
 - EnemyConfig validates positive finite speed/ranges, attack <= detection <= loss,
   and positive autonomous cooldown. GameConfig supplies demo values; generic AI
   accepts per-enemy tuning through its constructor.
+- Navigation defaults are a 16-unit grid and a 0.5-second blocked-path replan
+  interval, configurable through EnemyConfig with a backward-compatible constructor.
+  WalkableArea exposes outer bounds for finite navigation. Grids over 20,000 nodes
+  fail explicitly; grid resolution can miss passages narrower than its sampling.
 - Demo spawn candidates are checked against map geometry/player/earlier enemies;
   later movement has no dynamic actor collision. New battle scopes create fresh
   enemies, while player HP is retained. This is not a persistent spawn/save system.
-- No A*, behaviour trees, obstacle path planning, patrol/home return, or wall
-  visibility/attack occlusion is implemented. Direct pursuit may stop at a wall.
+- No behaviour trees, patrol/home return, crowd avoidance, or dynamic navigation
+  graph updates are implemented. Sealed areas return no route; thin/off-grid
+  passages may need finer sampling. Static-map collision occupancy is cached.
+  AI attack-initiation clearance is not global combat occlusion; existing player
+  attacks and collateral overlap hits retain their previous rules.
 
 ### World / Map
 
@@ -276,7 +294,8 @@ GameScreen -> feature modules (coordination only)
 GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
 PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
 CombatDemo -> GameSession, EnemyAI/EnemyConfig, Enemy, CombatSystem, Combatant, AttackSpec
-EnemyAI    -> Enemy, EnemyState, EnemyConfig, WalkableArea, CombatSystem, Combatant
+EnemyAI    -> Enemy, EnemyState, EnemyConfig, WalkableArea, AStarPathfinder, CombatSystem, Combatant
+AStarPathfinder -> WalkableArea, CollisionBox (no entity, input, or graphics dependencies)
 CombatSystem -> Combatant, Attack, AttackSpec, Damageable, CollisionBox
 CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data

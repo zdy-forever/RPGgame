@@ -359,7 +359,7 @@ Temporary controls (not final character skills):
    cannot attack, and enemies stop pursuing it. R allows normal decisions to resume.
 5. Run away (player speed 180, enemy speed 80). Beyond the loss radius, enemies
    become IDLE and stop where they are. Re-enter the detection radius to reacquire.
-   Use map obstacles to verify that pursuit cannot cross walls. J remains a debug
+   Use map obstacles to verify that pursuit routes around walls rather than crossing them. J remains a debug
    rectangle extending 96 units around the source, not a final directional weapon.
 6. Attack then fast-travel or enter a portal. Old yellow rectangles disappear and
    cannot damage actors on the new map. Player HP is preserved; each new battle
@@ -394,15 +394,18 @@ Run combat-specific checks with:
   classes or a behaviour tree. IDLE acquires a living registered hostile target at
   centre distance <= detectionRange. CHASE/ATTACK keep tracking until distance is
   greater than loseRange. This hysteresis avoids flicker around the detection edge.
-- CHASE moves toward the target centre at normalized, delta-based speed. It uses
-  the existing `WalkableArea.move` X-then-Y swept collision, so walls and map edges
-  still constrain the whole body. Steps stop at attack range rather than overshoot
-  the player. Attack-distance comparison tolerates four coordinate ULPs solely for
-  floating-point rounding; map collision bounds are not relaxed.
+- CHASE uses direct, normalized, delta-based movement when a full-body corridor is
+  clear, otherwise follows cached A* waypoints around obstacles. Actual movement still
+  uses the existing `WalkableArea.move` X-then-Y swept collision. One distance budget
+  is shared across all waypoints consumed in a frame, so route turns cannot multiply
+  speed. Direct/final approaches stop at attack range. Attack-distance comparison
+  tolerates four coordinate ULPs solely for rounding; map bounds are not relaxed.
 - ATTACK stops movement and calls `CombatSystem.tryAttack` with the configured
   AttackSpec and a fixed square of half-size attackRange, centred on the enemy.
   Detection/decision ranges are Euclidean centre distances; damage still uses the
-  common rectangular hitbox/hurtbox pipeline. An attack can hit other valid targets
+  common rectangular hitbox/hurtbox pipeline. AI requests an attack only when the
+  conservative body-to-target corridor is clear, avoiding strikes initiated through
+  walls. An attack can hit other valid targets
   in that square. AI never calls takeDamage directly or advances shared combat time.
 - Missing, dead, friendly, self, or unregistered targets cause IDLE. A detached old
   controller cannot pursue actors in a new arena. DEAD reflects zero Health immediately,
@@ -415,17 +418,41 @@ Run combat-specific checks with:
   distance is rejected. `ENEMY_COUNT`, `ENEMY_SIZE`, and `ENEMY_SPAWN_OFFSET` configure
   the temporary battle-map demonstration. Existing built-in battle entries support
   two enemies; a map with fewer safe placement candidates gets fewer or none.
+- `EnemyConfig` additionally configures `pathCellSize` (default 16 world units) and
+  `repathSeconds` (default 0.5). The existing five-argument constructor remains valid.
+  `AStarPathfinder` builds a bounded four-neighbour navigation grid from full-body
+  occupancy, not textures or tile artwork. Each edge and off-grid connector checks
+  the entire swept envelope, so thin walls and diagonal corners cannot be skipped.
+  A priority queue uses travelled cost plus an admissible Euclidean stand-off-distance
+  heuristic, with stable tie-breaking. Map edges are included even when dimensions
+  are not multiples of cell size. `WalkableArea.getBounds()` bounds the search.
+- Each controller keeps its own waypoint index and target snapshot. Clear direct
+  approaches skip A*. A moving target is replanned at the configured interval while
+  blocked; unchanged valid routes are reused. No-route results are also throttled,
+  leaving the enemy still rather than repeatedly walking into a wall. Death, target
+  loss, reset, and arena replacement discard route state. Detection/loss radii still
+  apply while detouring; A* does not grant unlimited pursuit.
 - Each enemy has independent health, state, geometry, and per-source combat cooldown.
   The arena owns a normal list of controllers; there is no singleton enemy or ECS.
   Initial spawn candidates do not overlap, but moving entities are not solid to one
   another, so enemies can later overlap. Movement/attack pause with the existing loop.
 
-Limitations: direct pursuit only, no A*, pathfinding around complex obstacles, patrol,
-return-home behaviour, line-of-sight, wall-occluded attacks, or dynamic entity avoidance.
-Enemies can become stuck at walls; losing a target stops them in place. Enemies may
-detect/attack through a wall if range and hitbox rules permit. No animation, audio,
-particles, loot, or enemy-state persistence is implemented. HP and state appear in
-the native title; bodies, hurtboxes, and attack areas use only geometric placeholders.
+Navigation limitations: the grid is a discrete approximation. Narrow, off-grid passages
+may require smaller cell spacing, and a sealed region correctly returns no route.
+Grids above 20,000 nodes are rejected instead of allocating unbounded search data.
+Collision occupancy is cached for static maps; rebuild the pathfinder if terrain changes.
+Conservative rectangular corridors may choose longer routes than an exact line sweep.
+There is no patrol, home return, dynamic entity avoidance, or crowd pathfinding.
+Detection remains distance-based. The enemy's attack-initiation clearance check does
+not add global wall occlusion to combat-core: player attacks and collateral hits still
+use its existing overlap rules. No animation, audio, particles, loot, or enemy-state
+persistence is implemented. HP/state use the title; geometry remains placeholder-only.
+
+To check the new detour behaviour manually, lure enemies near the first Training wall
+(x=240..264, ending at y=380), then move around its top opening to the opposite side
+while staying within the loss radius. Enemies should follow the opening, not push into
+the wall. Automated navigation tests also traverse both alternating Training walls,
+check moving-target replanning, and verify that repeated no-route queries are throttled.
 
 ```bash
 ./gradlew core:test --tests '*Enemy*Test' --tests '*CombatDemoTest'
@@ -451,8 +478,9 @@ the native title; bodies, hurtboxes, and attack areas use only geometric placeho
 - `CameraFollow`: stateless subject-centre, map-clamp, and small-map view mathematics.
 - `PlaceholderRenderer`: applies the follow camera and renders shapes through a fixed `FitViewport`.
 - `Enemy`: hostile entity with independent shared health, composed by EnemyAI.
-- `EnemyAI`: one actor's pursuit/attack decisions and collision-constrained geometry.
-- `EnemyConfig`: validated speed, detection/loss/attack ranges, and shared attack tuning.
+- `EnemyAI`: one actor's decisions, cached navigation route, and collision-constrained geometry.
+- `EnemyConfig`: validated movement/ranges, shared attack tuning, and navigation resolution/timing.
+- `AStarPathfinder`: bounded full-body grid search, clear direct approaches, and safe route segments.
 - `EnemyState`: IDLE, CHASE, ATTACK, and DEAD diagnostics.
 - `NPC`: future non-player character.
 - `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
@@ -471,7 +499,7 @@ the native title; bodies, hurtboxes, and attack areas use only geometric placeho
 
 This is intentionally a small foundation. Movement currently supports static,
 axis-aligned rectangles and three built-in maps. It does not include dynamic entity
-collision, external map-file loading, bosses, advanced enemy pathfinding, elemental map rules,
+collision, external map-file loading, bosses, crowd navigation, elemental map rules,
 saved map state, final character skills, or final artwork. Collision uses X-then-Y
 axis separation rather than a continuous diagonal sweep, so large diagonal steps
 can take a different route around corners than many smaller steps. Normal screen

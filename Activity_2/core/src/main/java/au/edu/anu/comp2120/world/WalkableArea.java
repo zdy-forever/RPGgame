@@ -6,6 +6,12 @@ package au.edu.anu.comp2120.world;
  * @author Daoyan Zhu (u7782042)
  */
 public interface WalkableArea {
+    /**
+     * Returns the finite outer region used to bound navigation searches.
+     * @return immutable world boundary; obstacles may occupy part of this region
+     */
+    CollisionBox getBounds();
+
 
     /**
      * Checks a world point. The outer right/top boundaries are excluded.
