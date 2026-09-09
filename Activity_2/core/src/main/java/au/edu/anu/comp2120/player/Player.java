@@ -1,15 +1,22 @@
 package au.edu.anu.comp2120.player;
 
+import au.edu.anu.comp2120.combat.Damageable;
+import au.edu.anu.comp2120.combat.Health;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.WalkableArea;
 import java.util.Objects;
 
 /**
- * Holds player geometry and applies time-based eight-direction movement without graphics or input APIs.
+ * Holds player geometry and health, with time-based eight-direction movement independent of graphics.
+ * Damage delegates to the shared health model; death consequences are a future gameplay policy.
  *
  * @author Daoyan Zhu (u7782042)
  */
-public final class Player {
+public final class Player implements Damageable {
+    /** Default player HP capacity; callers can override it with the explicit-capacity constructor. */
+    public static final int DEFAULT_MAX_HP = 100;
+    /** Per-player health retained during movement and map transitions. */
+    private final Health health;
     /** Current immutable collision rectangle, anchored at the bottom-left corner. */
     private CollisionBox bounds;
     /** Movement speed in world units per second. */
@@ -18,7 +25,7 @@ public final class Player {
     private WalkableArea area;
 
     /**
-     * Creates a player entirely inside a walkable region.
+     * Creates a player entirely inside a walkable region with default full health.
      *
      * @param bounds initial position and collision dimensions
      * @param speed positive, finite speed in world units per second
@@ -27,18 +34,65 @@ public final class Player {
      * @throws IllegalArgumentException if speed is invalid or the spawn is blocked
      */
     public Player(CollisionBox bounds, double speed, WalkableArea area) {
+        this(bounds, speed, area, DEFAULT_MAX_HP);
+    }
+
+    /**
+     * Creates a player with configurable full health without sharing mutable HP with other entities.
+     *
+     * @param bounds initial position and collision dimensions
+     * @param speed positive, finite speed in world units per second
+     * @param area collision environment
+     * @param maxHp positive initial and maximum hit points
+     * @throws NullPointerException if bounds or area is null
+     * @throws IllegalArgumentException if speed, spawn, or maxHp is invalid
+     */
+    public Player(CollisionBox bounds, double speed, WalkableArea area, int maxHp) {
         this.bounds = Objects.requireNonNull(bounds, "bounds");
         this.area = Objects.requireNonNull(area, "area");
         if (!Double.isFinite(speed) || speed <= 0 || !area.isWalkable(bounds)) {
             throw new IllegalArgumentException("Speed must be positive and finite; spawn must be walkable");
         }
         this.speed = speed;
+        health = new Health(maxHp);
+    }
+
+    /**
+     * Returns this player's health for healing, explicit restoration, or read-only display queries.
+     * Mutate it only through its validated operations on the game-loop thread.
+     *
+     * @return this player's persistent health model
+     */
+    public Health getHealth() {
+        return health;
+    }
+
+    /**
+     * Delegates damage to the shared model without changing position or triggering visual effects.
+     *
+     * @param damage non-negative hit points to remove
+     * @throws IllegalArgumentException if damage is negative
+     */
+    @Override
+    public void takeDamage(int damage) {
+        health.takeDamage(damage);
+    }
+
+    /**
+     * Reports whether the shared model has remaining HP.
+     *
+     * @return true while this player has positive HP
+     */
+    @Override
+    public boolean isAlive() {
+        return health.isAlive();
     }
 
     /**
      * Applies normalized movement. Opposing keys should cancel before this call; when both
      * axes are nonzero, normalization keeps diagonal speed equal to cardinal speed.
      * Zero delta/input does nothing. Collision may allow sliding along a wall.
+     * This low-level movement operation does not enforce death-related gameplay restrictions.
      * Invalid arguments are rejected before changing state.
      *
      * @param horizontal horizontal intent: -1 left, 0 idle, 1 right
@@ -59,7 +113,7 @@ public final class Player {
     }
 
     /**
-     * Enters a collision environment at a new bottom-left position, preserving size and speed.
+     * Enters a collision environment at a new bottom-left position, preserving size, speed, and HP.
      * Session coordination should use this method when changing maps. All validation occurs
      * before either the position or collision environment changes.
      *

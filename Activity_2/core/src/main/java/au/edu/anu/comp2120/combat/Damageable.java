@@ -10,9 +10,11 @@ package au.edu.anu.comp2120.combat;
 public interface Damageable {
 
     /**
-     * Applies a non-negative amount of damage.
+     * Applies non-negative integer damage. Zero is a no-op; negative values are rejected
+     * before changing state. Implementations must not reduce HP below zero.
      *
      * @param damage amount of damage to apply
+     * @throws IllegalArgumentException if damage is negative
      */
     void takeDamage(int damage);
 
