@@ -339,7 +339,7 @@ AttackSpec + registered source + world hitbox
   once per simulation step. Use one game-loop thread; custom damage receivers must not
   call back into/mutate the combat system while damage is being delivered.
 
-Temporary controls (not final character skills):
+Temporary controls (attack values below are the default Mage, not final character skills):
 
 | Key | Debug action |
 | --- | --- |
@@ -347,6 +347,7 @@ Temporary controls (not final character skills):
 | K | Special attack: 40 damage, 120-unit extension, 0.3 s active, 2 s cooldown |
 | L | Dash: 600 units/s for 0.2 s (120 units unobstructed), 1 s cooldown |
 | O | Ultimate: 75 damage, 180-unit extension, 0.5 s active, 8 s cooldown |
+| F1 / F2 / F3 | Select Archer / Mage / Katana when no player attack or dash is active |
 | R | Restore player/enemy HP, reset AI awareness, and clear attacks/cooldowns; no repositioning |
 
 1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. Two red enemies
@@ -371,7 +372,7 @@ Temporary controls (not final character skills):
    cannot damage actors on the new map. Player HP is preserved; each new battle
    scope gets fresh enemies. Resize still uses the existing camera.
 
-All tuning is in `GameConfig`; neither combat models nor detection import rendering
+Class tuning is in `PlayerClasses`; scene/enemy tuning remains in `GameConfig`. Neither combat models nor detection import rendering
 or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
 the native title rather than loading fonts. `CombatDemo` delegates common movement/ability
 execution to `PlayerAbilities`, coordinates placement and reset/transition policy,
@@ -379,7 +380,7 @@ updates every EnemyAI, then advances the shared CombatSystem exactly once.
 
 Combat limitations: fixed axis-aligned hitboxes, discrete overlap samples, no wall
 occlusion/line-of-sight or projectile motion, and no armour, knockback, attack wind-up,
-invulnerability, combos, classes, elements, bosses, or final class skills. These debug
+invulnerability, combos, elements, bosses, or final class skills. These debug
 area attacks may hit through nearby walls. Dead-player movement/abilities are blocked
 by the common controller; debug fast travel remains allowed. Enemy HP is not persisted across transitions. Pause freezes
 combat, and the existing frame-time cap discards excess stall time.
@@ -388,9 +389,11 @@ combat, and the existing frame-time cap discards excess stall time.
 
 - `PlayerInput.sample()` converts held WASD and newly pressed J/K/L/O into one
   immutable `PlayerCommand`. Holding an ability key does not repeat it; failed
-  requests are not queued. No keyboard adapter chooses damage or a player class.
+  requests are not queued. The adapter never chooses damage; debug class requests
+  are sampled separately by `sampleClassSelection()`.
 - `AbilityLoadout` supplies validated attack/dash tuning; the placeholder defaults
-  live together in `GameConfig.PLAYER_ABILITIES`. Different common loadouts can be
+  live together in `PlayerClasses`; `GameConfig.PLAYER_ABILITIES` is a compatibility
+  reference to the default Mage loadout. Different common loadouts can be
   injected without changing key mapping, collision, health or hit resolution.
 - `PlayerAbilities.update(delta, command)` returns the accepted slot as the
   **triggered event**. `getState(slot)` reports READY, ACTIVE, COOLDOWN, or
@@ -408,7 +411,7 @@ combat, and the existing frame-time cap discards excess stall time.
   The burst uses only its remaining duration, then ordinary movement uses leftover
   frame time. Blocked distance is not refunded. There is no dash damage or immunity.
 - The controller updates the independent player hurtbox after movement and submits
-  area attacks to the existing `CombatSystem`. It never applies damage itself.
+  strategy-generated rectangular attacks to the existing `CombatSystem`. It never applies damage itself.
   Core combat handles hostile filtering, once-per-invocation hits, HP and death.
 - Fast travel consumes input before simulation. Portals are checked at the player's
   final position after movement/combat. Arrival immediately clears old-map attacks
@@ -426,7 +429,7 @@ WASD to check remembered facing. Press all four keys to check dash priority. Das
 or attack, travel with 1/2/3, and confirm active effects stop without resetting slot
 cooldowns. Use R to recover after death.
 
-Ability limitations: these are all-direction rectangular placeholder attacks, not
+Ability limitations: these are area/forward rectangular placeholder attacks, not
 weapon skills. No targeting cursor, projectiles, energy economy, combo buffer,
 animation, invulnerability, enemy-body collision or art assets are implemented.
 Portal checks use final body overlap, not a swept dash/portal trigger; a thin trigger
@@ -438,6 +441,72 @@ Run ability-specific checks with:
 
 ```bash
 ./gradlew core:test --tests '*PlayerAbilitiesTest' --tests '*AbilityLoadoutTest' --tests '*PlayerInputTest' --tests '*CombatDemoTest'
+```
+
+### Player class foundation
+
+Every class is the same concrete `Player`, with one Health model, collision body,
+ordinary movement speed and canonical Combatant. There are no ArcherPlayer,
+MagePlayer or KatanaPlayer subclasses. `PlayerClass` holds explicit stable IDs
+(`archer`, `mage`, `katana`); `Player.getPlayerClass()` exposes current identity.
+The default is Mage to preserve the previous common area-attack behaviour and tuning.
+
+`ClassDefinition` composes identity with an immutable `AbilityLoadout`. Each J/K/O
+entry supplies damage, range, active duration, cooldown and an `AttackShape` strategy.
+L supplies speed, duration and cooldown to the same swept-collision dash executor.
+The catalog is ordinary Java data; no new configuration library or asset format is introduced.
+
+| Debug key | Class | J placeholder | K / O placeholders | Dash |
+| --- | --- | --- | --- | --- |
+| F1 | Archer | Forward rectangle, 20 damage, 160 reach | Forward rectangles | 650 units/s, 0.2 s, 1.2 s cooldown |
+| F2 | Mage | Surrounding rectangle, 25 damage, 96 extension | Surrounding rectangles | 600 units/s, 0.2 s, 1 s cooldown |
+| F3 | Katana | Forward rectangle, 30 damage, 48 reach | Surrounding rectangles | 750 units/s, 0.16 s, 0.9 s cooldown |
+
+These values demonstrate replaceable class configuration, not agreed final balance.
+Forward rectangles follow the existing last WASD intent (right initially), including
+normalized diagonals; diagonal shapes are axis-aligned envelopes, not rotated blades.
+They are instantaneous active hitboxes, **not arrows, magic projectiles or combos**.
+No renderer branches on class or loads weapons, sprites, animations, audio or textures.
+
+The small `AttackShape` Strategy is used only where behaviour already differs:
+AREA expands the source hurtbox on all sides, while FORWARD extends it in the facing
+direction. A custom pure strategy can be injected per attack slot without modifying
+PlayerAbilities, health, input, or damage calculation. It returns geometry only and
+must not mutate gameplay state. Class-wide execution remains composition/data;
+there is no separate strategy class, manager or factory for every profession.
+
+Selection and integration rules:
+
+- Initialize directly with the Player constructor accepting max HP and ClassDefinition,
+  then use the three-argument PlayerAbilities constructor to respect that selection.
+- For a running controller, call `selectClass(PlayerClasses.get(type))`. A custom
+  ClassDefinition can also replace a class's tuning/shape strategies.
+- A successful switch preserves the same Player, Health, Combatant, map, position,
+  movement speed, facing and **remaining cooldown seconds for every slot**. It does
+  not heal, revive, reposition or clear other actors' combat state.
+- Active player attacks (including external pipeline submissions), active dash,
+  death, stale combat registration or an identical definition return false without
+  mutation. Null definitions throw. Cooldown alone does not forbid selection, but
+  switching back and forth cannot refresh it. Requests are never queued.
+- F1/F2/F3 use key edges; simultaneous selection prefers F1, then F2, then F3.
+  Selection attempts consume that frame's new movement/J/K/L/O requests, whether
+  accepted or rejected. Existing attacks/dash and simulation time still advance.
+  Travel and R reset take precedence over a same-frame class request.
+- Map transitions preserve selection and slot cooldowns; R resets HP/abilities but
+  retains class. Separate players share only immutable definitions, never HP or timers.
+- The native title shows current class and the existing J/K/L/O lifecycle feedback.
+  On keyboards using system media functions, use Fn+F1/F2/F3 as needed.
+
+Manual check: start the game, press each selection key while idle, then use WASD to
+set facing and try J/K/O near enemies in Training (U then 2). Compare the yellow
+forward/area outlines, range, damage and dash distance. Try selecting during an
+active attack/dash (rejected), then during cooldown (accepted without refreshing it).
+Travel and press R to verify class persistence. No final selection UI or unlock/save
+system is implemented. Projectile simulation and full class skill execution remain
+future work; this geometry strategy does not claim to implement them.
+
+```bash
+./gradlew core:test --tests '*PlayerClassTest' --tests '*AttackShapeTest' --tests '*PlayerInputTest' --tests '*CombatDemoTest'
 ```
 
 Run combat-specific checks with:
@@ -527,6 +596,10 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `TravelSystem`: portal triggering, arrival protection, unlock state, and fast-travel checks.
 - `GameScreen`: coordinates input, simulation, lifecycle, and the temporary view.
 - `Player`: validated position/size/speed, eight-direction movement, and owned shared health.
+- `PlayerClass`: stable Archer/Mage/Katana identity independent of visuals and Java subclasses.
+- `ClassDefinition`: composition of identity and immutable common ability tuning.
+- `PlayerClasses`: centralized placeholder definitions and the backward-compatible Mage default.
+- `AttackShape`: pure interchangeable area/forward hitbox strategies, not separate damage pipelines.
 - `Health`: bounded integer HP, damage, healing, life status, and explicit restoration.
 - `Damageable`: common validated damage/life-status contract for combat targets.
 - `Combatant`: entity/faction adapter with independently supplied hurtbox geometry.

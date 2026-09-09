@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /**
  * Immutable tuning for the common placeholder abilities, injectable without changing input code.
- * These area attacks are not final Archer, Mage, or Katana implementations.
+ * Attack geometry is replaceable; these placeholders are not final class skill implementations.
  * @param light light attack tuning
  * @param special special attack tuning
  * @param dash movement burst tuning
@@ -29,21 +29,35 @@ public record AbilityLoadout(AreaAttack light, AreaAttack special, Dash dash, Ar
     }
 
     /**
-     * Shared rectangular area attack with cooldown owned by its ability slot.
+     * Shared attack tuning with replaceable hitbox construction and slot-owned cooldown.
      * @param attack damage, label, active duration and slot cooldown
-     * @param range positive finite extension on each side of the source hurtbox
+     * @param range positive finite reach interpreted by the selected shape strategy
+     * @param shape side-effect-free strategy interpreting range as reach or area extension
      * @author Daoyan Zhu (u7782042)
      */
-    public record AreaAttack(AttackSpec attack, double range) {
+    public record AreaAttack(AttackSpec attack, double range, AttackShape shape) {
+        /**
+         * Preserves the original all-direction placeholder constructor.
+         * @param attack validated combat specification
+         * @param range extension on all sides
+         * @throws NullPointerException if attack is null
+         * @throws IllegalArgumentException if range or timing is invalid
+         */
+        public AreaAttack(AttackSpec attack, double range) {
+            this(attack, range, AttackShape.AREA);
+        }
+
         /**
          * Validates timing and representable range before use.
          * @param attack validated combat specification
-         * @param range extension in world units
-         * @throws NullPointerException if attack is null
+         * @param range reach in world units interpreted by the strategy
+         * @param shape hitbox construction strategy
+         * @throws NullPointerException if attack or shape is null
          * @throws IllegalArgumentException if range is invalid or cooldown is shorter than active time
          */
         public AreaAttack {
             Objects.requireNonNull(attack, "attack");
+            Objects.requireNonNull(shape, "shape");
             if (!Double.isFinite(range) || range <= 0 || !Double.isFinite(2 * range)
                     || attack.cooldownSeconds() < attack.activeSeconds()) {
                 throw new IllegalArgumentException("Area attack needs positive range and cooldown >= active time");

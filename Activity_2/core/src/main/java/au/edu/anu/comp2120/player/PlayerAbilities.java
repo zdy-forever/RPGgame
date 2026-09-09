@@ -24,8 +24,6 @@ public final class PlayerAbilities {
     private final Player player;
     /** Shared arena pipeline; this controller never directly damages a target. */
     private final CombatSystem combat;
-    /** Immutable replacement point for shared ability tuning. */
-    private final AbilityLoadout loadout;
     /** Remaining per-slot seconds, measured from successful triggering. */
     private final double[] cooldowns = new double[AbilitySlot.values().length];
     /** Last invocation per attack slot for observational active-state queries. */
@@ -52,7 +50,20 @@ public final class PlayerAbilities {
     private double dashRemaining;
 
     /**
-     * Attaches abilities to an existing canonical player and an injectable placeholder loadout.
+     * Uses the class definition already selected when the shared Player was constructed.
+     * @param player existing shared player
+     * @param source registered canonical player adapter
+     * @param combat shared combat pipeline
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter
+     */
+    public PlayerAbilities(Player player, Combatant source, CombatSystem combat) {
+        this(player, source, combat, Objects.requireNonNull(player, "player").getClassDefinition().abilities());
+    }
+
+    /**
+     * Attaches abilities and overrides initial tuning while preserving the player's class identity.
+     * Retained for code-configured loadouts; use selectClass for changes to a running controller.
      * @param player existing player model
      * @param source registered player combat adapter
      * @param combat shared combat pipeline
@@ -63,8 +74,28 @@ public final class PlayerAbilities {
     public PlayerAbilities(Player player, Combatant source, CombatSystem combat, AbilityLoadout loadout) {
         this.player = Objects.requireNonNull(player, "player");
         this.combat = Objects.requireNonNull(combat, "combat");
-        this.loadout = Objects.requireNonNull(loadout, "loadout");
+        Objects.requireNonNull(loadout, "loadout");
         bindAfterTransition(source);
+        player.applyClassDefinition(new ClassDefinition(player.getPlayerClass(), loadout));
+    }
+
+    /**
+     * Selects a definition without replacing Player, Health, combat registration or cooldown clocks.
+     * Same-definition, dead/stale-source, active-attack and active-dash requests are rejected.
+     * Remaining cooldown seconds, facing, position, movement speed and HP are preserved exactly.
+     * This is a debug/code selection foundation, not a class-unlock or selection-UI workflow.
+     * @param definition validated next class definition
+     * @return true if applied; false if unchanged or currently unsafe to switch
+     * @throws NullPointerException if definition is null
+     */
+    public boolean selectClass(ClassDefinition definition) {
+        Objects.requireNonNull(definition, "class definition");
+        if (definition.equals(player.getClassDefinition()) || !available() || dashRemaining > 0
+                || combat.getActiveAttacks().stream().anyMatch(attack -> attack.getSource() == source)) {
+            return false;
+        }
+        player.applyClassDefinition(definition);
+        return true;
     }
 
     /**
@@ -76,7 +107,7 @@ public final class PlayerAbilities {
      * @param delta finite non-negative simulation seconds with representable ordinary movement
      * @param command immutable frame intent
      * @return accepted slot (the triggered event), or empty if no request succeeded
-     * @throws NullPointerException if command is null
+     * @throws NullPointerException if command is null or a custom shape incorrectly returns null
      * @throws IllegalArgumentException if delta is invalid or attack geometry is unrepresentable
      */
     public Optional<AbilitySlot> update(double delta, PlayerCommand command) {
@@ -85,6 +116,7 @@ public final class PlayerAbilities {
             throw new IllegalArgumentException("Ability delta must give finite non-negative movement");
         }
         Optional<AbilitySlot> triggered = Optional.empty();
+        AbilityLoadout loadout = player.getClassDefinition().abilities();
         if (available()) {
             boolean wasDashing = dashRemaining > 0;
             if (!wasDashing && (command.horizontal() != 0 || command.vertical() != 0)) {
@@ -196,20 +228,19 @@ public final class PlayerAbilities {
     }
 
     /**
-     * Submits one area invocation through the shared pipeline, then starts only its slot cooldown.
+     * Delegates hitbox construction, submits to the shared pipeline, then starts only the slot cooldown.
      * @param slot attack slot
      * @param area area attack tuning
      * @return true if combat accepted a new invocation
      * @throws IllegalArgumentException if the computed rectangle is unrepresentable
+     * @throws NullPointerException if a custom shape incorrectly returns null
      */
     private boolean triggerAttack(AbilitySlot slot, AbilityLoadout.AreaAttack area) {
         if (getState(slot) != AbilityState.READY) {
             return false;
         }
-        CollisionBox body = source.getHurtbox();
-        double range = area.range();
-        CollisionBox hitbox = new CollisionBox(body.x() - range, body.y() - range,
-                body.width() + 2 * range, body.height() + 2 * range);
+        CollisionBox hitbox = Objects.requireNonNull(area.shape().create(source.getHurtbox(), area.range(),
+                facingX, facingY), "attack shape result");
         AttackSpec spec = area.attack();
         AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(), 0);
         Optional<Attack> accepted = combat.tryAttack(source, invocation, hitbox);

@@ -23,6 +23,8 @@ public final class Player implements Damageable {
     private final double speed;
     /** Collision environment used to validate spawning and resolve movement. */
     private WalkableArea area;
+    /** Selected immutable class definition; movement and health remain owned by this same Player. */
+    private ClassDefinition classDefinition;
 
     /**
      * Creates a player entirely inside a walkable region with default full health.
@@ -48,6 +50,21 @@ public final class Player implements Damageable {
      * @throws IllegalArgumentException if speed, spawn, or maxHp is invalid
      */
     public Player(CollisionBox bounds, double speed, WalkableArea area, int maxHp) {
+        this(bounds, speed, area, maxHp, PlayerClasses.get(PlayerClasses.DEFAULT));
+    }
+
+    /**
+     * Initializes a chosen class using the same shared movement, collision and health implementation.
+     * @param bounds initial collision rectangle
+     * @param speed positive finite ordinary movement speed
+     * @param area collision environment
+     * @param maxHp positive health capacity, independent of class tuning
+     * @param classDefinition validated selected class and common abilities
+     * @throws NullPointerException if bounds, area or classDefinition is null
+     * @throws IllegalArgumentException if speed, spawn or health capacity is invalid
+     */
+    public Player(CollisionBox bounds, double speed, WalkableArea area, int maxHp, ClassDefinition classDefinition) {
+        this.classDefinition = Objects.requireNonNull(classDefinition, "class definition");
         this.bounds = Objects.requireNonNull(bounds, "bounds");
         this.area = Objects.requireNonNull(area, "area");
         if (!Double.isFinite(speed) || speed <= 0 || !area.isWalkable(bounds)) {
@@ -55,6 +72,32 @@ public final class Player implements Damageable {
         }
         this.speed = speed;
         health = new Health(maxHp);
+    }
+
+    /**
+     * Returns stable class identity without inspecting a sprite, weapon or Java subclass.
+     * @return current class identity
+     */
+    public PlayerClass getPlayerClass() {
+        return classDefinition.type();
+    }
+
+    /**
+     * Returns current immutable class tuning and attack strategy references.
+     * @return selected definition, containing no mutable health/cooldown state
+     */
+    public ClassDefinition getClassDefinition() {
+        return classDefinition;
+    }
+
+    /**
+     * Applies a definition after the common ability controller validates switching safety.
+     * Package access prevents bypass through ordinary screen/session consumers.
+     * @param definition complete class definition
+     * @throws NullPointerException if definition is null
+     */
+    void applyClassDefinition(ClassDefinition definition) {
+        classDefinition = Objects.requireNonNull(definition, "class definition");
     }
 
     /**

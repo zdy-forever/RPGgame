@@ -33,8 +33,12 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── AbilityLoadout.java
 │   ├── AbilitySlot.java
 │   ├── AbilityState.java
+│   ├── AttackShape.java
+│   ├── ClassDefinition.java
 │   ├── Player.java
 │   ├── PlayerAbilities.java
+│   ├── PlayerClass.java
+│   ├── PlayerClasses.java
 │   ├── PlayerCommand.java
 │   └── PlayerInput.java
 ├── screen/
@@ -104,8 +108,9 @@ are documented boundaries but do not have empty packages yet.
 
 ### Player
 
-- Currently owns health, position, collision dimensions, speed, and normalized
-  eight-direction movement. Classes and inventory/equipment remain future work.
+- Currently owns health, position, collision dimensions, speed, normalized
+  eight-direction movement and the selected immutable ClassDefinition. Final class
+  skills and inventory/equipment remain future work.
 - Does not load maps, store dialogue, implement AI, or calculate shared damage.
 - Depends on world contracts and the shared combat health model; inventory remains future work.
 - Public surface: constructor, `updateMovement`, read-only position/geometry/speed,
@@ -142,9 +147,44 @@ are documented boundaries but do not have empty packages yet.
   arena actors and ability timers explicitly. Pause freezes simulation.
 - Rendering reads existing attack rectangles; native window-title text shows slot
   lifecycle. No ability/controller/model loads art or depends on graphics APIs.
-- This foundation exposes common slots and replaceable placeholder tuning, not
-  final Archer/Mage/Katana execution. Projectiles, class strategies, ultimate energy,
+- This foundation exposes common slots, selected class tuning and AttackShape strategies, not
+  final Archer/Mage/Katana execution. Projectiles, ultimate energy,
   swept portal triggers, combo buffering and global wall occlusion remain future work.
+
+### Class composition and selection
+
+- PlayerClass is an enum identity with stable explicit IDs, not a Player superclass
+  or strategy interface. ClassDefinition composes that identity with AbilityLoadout.
+  PlayerClasses provides all three immutable built-in configurations; Mage is the
+  default to preserve the existing ability values/area behaviour. GameConfig aliases
+  that default instead of duplicating class tuning or introducing a screen dependency.
+- Every class uses the same final Player, Health, movement/collision, Combatant,
+  PlayerAbilities, shared J/K/L/O slots, cooldowns and map/portal interactions.
+  No subclass duplicates HP, movement, timing or damage formulas.
+- AttackShape is the only new behaviour interface: a pure Strategy returning an
+  immutable CollisionBox from source hurtbox, reach and facing. AREA and FORWARD
+  supply two actual behaviours. The existing AreaAttack record gains this strategy
+  component; its two-argument constructor still means AREA for compatibility.
+  No code in the common executor dispatches on Archer/Mage/Katana identities.
+- Per-class J/K/O definitions choose hitbox strategy, range, damage, active window
+  and cooldown. Dash varies speed/duration/cooldown through existing validated data.
+  Future arrows/spells/combos need additional execution support, but must keep the
+  same damage pipeline rather than calling Health separately. No such full skills
+  or universal speculative execution framework are implemented here.
+- Player owns the selected definition. Its selection setter is package-private;
+  running selection goes through PlayerAbilities.selectClass. The three-argument
+  ability constructor respects the initial class; the legacy explicit-loadout
+  constructor overrides initial tuning while retaining that identity.
+- Selection rejects null, dead/stale, identical-definition or active player
+  attack/dash cases (null throws, the others return false). Successful selection
+  preserves the player/health/adapter, map, position, speed, facing and remaining
+  slot cooldown seconds. No registration or health reset is involved.
+- PlayerInput samples F1/F2/F3 separately from PlayerCommand, with fixed F1/F2/F3
+  priority and key-edge semantics. CombatDemo consumes same-frame new movement and
+  abilities on selection attempts but still advances existing activity/AI/combat.
+  Travel and R reset have precedence. Class persists across both map changes and R.
+- Rendering continues to consume generic attack rectangles, without class-specific
+  assets or renderer branches. The native title displays the selected identity.
 
 ### Combat
 
@@ -331,14 +371,16 @@ GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRen
 PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
 CombatDemo -> GameSession, PlayerAbilities, EnemyAI/EnemyConfig, Enemy, CombatSystem, Combatant
 PlayerInput -> PlayerCommand, LibGDX Input (mapping only)
-PlayerAbilities -> Player, AbilityLoadout/Slot/State, PlayerCommand, CombatSystem, Combatant, AttackSpec
+PlayerAbilities -> Player, ClassDefinition, AbilityLoadout/Slot/State, AttackShape, PlayerCommand, CombatSystem, Combatant, AttackSpec
+PlayerClasses -> ClassDefinition, PlayerClass, AbilityLoadout, AttackShape, AttackSpec (immutable Java data)
+AttackShape -> CollisionBox (pure geometry strategy)
 EnemyAI    -> Enemy, EnemyState, EnemyConfig, WalkableArea, AStarPathfinder, CombatSystem, Combatant
 AStarPathfinder -> WalkableArea, CollisionBox (no entity, input, or graphics dependencies)
 CombatSystem -> Combatant, Attack, AttackSpec, Damageable, CollisionBox
 CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data
 GameSession -> GameMap/SpawnPoint, Player (transition coordination)
-Player     -> WalkableArea, CollisionBox, Health, Damageable
+Player     -> WalkableArea, CollisionBox, Health, Damageable, ClassDefinition/PlayerClass/PlayerClasses
 Enemy      -> Health, Damageable
 Health     -> Damageable (no graphics, world, or entity dependencies)
 NPC        -> read-only Player API, Quest boundary
@@ -372,9 +414,10 @@ type-specific branches. This prevents circular dependencies.
 - `CameraFollow.viewFor(subjectBounds, mapBounds, viewWidth, viewHeight)` returns
   the visible world rectangle without reading input or mutating gameplay state.
 
-No `PlayerClass`, Observer, Factory, or repository abstraction exists yet.
-`PlayerClass` should become a Strategy only after the first two classes and
-their attack inputs and targets are known.
+PlayerClass is now a stable enum, and AttackShape is a small geometry Strategy.
+ClassDefinition/AbilityLoadout composition supplies class differences without
+Player subclasses. No Observer, Factory, repository or universal skill hierarchy
+has been introduced; future execution abstractions need a concrete skill use case.
 
 ## 5. Three-developer boundaries
 
@@ -479,8 +522,8 @@ commit message.
   those features are implemented.
 - Agree on quest objective/reward data and the Inventory reward API before
   creating the `quest` package.
-- Agree on attack target, cooldown, and input rules before defining the
-  `PlayerClass` Strategy interface.
+- Agree on final class targeting, projectile/weapon execution and balance before
+  expanding the current geometry-only strategy beyond placeholder attacks.
 - Agree on the first save-file version and snapshot fields before implementing
   save/load; do not serialize complete LibGDX objects directly.
 - Decide which P2 features will be dropped if the P0/P1 schedule slips.

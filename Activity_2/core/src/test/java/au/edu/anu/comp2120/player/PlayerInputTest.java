@@ -9,6 +9,7 @@ import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,6 +20,34 @@ import org.junit.jupiter.api.Test;
 final class PlayerInputTest {
     /** Creates a keyboard adapter test fixture. */
     PlayerInputTest() {
+    }
+
+    /** F1/F2/F3 select classes on key edges with fixed priority and do not alter ability mapping. */
+    @Test
+    void mapsClassSelectionSeparatelyFromAbilityCommands() {
+        Set<Integer> pressed = new HashSet<>();
+        Input keyboard = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),
+                new Class<?>[] {Input.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "isKeyJustPressed" -> pressed.contains((Integer) args[0]);
+                    case "isKeyPressed" -> false;
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        PlayerInput input = new PlayerInput(keyboard);
+        int[] keys = {Input.Keys.F1, Input.Keys.F2, Input.Keys.F3};
+        PlayerClass[] types = {PlayerClass.ARCHER, PlayerClass.MAGE, PlayerClass.KATANA};
+        for (int i = 0; i < keys.length; i++) {
+            pressed.clear();
+            pressed.add(keys[i]);
+            assertEquals(Optional.of(types[i]), input.sampleClassSelection());
+            assertEquals(PlayerCommand.NONE, input.sample());
+            pressed.clear();
+            assertEquals(Optional.empty(), input.sampleClassSelection());
+        }
+        pressed.addAll(Set.of(Input.Keys.F1, Input.Keys.F2, Input.Keys.F3, Input.Keys.J));
+        assertEquals(Optional.of(PlayerClass.ARCHER), input.sampleClassSelection());
+        assertEquals(new PlayerCommand(0, 0, true, false, false, false), input.sample());
+        pressed.remove(Input.Keys.F1);
+        assertEquals(Optional.of(PlayerClass.MAGE), input.sampleClassSelection());
     }
 
     /** Actual J/K/L/O mappings use newly pressed keys rather than held-key repetition. */
