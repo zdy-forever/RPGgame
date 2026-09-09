@@ -433,8 +433,8 @@ WASD to check remembered facing. Press all four keys to check dash priority. Das
 or attack, travel with 1/2/3, and confirm active effects stop without resetting slot
 cooldowns. Use R to recover after death.
 
-Ability limitations: Archer and Mage use the projectile/spell prototypes below;
-Katana remains an area/forward placeholder. No targeting cursor, energy economy, combo buffer,
+Ability limitations: Archer, Mage and Katana use the projectile/spell/melee prototypes below.
+No targeting cursor, energy economy, combo buffer,
 animation, invulnerability, enemy-body collision or art assets are implemented.
 Portal checks use final body overlap, not a swept dash/portal trigger; a thin trigger
 may be crossed without arrival. World obstacles still use swept collision and cannot
@@ -465,7 +465,7 @@ The catalog is ordinary Java data; no new configuration library or asset format 
 | --- | --- | --- | --- | --- |
 | F1 | Archer | Moving arrow, 20 damage, 480 range | Power arrow / five-arrow fan | 650 units/s, 0.2 s, 1.2 s cooldown |
 | F2 | Mage | Moving magic bolt, 25 damage, 360 range | Small / large surrounding spell rectangles | 600 units/s, 0.2 s, 1 s cooldown |
-| F3 | Katana | Forward rectangle, 30 damage, 48 reach | Surrounding rectangles | 750 units/s, 0.16 s, 0.9 s cooldown |
+| F3 | Katana | Forward light slash, 30 damage, 48 reach | Forward heavy slash / single surrounding slash | 750 units/s, 0.16 s, 0.9 s cooldown |
 
 These values demonstrate replaceable class configuration, not agreed final balance.
 Forward rectangles follow the existing last WASD intent (right initially), including
@@ -578,7 +578,7 @@ Manual verification: run `./gradlew lwjgl3:run`, select F1, then U and 2 for Tra
 Face an enemy with WASD and tap J: damage should happen on arrival, not key press.
 Try K for the single power arrow and O for the fan. Fire at walls and around corners,
 tap repeatedly during cooldown, then fire and travel/reset to check cleanup. Existing
-Mage spells and Katana placeholders are available with F2/F3 after arrows disappear.
+Mage spells and Katana slashes are available with F2/F3 after arrows disappear.
 
 Limitations: this is straight non-piercing projectile flight, not homing, gravity,
 ricochet, penetration, arrow rain, animation or final skill balance. Enemy hurtboxes
@@ -645,6 +645,62 @@ Run combat-specific checks with:
 
 ```bash
 ./gradlew core:test --tests '*Combat*Test'
+```
+
+### Katana melee prototypes
+
+Select Katana with F3 (Fn+F3 if needed). The shared player/ability/combat foundation
+already supports J/L/O; this feature gives K a directional heavy-slash definition
+instead of the former surrounding placeholder and adds dedicated melee regression tests.
+No confirmed final Katana skill specification is available locally. K/O below are
+explicitly replaceable prototypes, not an assumed final combo or animation design.
+
+| Key | Prototype | Damage | Reach / movement | Active window / cooldown |
+| --- | --- | --- | --- | --- |
+| J | Forward light slash | 30 per target | 48-unit normalized forward extension | 0.15 s / 0.35 s |
+| K | Forward heavy slash | 45 per target | 80-unit normalized forward extension | 0.25 s / 2 s |
+| L | Shared collision-safe dash | None | 750 units/s, up to 120 units | 0.16 s / 0.9 s |
+| O | Single surrounding slash | 85 per target | Hurtbox expanded 110 units on each side | 0.35 s / 7 s |
+
+- All tuning stays in the Katana entry of `PlayerClasses`. J/K use the existing
+  `AttackShape.FORWARD`; O uses `AttackShape.AREA`. No KatanaPlayer, melee damage
+  manager, animation timeline or class-specific input handler is needed. Archer/Mage
+  behavior and configurations are unchanged by this feature; Mage remains the default.
+- Facing is the current/last nonzero WASD intent, initially right. Eight directions
+  normalize forward reach. J/K capture the independent source hurtbox and facing
+  at invocation; moving/turning does not drag or rotate an already active slash.
+  The next swing uses the latest facing. Diagonals are axis-aligned envelopes, not
+  precise arcs, rotated blades or circular-distance tests; source geometry is included.
+- The existing pipeline owns each swing's ID, active window and per-target hit ledger.
+  A swing can damage multiple hostile targets, but each only once, including late
+  entrants. Leaving/re-entering and zero-time input spam cannot repeat damage.
+  A fresh swing after cooldown can hit the same enemy again. Exact edge contact is
+  not damage. Health, lethal hits and invalid/friendly/self filtering are unchanged.
+- O emits exactly one attack, not repeated per-frame slashes or a multi-stage combo.
+  J/K/O keep independent slot cooldowns; existing simultaneous input priority remains
+  dash, then O/K/J among ready slots. L uses normal swept wall/boundary collision and
+  axis sliding, with no teleport, invulnerability or attack damage attached.
+- Source death, reset and map transitions cancel existing attacks. Travel preserves
+  cooldowns; R deliberately resets them and restores HP. Active swings prevent class
+  switching through the same selection guard used by the other classes.
+- Yellow debug rectangles show the actual collision boxes, and the native title
+  shows HP/class/slot state. No character/weapon textures, slash animation, hit effect,
+  particle, sound or other artwork is loaded.
+
+Manual verification: run `./gradlew lwjgl3:run`, select F3, then U and 2 for Training.
+Face enemies from each direction with WASD and tap J. Try K at a distance where J
+misses, then face away and confirm J/K do not hit behind. Use O among several enemies;
+each should lose HP only once. Spam inputs during cooldown, dash into a wall with L,
+then attack and travel/reset to check cleanup. Use R after death.
+
+Limitations: fixed rectangular slash prototypes, no precise sword arc, combo, charge,
+multi-hit timeline or final skill balance. Like the existing fixed-area attacks,
+J/K/O do not check wall occlusion and can hit through walls within their rectangles.
+Only L movement is wall-constrained. Melee samples current hurtboxes per update,
+not targets' complete movement paths; keyboard/visual verification remains manual.
+
+```bash
+./gradlew core:test --tests '*KatanaAbilitiesTest' --tests '*PlayerClassTest' --tests '*CombatDemoTest'
 ```
 
 ## Basic enemy AI

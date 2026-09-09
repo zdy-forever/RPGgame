@@ -10,7 +10,7 @@ public enum PlayerClass {
     ARCHER("archer", "Archer"),
     /** Magic bolt and area-pulse prototypes; element reactions remain future work. */
     MAGE("mage", "Mage"),
-    /** Sword-oriented class; weapon combos are future work. */
+    /** Directional light/heavy slashes and a surrounding ultimate; weapon combos remain future work. */
     KATANA("katana", "Katana");
 
     /** Stable machine-readable identifier. */
