@@ -50,7 +50,7 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
-     * Updates movement/travel, then combat before drawing. Frame stalls are capped for simulation.
+     * Updates movement/travel, then enemy AI and shared combat before drawing. Frame stalls are capped.
      *
      * @param delta seconds elapsed since the previous frame
      */
@@ -73,7 +73,6 @@ public final class GameScreen extends ScreenAdapter {
             }
             combatDemo.update(Math.min(delta, GameConfig.MAX_FRAME_DELTA),
                     Gdx.input.isKeyJustPressed(Input.Keys.J),
-                    Gdx.input.isKeyJustPressed(Input.Keys.H),
                     Gdx.input.isKeyJustPressed(Input.Keys.R));
             if (!combatStatus.equals(combatDemo.getStatus())) {
                 updateMapView();
