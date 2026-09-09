@@ -6,11 +6,13 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Central built-in definitions for Archer, Mage and remaining class placeholders.
+ * Central built-in prototype definitions for Archer, Mage and Katana.
  * No Player subclasses or asset lookups are needed.
  * Values demonstrate class differences; they are not final skill designs or balance decisions.
  * Mage uses a straight magic bolt for J, fixed surrounding pulses for K/O, and the shared
  * collision-safe dash for L. Stable attack IDs identify spells without implementing elements.
+ * Katana uses forward light/heavy slashes and a single-hit surrounding ultimate, with the
+ * existing faster dash. Slashes capture facing/geometry at invocation, not from a sprite.
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlayerClasses {
@@ -34,7 +36,7 @@ public final class PlayerClasses {
                     attack("mage-ultimate", 75, 0.5, 8, 180, AttackShape.AREA))),
             PlayerClass.KATANA, new ClassDefinition(PlayerClass.KATANA, new AbilityLoadout(
                     attack("katana-light", 30, 0.15, 0.35, 48, AttackShape.FORWARD),
-                    attack("katana-special", 45, 0.25, 2, 80, AttackShape.AREA),
+                    attack("katana-special", 45, 0.25, 2, 80, AttackShape.FORWARD),
                     new AbilityLoadout.Dash(750, 0.16, 0.9),
                     attack("katana-ultimate", 85, 0.35, 7, 110, AttackShape.AREA))));
 

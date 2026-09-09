@@ -303,6 +303,36 @@ are documented boundaries but do not have empty packages yet.
   regressions do not incorrectly assume that the default class's J is an area attack.
   Class and demo tests verify delayed Mage hits and shared selection/travel/reset rules.
 
+### Katana composition on shared melee delivery
+
+- Katana uses the existing Player, PlayerAbilities, AttackShape, Attack, CombatSystem
+  and Health. No new production class is necessary: class composition already supports
+  fixed melee attacks. PlayerClasses centralizes J/K/O and dash tuning; Archer/Mage
+  definitions and shared engine behavior are unchanged by this feature.
+- J is a 30-damage forward light slash (48 reach, 0.15 seconds active, 0.35 cooldown).
+  K replaces its former area shape with a forward heavy slash (45 damage, 80 reach,
+  0.25 seconds active, 2-second cooldown). Both reuse AttackShape.FORWARD, constructed
+  from the independent source hurtbox and normalized current/last WASD facing.
+- A slash captures geometry at cast time, so later movement/turning cannot redirect
+  it; subsequent swings use the new facing. Diagonal shapes are conservative AABBs,
+  not precise sword arcs. Collision geometry includes the source hurtbox, independent
+  of the player's visual body; self filtering remains combat-core's responsibility.
+- O is one surrounding area slash (85 damage per target, 110-unit expansion,
+  0.35-second active window, 7-second cooldown), not a multi-hit timeline. CombatSystem
+  samples currently overlapping targets before aging the attack. Its existing identity
+  ledger allows one hit per target per invocation, including late entrants, and avoids
+  re-entry/frame-spam damage. Expiry removes the attack; the next swing has a new ID.
+- L retains the shared dash executor with Katana tuning: 750 units/s for 0.16 seconds,
+  0.9-second cooldown and up to 120 units unobstructed. Swept map collision/axis sliding,
+  input arbitration, independent slot timers, death and transition cleanup are reused.
+- K/O are provisional skill definitions; there is no combo, animation dependency,
+  invulnerability or asset loading. The existing renderer reads attack rectangles.
+  Fixed J/K/O slashes retain the common no-wall-occlusion rule; this is distinct from
+  collision-safe dash movement and swept projectile world collision.
+- KatanaAbilitiesTest exercises eight-direction J/K hits, exact range boundaries,
+  captured facing, active-window late entry, repeated-hit prevention, cooldown recovery,
+  special/ultimate tuning, lethal/invalid targets, death and dash wall/map collision.
+
 ### Enemy
 
 - Owns enemy health, per-enemy decision state, and collision-constrained pursuit.
