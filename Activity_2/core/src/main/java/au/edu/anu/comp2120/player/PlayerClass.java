@@ -8,7 +8,7 @@ package au.edu.anu.comp2120.player;
 public enum PlayerClass {
     /** Bow-oriented class using shared straight-projectile prototypes. */
     ARCHER("archer", "Archer"),
-    /** Magic-oriented class; spells and elements are future work. */
+    /** Magic bolt and area-pulse prototypes; element reactions remain future work. */
     MAGE("mage", "Mage"),
     /** Sword-oriented class; weapon combos are future work. */
     KATANA("katana", "Katana");

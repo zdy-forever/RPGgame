@@ -154,7 +154,7 @@ final class CombatDemoTest {
         }
     }
 
-    /** Player requests and autonomous enemy attacks share the pipeline; reset clears all attacks. */
+    /** Mage bolts hit after travel; autonomous enemy attacks share the pipeline and reset clears both. */
     @Test
     void demonstratesBothAttackDirectionsAndExplicitReset() {
         GameSession session = session(MapCatalog.TRAINING);
@@ -162,7 +162,7 @@ final class CombatDemoTest {
         Enemy enemy = enemy(demo);
         CollisionBox position = session.getPlayer().getBounds();
         demo.update(0, true, false);
-        assertEquals(75, enemy.getHealth().getCurrentHp());
+        assertEquals(100, enemy.getHealth().getCurrentHp());
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
         assertEquals(1, demo.getActiveAttacks().size());
         demo.update(0.65, false, false);
@@ -181,6 +181,8 @@ final class CombatDemoTest {
             assertEquals(100, ai.getEnemy().getHealth().getCurrentHp());
         }
         demo.update(0, true, false);
+        assertEquals(100, enemy.getHealth().getCurrentHp());
+        demo.update(0.2, false, false);
         assertEquals(75, enemy.getHealth().getCurrentHp());
     }
 
@@ -259,7 +261,7 @@ final class CombatDemoTest {
         travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY);
         demo.update(0, true, false);
         assertEquals(75, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(75, previousEnemy.getHealth().getCurrentHp());
+        assertEquals(100, previousEnemy.getHealth().getCurrentHp());
         assertEquals(100, enemy(demo).getHealth().getCurrentHp());
         assertNotSame(previousEnemy, enemy(demo));
         assertTrue(oldAttacks.stream().noneMatch(Attack::isActive));
