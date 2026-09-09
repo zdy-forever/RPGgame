@@ -14,7 +14,9 @@ core/src/main/java/au/edu/anu/comp2120/
 ├── MainGame.java
 ├── GameSession.java
 ├── TravelSystem.java
-├── combat/Damageable.java
+├── combat/
+│   ├── Damageable.java
+│   └── Health.java
 ├── enemy/Enemy.java
 ├── inventory/Inventory.java
 ├── npc/NPC.java
@@ -86,28 +88,43 @@ are documented boundaries but do not have empty packages yet.
 
 ### Player
 
-- Currently owns position, collision dimensions, speed, and normalized
+- Currently owns health, position, collision dimensions, speed, and normalized
   eight-direction movement. Classes and inventory/equipment remain future work.
 - Does not load maps, store dialogue, implement AI, or calculate shared damage.
-- Currently depends on world contracts. Inventory/combat dependencies are future work.
+- Depends on world contracts and the shared combat health model; inventory remains future work.
 - Public surface: constructor, `updateMovement`, read-only position/geometry/speed,
   and validated `enterArea`. `GameSession` calls `enterArea` for coordinated map
   changes. Movement continues to use `WalkableArea` rather than map internals.
+- Implements `Damageable` by delegating to its own `Health`. `getHealth()` exposes
+  queries and validated healing/restoration; the optional constructor capacity
+  overrides `Player.DEFAULT_MAX_HP`. Movement/transitions do not reset health.
 
 ### Combat
 
-- Owns shared damage validation/calculation and attack resolution.
+- Owns shared hit-point validation and mutation. Damage formulas and attack
+  resolution remain future work.
 - Does not handle input, rendering, collision, loot storage, or AI.
 - Depends on stable combat contracts rather than concrete entity types.
 - Public surface: `Damageable.takeDamage(int)` and `Damageable.isAlive()`.
+- `Health` implements that contract and provides `getMaxHp()`, `getCurrentHp()`,
+  `isDead()`, `heal(int)`, and `restoreFull()`. Capacity is a fixed positive integer;
+  current HP stays within `[0, maxHp]`. Every new instance starts full and alive.
+- Negative damage/healing throws before mutation, zero is harmless, and positive
+  amounts saturate without overflow. Healing returns the actual HP restored.
+  Death is derived from zero HP. Healing does not revive; only explicit
+  `restoreFull()` restores a dead entity to full health.
+- Health has no graphics, input, callbacks, or entity-specific rules. Effects,
+  dead-player movement/travel policy, and full respawn orchestration are not
+  implemented. Use mutations on the game-loop thread.
 
 ### Enemy
 
 - Owns enemy state and, later, enemy decision-making.
 - Does not define separate damage formulas, load maps, or handle player input.
-- Depends on `combat` and `world` contracts.
-- Public surface is currently the constructor. It implements `Damageable` when
-  health is introduced rather than using fake placeholder behaviour.
+- Currently depends on `combat`; geometry/world integration remains future work.
+- Constructors create full, independently owned `Health`, using `DEFAULT_MAX_HP`
+  or an explicit capacity. Implements `Damageable` by delegation and exposes
+  `getHealth()` with the same semantics as Player. No AI or enemy spawning is added.
 
 ### World / Map
 
@@ -198,8 +215,9 @@ PlaceholderRenderer -> CameraFollow, read-only player/map/portal geometry
 CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data
 GameSession -> GameMap/SpawnPoint, Player (transition coordination)
-Player     -> WalkableArea, CollisionBox (Inventory/combat are future dependencies)
-Enemy      -> WalkableArea, combat contracts
+Player     -> WalkableArea, CollisionBox, Health, Damageable
+Enemy      -> Health, Damageable
+Health     -> Damageable (no graphics, world, or entity dependencies)
 NPC        -> read-only Player API, Quest boundary
 Quest      -> World/NPC/Combat events, Inventory reward API
 UI         -> read-only feature APIs
@@ -215,10 +233,12 @@ type-specific branches. This prevents circular dependencies.
 ## 4. Necessary public interfaces
 
 - `Damageable` provides one damage entry point for players, enemies, and bosses.
+- `Health` is the shared implementation of bounded HP; Player and Enemy delegate
+  instead of maintaining separate damage, healing, or death rules.
 - `WalkableArea` exposes collision queries and resolved movement without exposing
   obstacle storage or future map-loader details.
 - `GameSession.switchMap(mapId[, spawnId])` remains the transition entry point.
-  It preserves player identity, size, and speed and increments its transition
+  It preserves player identity, size, speed, and health and increments its transition
   stamp only on success, including same-map re-entry.
 - `TravelSystem.updatePortals()`, `fastTravel(destinationId)`,
   `unlockDestination(destinationId)`, and `setPortalEnabled(portalId, enabled)`

@@ -3,7 +3,8 @@
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
 demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
-travel, and a map-bounded follow camera using geometric placeholders.
+travel, and a map-bounded follow camera using geometric placeholders. Player and
+enemy models share validated integer health, independent of the demonstration view.
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
@@ -216,18 +217,92 @@ To check manually:
   transition so its transition stamp can protect arrivals. Direct calls to
   `Player.enterArea` are a low-level operation and bypass that session coordination.
 
+## Shared health API
+
+- `combat/Health` owns immutable positive `maxHp` and private `currentHp` in
+  `[0, maxHp]`. Both are integers, matching the existing `Damageable` contract;
+  fractional values, NaN, and infinity are not accepted by the Java API.
+- `new Health(maxHp)` starts full and alive. Zero/negative capacity throws
+  `IllegalArgumentException`; `Integer.MAX_VALUE` is supported.
+- `takeDamage(amount)` accepts non-negative integers and stops at zero. Zero is
+  a no-op, including after death. `isAlive()` and `isDead()` derive from current
+  HP, so a separate death flag cannot become inconsistent.
+- `heal(amount)` returns the actual restored HP, capped at the missing amount.
+  It does not revive dead entities. Negative damage/healing throws
+  `IllegalArgumentException` before mutation, even when full or dead. Extreme
+  positive amounts cannot overflow the integer HP range.
+- `restoreFull()` explicitly restores full HP and can revive. It does not change
+  position, map, movement speed, or any other entity state. It is a foundation
+  for a later respawn coordinator, not an implemented respawn workflow.
+- `Player` and the existing minimal `Enemy` implement `Damageable` by delegation.
+  Each owns a separate `Health`, exposed by `getHealth()` for queries and
+  validated healing/restoration. Existing constructors remain valid and use
+  each entity's `DEFAULT_MAX_HP` (currently 100). Custom capacities use
+  `new Player(bounds, speed, area, maxHp)` or `new Enemy(maxHp)`.
+- Movement and map/portal/fast-travel transitions preserve HP. This branch does
+  not decide whether dead players may move/travel: future gameplay coordination
+  should apply that policy using `isAlive()`. No death callbacks, attacks, AI,
+  loot, persistence, health bars, effects, or new input bindings are introduced.
+- Use the model on the game-loop thread. It does not depend on LibGDX or load assets.
+
+For example, this helper demonstrates the API with an existing player. The HP
+comments assume a fresh default player; call it only for debugging because it
+intentionally damages and restores that player.
+
+```java
+import au.edu.anu.comp2120.player.Player;
+
+/**
+ * Demonstrates health operations without rendering or assets.
+ *
+ * @author Daoyan Zhu (u7782042)
+ */
+final class HealthExample {
+    /** Prevents construction of this example utility. */
+    private HealthExample() {
+    }
+
+    /**
+     * Exercises damage, healing, death, and explicit restoration.
+     *
+     * @param player existing player to modify for demonstration
+     * @throws NullPointerException if player is null
+     */
+    static void demonstrate(Player player) {
+        player.takeDamage(25);                // Default player: 100 -> 75 HP
+        player.getHealth().heal(10);           // Returns 10; now 85 HP
+        player.takeDamage(Integer.MAX_VALUE); // Zero HP; isAlive() is false
+        player.getHealth().heal(10);           // Returns 0; remains dead
+        player.getHealth().restoreFull();      // Full HP; position unchanged
+    }
+}
+```
+
+Run the graphics-independent checks with:
+
+```bash
+./gradlew core:test --tests '*HealthTest'
+```
+
+`HealthTest` covers model boundaries and `EntityHealthTest` covers delegation,
+independent ownership, movement, and successful/failed map transitions. The
+desktop placeholder scene remains visually unchanged; no damage source or HP
+display has been added solely to demonstrate this model.
+
 ## Current class responsibilities
 
 - `MainGame`: application lifecycle and active-screen selection.
 - `GameSession`: map registration, current map, player ownership, and safe transitions.
 - `TravelSystem`: portal triggering, arrival protection, unlock state, and fast-travel checks.
 - `GameScreen`: coordinates input, simulation, lifecycle, and the temporary view.
-- `Player`: validated position/size/speed and normalized eight-direction movement.
+- `Player`: validated position/size/speed, eight-direction movement, and owned shared health.
+- `Health`: bounded integer HP, damage, healing, life status, and explicit restoration.
+- `Damageable`: common validated damage/life-status contract for combat targets.
 - `PlayerInput`: translates held WASD keys into movement intent.
 - `GameConfig`: shared player dimensions, speed, camera view size, and frame-time tuning.
 - `CameraFollow`: stateless subject-centre, map-clamp, and small-map view mathematics.
 - `PlaceholderRenderer`: applies the follow camera and renders shapes through a fixed `FitViewport`.
-- `Enemy`: future hostile entity.
+- `Enemy`: minimal hostile entity with independent shared health; no AI or rendering yet.
 - `NPC`: future non-player character.
 - `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
 - `MapCatalog`: built-in Hub and Battle Map definitions.
