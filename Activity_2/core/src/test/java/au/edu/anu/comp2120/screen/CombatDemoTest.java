@@ -10,6 +10,9 @@ import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
 import au.edu.anu.comp2120.enemy.EnemyAI;
 import au.edu.anu.comp2120.enemy.EnemyState;
+import au.edu.anu.comp2120.player.AbilitySlot;
+import au.edu.anu.comp2120.player.AbilityState;
+import au.edu.anu.comp2120.player.PlayerCommand;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapCatalog;
@@ -21,6 +24,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Tests the real debug adapter, map/travel cleanup, and shared player/enemy health without graphics.
@@ -30,6 +34,52 @@ import org.junit.jupiter.params.provider.ValueSource;
 final class CombatDemoTest {
     /** Creates an isolated demo test fixture. */
     CombatDemoTest() {
+    }
+
+    /**
+     * Actual session travel cancels active slots and discards inputs without granting fresh cooldowns.
+     * @param slot slot active before transition
+     */
+    @ParameterizedTest
+    @EnumSource(AbilitySlot.class)
+    void mapTransitionPreservesAbilityCooldownsAndCancelsActivity(AbilitySlot slot) {
+        GameSession session = session(MapCatalog.HUB);
+        CombatDemo demo = new CombatDemo(session);
+        PlayerCommand request = new PlayerCommand(0, 0, slot == AbilitySlot.LIGHT,
+                slot == AbilitySlot.SPECIAL, slot == AbilitySlot.DASH, slot == AbilitySlot.ULTIMATE);
+        demo.update(0, request, false);
+        double cooldown = demo.getAbilities().getCooldownRemaining(slot);
+        List<Attack> previous = demo.getActiveAttacks();
+        session.switchMap(MapCatalog.TRAINING);
+        CollisionBox spawn = session.getPlayer().getBounds();
+        demo.update(0, new PlayerCommand(1, 1, true, true, true, true), false);
+        assertEquals(spawn, session.getPlayer().getBounds());
+        assertEquals(cooldown, demo.getAbilities().getCooldownRemaining(slot));
+        assertEquals(AbilityState.COOLDOWN, demo.getAbilities().getState(slot));
+        assertTrue(previous.stream().noneMatch(Attack::isActive));
+        assertTrue(demo.getActiveAttacks().isEmpty());
+        demo.update(0.1, PlayerCommand.NONE, false);
+        assertEquals(spawn, session.getPlayer().getBounds());
+        assertEquals(cooldown - 0.1, demo.getAbilities().getCooldownRemaining(slot), 1e-9);
+        demo.update(0, request, true);
+        assertEquals(AbilityState.READY, demo.getAbilities().getState(slot));
+        assertEquals(spawn, session.getPlayer().getBounds());
+    }
+
+    /** The real demo routes all attack slots through combat and prevents enemy damage during no-time resets. */
+    @Test
+    void commonAbilityCommandsReachDemoCombat() {
+        CombatDemo demo = new CombatDemo(session(MapCatalog.TRAINING));
+        demo.update(0, new PlayerCommand(0, 0, false, true, false, false), false);
+        assertEquals(60, enemy(demo).getHealth().getCurrentHp());
+        demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
+        assertFalse(enemy(demo).isAlive());
+        assertEquals(EnemyState.DEAD, demo.getEnemies().get(0).getState());
+        demo.update(0, PlayerCommand.NONE, true);
+        assertEquals(100, enemy(demo).getHealth().getCurrentHp());
+        for (AbilitySlot slot : AbilitySlot.values()) {
+            assertEquals(AbilityState.READY, demo.getAbilities().getState(slot));
+        }
     }
 
     /** Player requests and autonomous enemy attacks share the pipeline; reset clears all attacks. */

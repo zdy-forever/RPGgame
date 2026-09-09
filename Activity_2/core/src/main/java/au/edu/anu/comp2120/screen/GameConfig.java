@@ -2,6 +2,7 @@ package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.enemy.EnemyConfig;
+import au.edu.anu.comp2120.player.AbilityLoadout;
 
 /**
  * Shared player, camera, combat-debug, and timing configuration for the asset-free demonstration.
@@ -26,10 +27,17 @@ public final class GameConfig {
     public static final int COMBAT_DAMAGE = 25;
     /** Active duration of the debug strike and its rectangle outline. */
     public static final double COMBAT_ACTIVE_SECONDS = 0.25;
-    /** Per-attacker delay between debug strikes in simulation seconds. */
+    /** Light-ability slot cooldown in simulation seconds. */
     public static final double COMBAT_COOLDOWN_SECONDS = 0.5;
     /** Debug strike extension on all sides of the source hurtbox; not a final skill range. */
     public static final double COMBAT_RANGE = 96;
+    /** Common placeholder slots; attack cooldowns are independent, not a shared player delay. */
+    public static final AbilityLoadout PLAYER_ABILITIES = new AbilityLoadout(
+            new AbilityLoadout.AreaAttack(new AttackSpec("light", COMBAT_DAMAGE,
+                    COMBAT_ACTIVE_SECONDS, COMBAT_COOLDOWN_SECONDS), COMBAT_RANGE),
+            new AbilityLoadout.AreaAttack(new AttackSpec("special", 40, 0.3, 2), 120),
+            new AbilityLoadout.Dash(600, 0.2, 1),
+            new AbilityLoadout.AreaAttack(new AttackSpec("ultimate", 75, 0.5, 8), 180));
     /** Inset separating the player's hurtbox from its movement collision/placeholder body. */
     public static final double COMBAT_HURTBOX_INSET = 4;
     /** Enemy collision and placeholder width/height in world units. */

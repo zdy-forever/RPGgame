@@ -2,12 +2,14 @@ package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.combat.Attack;
-import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
 import au.edu.anu.comp2120.enemy.EnemyAI;
+import au.edu.anu.comp2120.player.PlayerAbilities;
+import au.edu.anu.comp2120.player.PlayerCommand;
+import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapType;
 import java.util.List;
@@ -17,7 +19,7 @@ import java.util.Objects;
 /**
  * Graphics-free arena adapter coordinating player requests and multiple basic enemy controllers.
  * Owns temporary placement/reset policy, not AI decisions, hit detection, or damage rules.
- * Screen input supplies booleans; rendering reads geometry. No final player skill is implemented here.
+ * Screen input supplies commands; common abilities own execution while rendering reads geometry.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -26,9 +28,8 @@ public final class CombatDemo {
     private final GameSession session;
     /** Reused arena pipeline, cleared on every successful map transition. */
     private final CombatSystem combat = new CombatSystem();
-    /** Temporary player attack tuning; enemies supply their own shared AttackSpec through AI. */
-    private final AttackSpec strike = new AttackSpec("debug-strike", GameConfig.COMBAT_DAMAGE,
-            GameConfig.COMBAT_ACTIVE_SECONDS, GameConfig.COMBAT_COOLDOWN_SECONDS);
+    /** Shared player ability controller, retaining slot cooldowns across map transitions. */
+    private PlayerAbilities abilities;
     /** Player adapter in the current scope, following the existing player's movement. */
     private Combatant player;
     /** Independent enemy controllers in this arena; Hub contains none. */
@@ -56,7 +57,23 @@ public final class CombatDemo {
      * @throws IllegalArgumentException if delta is invalid, before any state change
      */
     public void update(double delta, boolean playerAttack, boolean reset) {
-        if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(GameConfig.BASIC_ENEMY.speed() * delta)) {
+        update(delta, new PlayerCommand(0, 0, playerAttack, false, false, false), reset);
+    }
+
+    /**
+     * Coordinates common player movement/abilities, enemy decisions and one shared combat step.
+     * Transitions discard commands and cancel active abilities, preserving slot cooldowns.
+     * Reset consumes commands and explicitly restores health and all arena/ability cooldowns.
+     * @param delta finite non-negative seconds with representable player/enemy movement
+     * @param command movement and ability requests sampled once by the input adapter
+     * @param reset whether the explicit debug reset was requested
+     * @throws NullPointerException if command is null
+     * @throws IllegalArgumentException if delta is invalid, before state changes
+     */
+    public void update(double delta, PlayerCommand command, boolean reset) {
+        Objects.requireNonNull(command, "command");
+        if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(GameConfig.BASIC_ENEMY.speed() * delta)
+                || !Double.isFinite(session.getPlayer().getSpeed() * delta)) {
             throw new IllegalArgumentException("Demo delta must be finite and non-negative");
         }
         if (syncMap()) {
@@ -67,6 +84,7 @@ public final class CombatDemo {
             combat.clear();
             session.getPlayer().getHealth().restoreFull();
             combat.register(player);
+            abilities.reset();
             for (EnemyAI ai : enemies) {
                 ai.getEnemy().getHealth().restoreFull();
                 ai.resetAwareness();
@@ -74,9 +92,7 @@ public final class CombatDemo {
             }
             return;
         }
-        if (playerAttack) {
-            combat.tryAttack(player, strike, strikeBox(player.getHurtbox()));
-        }
+        abilities.update(delta, command);
         for (EnemyAI ai : enemies) {
             ai.update(player, delta);
         }
@@ -108,6 +124,14 @@ public final class CombatDemo {
     }
 
     /**
+     * Exposes current common ability lifecycle for diagnostics, independent of rendering.
+     * @return persistent player ability controller
+     */
+    public PlayerAbilities getAbilities() {
+        return abilities;
+    }
+
+    /**
      * Formats HP feedback for the native window title, requiring no font asset.
      * @return player HP, per-enemy HP/state, and temporary key hints
      */
@@ -119,7 +143,11 @@ public final class CombatDemo {
             status.append(" | E").append(i + 1).append(' ')
                     .append(ai.getEnemy().getHealth().getCurrentHp()).append(' ').append(ai.getState());
         }
-        return status.append(" | J attack | R reset HP").toString();
+        return status.append(" | J ").append(abilities.getState(AbilitySlot.LIGHT))
+                .append(" K ").append(abilities.getState(AbilitySlot.SPECIAL))
+                .append(" L ").append(abilities.getState(AbilitySlot.DASH))
+                .append(" O ").append(abilities.getState(AbilitySlot.ULTIMATE))
+                .append(" | R reset HP/abilities").toString();
     }
 
     /**
@@ -133,6 +161,11 @@ public final class CombatDemo {
         combat.clear();
         player = new Combatant(session.getPlayer(), Faction.PLAYER, playerHurtbox());
         combat.register(player);
+        if (abilities == null) {
+            abilities = new PlayerAbilities(session.getPlayer(), player, combat, GameConfig.PLAYER_ABILITIES);
+        } else {
+            abilities.bindAfterTransition(player);
+        }
         enemies.clear();
         if (session.getCurrentMap().getType() == MapType.BATTLE) {
             for (CollisionBox placement : findEnemyPlacements()) {
@@ -179,14 +212,4 @@ public final class CombatDemo {
         return placements;
     }
 
-    /**
-     * Builds an intentionally simple all-direction debug strike, not a final class skill.
-     * @param hurtbox source world-space rectangle
-     * @return fixed rectangle extending the configured range on every side
-     */
-    private CollisionBox strikeBox(CollisionBox hurtbox) {
-        double range = GameConfig.COMBAT_RANGE;
-        return new CollisionBox(hurtbox.x() - range, hurtbox.y() - range,
-                hurtbox.width() + 2 * range, hurtbox.height() + 2 * range);
-    }
 }

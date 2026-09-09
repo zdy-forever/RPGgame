@@ -3,6 +3,7 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.player.PlayerInput;
+import au.edu.anu.comp2120.player.PlayerCommand;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapCatalog;
 import au.edu.anu.comp2120.world.TravelCatalog;
@@ -50,30 +51,39 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
-     * Updates movement/travel, then enemy AI and shared combat before drawing. Frame stalls are capped.
+     * Samples input, updates movement/abilities and combat, then checks arrival portals before drawing.
+     * Fast travel consumes commands; portal arrival immediately clears old-map attacks and dash.
+     * Frame stalls are capped and all simulation timers pause with this screen.
      *
      * @param delta seconds elapsed since the previous frame
      */
     @Override
     public void render(float delta) {
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
+            boolean travelConsumed;
             try {
-                if (handleTravelInput()) {
-                    updateMapView();
-                } else {
-                    input.update(session.getPlayer(), Math.min(delta, GameConfig.MAX_FRAME_DELTA));
+                travelConsumed = handleTravelInput();
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                travelStatus = failure.getMessage();
+                travelConsumed = true;
+            }
+            combatDemo.update(Math.min(delta, GameConfig.MAX_FRAME_DELTA),
+                    travelConsumed ? PlayerCommand.NONE : input.sample(),
+                    !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R));
+            if (travelConsumed) {
+                updateMapView();
+            } else {
+                try {
                     if (travel.updatePortals()) {
+                        combatDemo.update(0, PlayerCommand.NONE, false);
                         travelStatus = "Arrived by portal; leave the portal area before re-entry";
                         updateMapView();
                     }
+                } catch (IllegalArgumentException | IllegalStateException failure) {
+                    travelStatus = failure.getMessage();
+                    updateMapView();
                 }
-            } catch (IllegalArgumentException | IllegalStateException failure) {
-                travelStatus = failure.getMessage();
-                updateMapView();
             }
-            combatDemo.update(Math.min(delta, GameConfig.MAX_FRAME_DELTA),
-                    Gdx.input.isKeyJustPressed(Input.Keys.J),
-                    Gdx.input.isKeyJustPressed(Input.Keys.R));
             if (!combatStatus.equals(combatDemo.getStatus())) {
                 updateMapView();
             }

@@ -113,6 +113,17 @@ public final class Player implements Damageable {
     }
 
     /**
+     * Applies a finite displacement through the same swept collision resolver as ordinary movement.
+     * Ability controllers own timing and permission; this method grants neither teleportation nor immunity.
+     * @param deltaX horizontal world displacement
+     * @param deltaY vertical world displacement
+     * @throws IllegalArgumentException if either displacement is not finite
+     */
+    public void moveBy(double deltaX, double deltaY) {
+        bounds = area.move(bounds, deltaX, deltaY);
+    }
+
+    /**
      * Enters a collision environment at a new bottom-left position, preserving size, speed, and HP.
      * Session coordination should use this method when changing maps. All validation occurs
      * before either the position or collision environment changes.

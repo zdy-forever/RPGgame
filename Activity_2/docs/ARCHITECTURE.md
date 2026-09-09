@@ -30,7 +30,12 @@ core/src/main/java/au/edu/anu/comp2120/
 ├── inventory/Inventory.java
 ├── npc/NPC.java
 ├── player/
+│   ├── AbilityLoadout.java
+│   ├── AbilitySlot.java
+│   ├── AbilityState.java
 │   ├── Player.java
+│   ├── PlayerAbilities.java
+│   ├── PlayerCommand.java
 │   └── PlayerInput.java
 ├── screen/
 │   ├── CameraFollow.java
@@ -104,11 +109,42 @@ are documented boundaries but do not have empty packages yet.
 - Does not load maps, store dialogue, implement AI, or calculate shared damage.
 - Depends on world contracts and the shared combat health model; inventory remains future work.
 - Public surface: constructor, `updateMovement`, read-only position/geometry/speed,
-  and validated `enterArea`. `GameSession` calls `enterArea` for coordinated map
+  collision-constrained `moveBy`, and validated `enterArea`. `GameSession` calls `enterArea` for coordinated map
   changes. Movement continues to use `WalkableArea` rather than map internals.
 - Implements `Damageable` by delegating to its own `Health`. `getHealth()` exposes
   queries and validated healing/restoration; the optional constructor capacity
   overrides `Player.DEFAULT_MAX_HP`. Movement/transitions do not reset health.
+
+### Common player abilities
+
+- PlayerInput samples held WASD plus edge-triggered J/K/L/O into PlayerCommand;
+  it never selects class-specific damage rules. PlayerAbilities is the single
+  controller per player, using injected immutable AbilityLoadout tuning.
+- J/K/O currently submit rectangular area attacks through the same canonical
+  Combatant and CombatSystem pipeline. Independent slot cooldowns are owned by
+  PlayerAbilities, so these invocations use zero source-level cooldown. Enemy
+  source cooldowns and all shared damage/lifetime/hit filtering remain unchanged.
+- READY/ACTIVE/COOLDOWN are observational states; update returns an accepted slot
+  as the triggered event. Dead or unregistered owners report UNAVAILABLE and cannot
+  move or trigger. No new state classes, factories or class hierarchy are required.
+- L captures the normalized current/last direction (right initially), has fixed
+  duration/speed and cooldown, and uses Player.moveBy -> WalkableArea.move. It
+  cannot tunnel through walls; diagonal sliding follows existing axis sweeps.
+  Only the remaining frame time after dash is used for normal movement. There is
+  no invulnerability, damage, animation or cooldown refund when blocked.
+- An active/new dash blocks new attacks. Otherwise O > K > J chooses the first
+  ready requested attack; one new ability per step and no queued requests. Slot
+  timers advance after input arbitration, matching combat-core's timing convention.
+- CombatDemo coordinates player abilities, then every EnemyAI, then exactly one
+  shared combat update. GameScreen handles fast travel before that step and portal
+  overlap afterward. Transition cleanup cancels old attacks/dash immediately and
+  rebinds the canonical player adapter, preserving slot cooldowns. R resets all
+  arena actors and ability timers explicitly. Pause freezes simulation.
+- Rendering reads existing attack rectangles; native window-title text shows slot
+  lifecycle. No ability/controller/model loads art or depends on graphics APIs.
+- This foundation exposes common slots and replaceable placeholder tuning, not
+  final Archer/Mage/Katana execution. Projectiles, class strategies, ultimate energy,
+  swept portal triggers, combo buffering and global wall occlusion remain future work.
 
 ### Combat
 
@@ -124,9 +160,9 @@ are documented boundaries but do not have empty packages yet.
   amounts saturate without overflow. Healing returns the actual HP restored.
   Death is derived from zero HP. Healing does not revive; only explicit
   `restoreFull()` restores a dead entity to full health.
-- Health has no graphics, input, callbacks, or entity-specific rules. Effects,
-  dead-player movement/travel policy, and full respawn orchestration are not
-  implemented. Use mutations on the game-loop thread.
+- Health has no graphics, input, callbacks, or entity-specific rules. PlayerAbilities
+  blocks dead-player movement/abilities; debug travel still permits dead players.
+  Effects and full respawn orchestration are absent. Use mutations on the game-loop thread.
 - `Combatant` adapts `Damageable` with a stable faction and mutable reference to
   immutable world hurtbox data. It is not a new entity hierarchy or health model.
   Visual/collision sizes do not determine combat geometry; owners update hurtboxes
@@ -148,13 +184,13 @@ are documented boundaries but do not have empty packages yet.
   changing HP, and invocation identifiers are not reused after clear.
 - `screen/CombatDemo` is an asset-free debug adapter, not part of core combat rules.
   It places multiple enemies near valid battle-map entries and clears scopes using
-  GameSession's transition stamp. J requests a player strike; enemies now attack
+  GameSession's transition stamp. J/K/L/O delegate to PlayerAbilities; enemies attack
   automatically through EnemyAI, replacing the former H shortcut. R explicitly
   restores HP, resets AI awareness, and clears attacks/cooldowns without repositioning.
   GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
-  HP and AI states use native window-title text. All AI updates precede exactly one
+  HP, AI and ability states use native window-title text. All AI updates precede exactly one
   shared combat update per simulation step.
-- No projectile simulation, wall occlusion, armour, skills, elements, combos, or
+- No projectile simulation, wall occlusion, armour, final class skills, elements, combos, or
   damage effects are implemented. Future class/AI code supplies attack tuning and
   geometry to this pipeline instead of applying Health damage separately. Receivers
   must not re-enter the pipeline during damage delivery; simulation is single-threaded.
@@ -293,7 +329,9 @@ are documented boundaries but do not have empty packages yet.
 GameScreen -> feature modules (coordination only)
 GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
 PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
-CombatDemo -> GameSession, EnemyAI/EnemyConfig, Enemy, CombatSystem, Combatant, AttackSpec
+CombatDemo -> GameSession, PlayerAbilities, EnemyAI/EnemyConfig, Enemy, CombatSystem, Combatant
+PlayerInput -> PlayerCommand, LibGDX Input (mapping only)
+PlayerAbilities -> Player, AbilityLoadout/Slot/State, PlayerCommand, CombatSystem, Combatant, AttackSpec
 EnemyAI    -> Enemy, EnemyState, EnemyConfig, WalkableArea, AStarPathfinder, CombatSystem, Combatant
 AStarPathfinder -> WalkableArea, CollisionBox (no entity, input, or graphics dependencies)
 CombatSystem -> Combatant, Attack, AttackSpec, Damageable, CollisionBox
