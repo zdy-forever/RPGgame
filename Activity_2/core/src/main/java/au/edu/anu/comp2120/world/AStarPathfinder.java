@@ -198,12 +198,15 @@ public final class AStarPathfinder {
 
     /**
      * Converts a grid index into a full actor body, sampling the exact far map boundary as well.
+     * Integer division selects the row before conversion to world coordinates.
      * @param index valid flattened grid index
      * @return immutable placement rectangle
      */
     private CollisionBox bodyAt(int index) {
-        double x = Math.min(world.x() + (index % columns) * cellSize, world.right() - bodyWidth);
-        double y = Math.min(world.y() + (index / columns) * cellSize, world.top() - bodyHeight);
+        int column = index % columns;
+        int row = index / columns;
+        double x = Math.min(world.x() + column * cellSize, world.right() - bodyWidth);
+        double y = Math.min(world.y() + row * cellSize, world.top() - bodyHeight);
         if (x + bodyWidth > world.right()) {
             x = Math.nextDown(x);
         }

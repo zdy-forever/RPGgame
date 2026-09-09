@@ -29,7 +29,7 @@ final class AStarPathfinderTest {
         assertEquals(List.of(new CollisionBox(73, 17, 20, 20)), route);
         assertEquals(List.of(start), finder.findPath(start, target, 120));
         assertEquals(List.of(target), finder.findPath(start, target, 0));
-        assertThrows(UnsupportedOperationException.class, () -> route.clear());
+        assertThrows(UnsupportedOperationException.class, route::clear);
     }
 
     /** A partial thin wall requires a detour; every route segment remains full-body walkable. */

@@ -93,7 +93,7 @@ final class EnemyAITest {
         assertEquals(10, Math.hypot(ai.getBounds().x() - 100, ai.getBounds().y() - 100), EPSILON);
         assertEquals(EnemyState.CHASE, ai.getState());
         assertEquals(ai.getBounds(), ai.getCombatant().getHurtbox());
-        assertEquals(player.getBounds(), new CollisionBox(300, 100, 20, 20));
+        assertEquals(new CollisionBox(300, 100, 20, 20), player.getBounds());
     }
 
     /** Static-target movement depends on elapsed time rather than update count. */
