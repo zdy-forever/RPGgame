@@ -1,6 +1,9 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.player.Player;
+import au.edu.anu.comp2120.combat.Attack;
+import au.edu.anu.comp2120.combat.Combatant;
+import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapType;
@@ -14,7 +17,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 
 /**
  * Draws collision rectangles on a solid floor without textures, fonts, or other assets.
- * Replacing this renderer does not change movement or collision rules.
+ * Replacing this renderer does not change movement, collision, or combat rules.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -51,8 +54,11 @@ public final class PlaceholderRenderer implements Disposable {
      * @param map collision world to display
      * @param player player to display
      * @param portals immutable portal snapshots; only current-map entries are drawn
+     * @param combatants current-scope actors for dummy rectangles and hurtbox outlines
+     * @param attacks active current-scope invocations for temporary hitbox outlines
      */
-    public void render(GameMap map, Player player, List<Portal> portals) {
+    public void render(GameMap map, Player player, List<Portal> portals,
+            List<Combatant> combatants, List<Attack> attacks) {
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
                 viewport.getWorldWidth(), viewport.getWorldHeight());
@@ -88,6 +94,28 @@ public final class PlaceholderRenderer implements Disposable {
         }
         shapes.setColor(0.20f, 0.85f, 0.60f, 1);
         draw(player.getBounds());
+        for (Combatant actor : combatants) {
+            if (actor.getFaction() == Faction.ENEMY) {
+                if (actor.getEntity().isAlive()) {
+                    shapes.setColor(0.85f, 0.25f, 0.20f, 1);
+                } else {
+                    shapes.setColor(0.30f, 0.30f, 0.30f, 1);
+                }
+                draw(actor.getHurtbox());
+            }
+        }
+        shapes.end();
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(0.20f, 0.90f, 1.0f, 1);
+        for (Combatant actor : combatants) {
+            draw(actor.getHurtbox());
+        }
+        shapes.setColor(1.0f, 0.85f, 0.10f, 1);
+        for (Attack attack : attacks) {
+            if (attack.isActive()) {
+                draw(attack.getHitbox());
+            }
+        }
         shapes.end();
     }
 

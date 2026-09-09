@@ -15,7 +15,12 @@ core/src/main/java/au/edu/anu/comp2120/
 ├── GameSession.java
 ├── TravelSystem.java
 ├── combat/
+│   ├── Attack.java
+│   ├── AttackSpec.java
+│   ├── Combatant.java
+│   ├── CombatSystem.java
 │   ├── Damageable.java
+│   ├── Faction.java
 │   └── Health.java
 ├── enemy/Enemy.java
 ├── inventory/Inventory.java
@@ -25,6 +30,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   └── PlayerInput.java
 ├── screen/
 │   ├── CameraFollow.java
+│   ├── CombatDemo.java
 │   ├── GameConfig.java
 │   ├── GameScreen.java
 │   └── PlaceholderRenderer.java
@@ -101,9 +107,9 @@ are documented boundaries but do not have empty packages yet.
 
 ### Combat
 
-- Owns shared hit-point validation and mutation. Damage formulas and attack
-  resolution remain future work.
-- Does not handle input, rendering, collision, loot storage, or AI.
+- Owns shared hit-point validation, attack lifetimes, cooldowns, hit detection,
+  raw-damage calculation, and delivery. Advanced modifiers remain future work.
+- Does not handle input, rendering, movement collision, loot storage, or AI.
 - Depends on stable combat contracts rather than concrete entity types.
 - Public surface: `Damageable.takeDamage(int)` and `Damageable.isAlive()`.
 - `Health` implements that contract and provides `getMaxHp()`, `getCurrentHp()`,
@@ -116,6 +122,35 @@ are documented boundaries but do not have empty packages yet.
 - Health has no graphics, input, callbacks, or entity-specific rules. Effects,
   dead-player movement/travel policy, and full respawn orchestration are not
   implemented. Use mutations on the game-loop thread.
+- `Combatant` adapts `Damageable` with a stable faction and mutable reference to
+  immutable world hurtbox data. It is not a new entity hierarchy or health model.
+  Visual/collision sizes do not determine combat geometry; owners update hurtboxes
+  after movement. Player and Enemy retain their existing health implementations.
+- `AttackSpec` is reusable type/damage/duration/cooldown data. `Attack` is one
+  system-created invocation: unique scope-local ID, source, fixed hitbox, active
+  time, and lifetime receiver-identity ledger. Only the system mutates invocations.
+- `CombatSystem` registers one adapter per receiver and owns per-source cooldowns.
+  It filters self, same faction, dead, and already-hit targets before positive-area
+  overlap, calculates raw damage centrally, then calls `Damageable.takeDamage`.
+  Border contact alone is a miss. It never dispatches on Player/Enemy/Boss classes.
+- Update samples at the start of each step then ages attacks/cooldowns. Expired
+  invocations cannot settle later; large steps sample once rather than doing swept
+  detection. Attack order then registration order determines settlement; dead sources
+  cannot retaliate later in the step. Invalid time is rejected before any mutation.
+- Register/attack requests reject nulls and invalid membership. Duplicate receiver
+  aliases are rejected. Unregister cancels that source's attacks; target hit ledgers
+  survive re-registration. Clear cancels all attacks/registrations/cooldowns without
+  changing HP, and invocation identifiers are not reused after clear.
+- `screen/CombatDemo` is an asset-free debug adapter, not part of core combat rules.
+  It places a static enemy near valid battle-map entries, submits the same strike
+  for player and enemy, and clears scopes using GameSession's transition stamp.
+  J requests a player strike, H a dummy strike, and R explicitly restores HP and
+  clears attacks. GameScreen only routes these requests. PlaceholderRenderer draws
+  hurtbox/hitbox rectangles; HP uses native window-title text.
+- No projectile simulation, wall occlusion, armour, skills, elements, combos, or
+  damage effects are implemented. Future class/AI code supplies attack tuning and
+  geometry to this pipeline instead of applying Health damage separately. Receivers
+  must not re-enter the pipeline during damage delivery; simulation is single-threaded.
 
 ### Enemy
 
@@ -124,7 +159,8 @@ are documented boundaries but do not have empty packages yet.
 - Currently depends on `combat`; geometry/world integration remains future work.
 - Constructors create full, independently owned `Health`, using `DEFAULT_MAX_HP`
   or an explicit capacity. Implements `Damageable` by delegation and exposes
-  `getHealth()` with the same semantics as Player. No AI or enemy spawning is added.
+  `getHealth()` with the same semantics as Player. Only the debug adapter instantiates
+  a stationary dummy; no AI or general enemy-spawn system is added.
 
 ### World / Map
 
@@ -210,8 +246,10 @@ are documented boundaries but do not have empty packages yet.
 
 ```text
 GameScreen -> feature modules (coordination only)
-GameScreen -> GameSession, TravelSystem, PlayerInput, PlaceholderRenderer
-PlaceholderRenderer -> CameraFollow, read-only player/map/portal geometry
+GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
+PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
+CombatDemo -> GameSession, Enemy, CombatSystem, Combatant, AttackSpec
+CombatSystem -> Combatant, Attack, AttackSpec, Damageable, CollisionBox
 CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data
 GameSession -> GameMap/SpawnPoint, Player (transition coordination)
@@ -235,6 +273,9 @@ type-specific branches. This prevents circular dependencies.
 - `Damageable` provides one damage entry point for players, enemies, and bosses.
 - `Health` is the shared implementation of bounded HP; Player and Enemy delegate
   instead of maintaining separate damage, healing, or death rules.
+- `CombatSystem.register`, `tryAttack`, `update`, `unregister`, and `clear` manage
+  arena membership and attack settlement. `Combatant.setHurtbox` synchronizes only
+  vulnerable geometry; getters expose debug data without rendering dependencies.
 - `WalkableArea` exposes collision queries and resolved movement without exposing
   obstacle storage or future map-loader details.
 - `GameSession.switchMap(mapId[, spawnId])` remains the transition entry point.
