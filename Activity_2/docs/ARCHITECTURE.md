@@ -159,7 +159,7 @@ are documented boundaries but do not have empty packages yet.
 - PlayerClass is an enum identity with stable explicit IDs, not a Player superclass
   or strategy interface. ClassDefinition composes that identity with AbilityLoadout.
   PlayerClasses provides all three immutable built-in configurations; Mage is the
-  default to preserve the existing ability values/area behaviour. GameConfig aliases
+  default identity, using a magic bolt for J and fixed area pulses for K/O. GameConfig aliases
   that default instead of duplicating class tuning or introducing a screen dependency.
 - Every class uses the same final Player, Health, movement/collision, Combatant,
   PlayerAbilities, shared J/K/L/O slots, cooldowns and map/portal interactions.
@@ -171,7 +171,7 @@ are documented boundaries but do not have empty packages yet.
   No code in the common executor dispatches on Archer/Mage/Katana identities.
 - Per-class J/K/O definitions choose hitbox strategy, range, damage, active window
   and cooldown. Dash varies speed/duration/cooldown through existing validated data.
-  Archer projectile configuration now selects shared flight delivery rather than AttackShape.
+  Archer attacks and Mage J select shared projectile delivery rather than AttackShape.
   Future spells/combos must keep the same damage pipeline rather than calling Health
   separately; there is no universal speculative skill execution framework.
 - Player owns the selected definition. Its selection setter is package-private;
@@ -246,8 +246,8 @@ are documented boundaries but do not have empty packages yet.
   file links to an online document that could not be read, so no final design is assumed.
   L keeps the existing shared Archer dash configuration and collision rules.
 - The existing AbilityLoadout.AreaAttack record gains optional ProjectileSpec data;
-  null means the original shape delivery, preserving Mage/Katana constructors and
-  behaviour. Range is the arrow distance cap; AttackSpec.activeSeconds is the launch
+  null means the original shape delivery used by Mage K/O and Katana.
+  Range is the projectile distance cap; AttackSpec.activeSeconds is the launch
   window, and ProjectileSpec.lifetime is independent flight expiry. PlayerAbilities
   still owns slot cooldowns and calls the same CombatSystem for both delivery modes.
 - Projectile contains only flight geometry/direction/speed/range/time and captured
@@ -275,8 +275,33 @@ are documented boundaries but do not have empty packages yet.
   arrow. Map transitions clear all arrows and preserve slot cooldowns; R explicitly
   cancels flight and resets cooldowns. No duplicate Player/Health/CombatSystem exists.
 - Current target geometry is sampled after actor movement; relative swept target
-  motion is not implemented. No homing/gravity/piercing/ricochet, magic, katana combo,
+  motion is not implemented. No homing/gravity/piercing/ricochet or katana combo,
   particle, sprite, texture, sound or other art asset is introduced.
+
+### Mage composition on shared spell delivery
+
+- Mage adds configuration, not a new Player, projectile implementation, manager or
+  damage formula. Its J slot composes the existing ProjectileSpec with AttackSpec:
+  one 10-unit square, 400 units/s, 360 travel range, 1.5-second lifetime, 25 damage,
+  0.25-second launch window and 0.5-second slot cooldown. Current/last WASD facing is
+  normalized and captured at launch. All flight/collision/expiry/cleanup is shared.
+- K is a 40-damage small area pulse (120-unit hurtbox expansion, 0.3 seconds active,
+  2-second cooldown); O is a 75-damage large pulse (180 expansion, 0.5 seconds active,
+  8-second cooldown). These are provisional replacements for undefined final spells.
+  AttackShape.AREA captures fixed geometry; CombatSystem handles late entrants and
+  per-invocation hit deduplication. Area pulses retain the existing no-wall-occlusion
+  rule, while J uses swept wall collision. There is no separate spell update loop.
+- L remains the common collision-safe dash (600 units/s for 0.2 seconds, 1-second
+  cooldown), not a teleport. HP, hurtboxes, input arbitration, timing and transitions
+  use existing code. The placeholder renderer already reads moving/fixed Attack boxes.
+- Stable mage-light/mage-special/mage-ultimate IDs provide identification for future
+  extensions without implementing elements or reactions. New skill geometry/configuration
+  can replace these prototypes through ClassDefinition/AbilityLoadout; all damage stays
+  at the shared combat calculation boundary. Archer/Katana tuning is not changed.
+- MageAbilitiesTest covers real spell execution and lifecycle without graphics.
+  PlayerAbilitiesTest now uses an explicit area-only fixture so its generic executor
+  regressions do not incorrectly assume that the default class's J is an area attack.
+  Class and demo tests verify delayed Mage hits and shared selection/travel/reset rules.
 
 ### Enemy
 

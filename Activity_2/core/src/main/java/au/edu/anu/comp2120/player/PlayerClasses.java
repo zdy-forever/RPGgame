@@ -6,13 +6,15 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Central built-in class definitions, including Archer projectile prototypes and other placeholders.
+ * Central built-in definitions for Archer, Mage and remaining class placeholders.
  * No Player subclasses or asset lookups are needed.
  * Values demonstrate class differences; they are not final skill designs or balance decisions.
+ * Mage uses a straight magic bolt for J, fixed surrounding pulses for K/O, and the shared
+ * collision-safe dash for L. Stable attack IDs identify spells without implementing elements.
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlayerClasses {
-    /** Default preserves the previous common area-attack behaviour and tuning. */
+    /** Default class; its magic bolt and area pulses share the common ability executor. */
     public static final PlayerClass DEFAULT = PlayerClass.MAGE;
     /** Complete immutable catalog; all mutable ability state stays in each player's controller. */
     private static final Map<PlayerClass, ClassDefinition> DEFINITIONS = Map.of(
@@ -25,10 +27,11 @@ public final class PlayerClasses {
                     new AbilityLoadout.AreaAttack(new AttackSpec("archer-ultimate", 30, 0.4, 8),
                             500, AttackShape.FORWARD, new ProjectileSpec(550, 6, 1.2, 5, 40)))),
             PlayerClass.MAGE, new ClassDefinition(PlayerClass.MAGE, new AbilityLoadout(
-                    attack("light", 25, 0.25, 0.5, 96, AttackShape.AREA),
-                    attack("special", 40, 0.3, 2, 120, AttackShape.AREA),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("mage-light", 25, 0.25, 0.5),
+                            360, AttackShape.FORWARD, new ProjectileSpec(400, 10, 1.5, 1, 0)),
+                    attack("mage-special", 40, 0.3, 2, 120, AttackShape.AREA),
                     new AbilityLoadout.Dash(600, 0.2, 1),
-                    attack("ultimate", 75, 0.5, 8, 180, AttackShape.AREA))),
+                    attack("mage-ultimate", 75, 0.5, 8, 180, AttackShape.AREA))),
             PlayerClass.KATANA, new ClassDefinition(PlayerClass.KATANA, new AbilityLoadout(
                     attack("katana-light", 30, 0.15, 0.35, 48, AttackShape.FORWARD),
                     attack("katana-special", 45, 0.25, 2, 80, AttackShape.AREA),

@@ -143,6 +143,8 @@ final class PlayerClassTest {
         Fixture f = fixture(PlayerClass.MAGE);
         var health = f.player().getHealth();
         f.player().takeDamage(40);
+        // End the bolt by impact while retaining the unspent part of its slot cooldown.
+        f.combat().register(new Combatant(new Enemy(), Faction.ENEMY, new CollisionBox(160, 100, 20, 20)));
         f.tick(0.25, command(AbilitySlot.LIGHT));
         CollisionBox before = f.player().getBounds();
         double cooldown = f.abilities().getCooldownRemaining(AbilitySlot.LIGHT);
@@ -177,7 +179,7 @@ final class PlayerClassTest {
         assertSame(before, f.player().getClassDefinition());
         assertEquals(cooldown, f.abilities().getCooldownRemaining(slot));
         assertEquals(AbilityState.ACTIVE, f.abilities().getState(slot));
-        f.tick(0.5, PlayerCommand.NONE);
+        f.tick(1.5, PlayerCommand.NONE);
         assertTrue(f.abilities().selectClass(PlayerClasses.get(PlayerClass.KATANA)));
     }
 

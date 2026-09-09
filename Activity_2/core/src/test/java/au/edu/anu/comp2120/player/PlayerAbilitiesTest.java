@@ -8,7 +8,6 @@ import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
-import au.edu.anu.comp2120.screen.GameConfig;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.TestMaps;
@@ -27,6 +26,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 final class PlayerAbilitiesTest {
     /** Tolerance for normalized movement and timer subtraction. */
     private static final double EPSILON = 1e-8;
+    /** Explicit area-only fixture keeps executor regressions independent of default class delivery. */
+    private static final AbilityLoadout AREA_LOADOUT = new AbilityLoadout(
+            new AbilityLoadout.AreaAttack(new AttackSpec("test-light", 25, 0.25, 0.5), 96),
+            new AbilityLoadout.AreaAttack(new AttackSpec("test-special", 40, 0.3, 2), 120),
+            new AbilityLoadout.Dash(600, 0.2, 1),
+            new AbilityLoadout.AreaAttack(new AttackSpec("test-ultimate", 75, 0.5, 8), 180));
     /** Existing large map with a thin wall for tunnelling regression checks. */
     private final GameMap map = TestMaps.rectangle(800, 600,
             List.of(new CollisionBox(400, 0, 1, 400)));
@@ -45,7 +50,7 @@ final class PlayerAbilitiesTest {
     PlayerAbilitiesTest() {
         combat.register(source);
         combat.register(new Combatant(target, Faction.ENEMY, new CollisionBox(160, 100, 20, 20)));
-        abilities = new PlayerAbilities(player, source, combat, GameConfig.PLAYER_ABILITIES);
+        abilities = new PlayerAbilities(player, source, combat, AREA_LOADOUT);
     }
 
     /**
@@ -81,7 +86,7 @@ final class PlayerAbilitiesTest {
     void cooldownAndLifecycleRecover(AbilitySlot slot) {
         tick(0, command(slot));
         assertEquals(AbilityState.ACTIVE, abilities.getState(slot));
-        double duration = slot == AbilitySlot.DASH ? GameConfig.PLAYER_ABILITIES.dash().duration()
+        double duration = slot == AbilitySlot.DASH ? AREA_LOADOUT.dash().duration()
                 : tuning(slot).attack().activeSeconds();
         double cooldown = abilities.getCooldownRemaining(slot);
         tick(duration, PlayerCommand.NONE);
@@ -337,7 +342,7 @@ final class PlayerAbilitiesTest {
         assertThrows(NullPointerException.class, () -> abilities.getState(null));
         assertThrows(NullPointerException.class, () -> abilities.getCooldownRemaining(null));
         assertThrows(NullPointerException.class, () -> new PlayerAbilities(null, source, combat,
-                GameConfig.PLAYER_ABILITIES));
+                AREA_LOADOUT));
         assertThrows(IllegalArgumentException.class, () -> new PlayerCommand(2, 0, false, false, false, false));
         assertThrows(IllegalArgumentException.class, () -> new PlayerCommand(0, -2, false, false, false, false));
     }
@@ -365,16 +370,16 @@ final class PlayerAbilitiesTest {
     }
 
     /**
-     * Finds the expected default attack configuration.
+     * Finds the expected explicit area-fixture attack configuration.
      * @param slot damage-dealing slot
      * @return configured area attack
      * @throws IllegalArgumentException if slot is dash
      */
     private AbilityLoadout.AreaAttack tuning(AbilitySlot slot) {
         return switch (slot) {
-            case LIGHT -> GameConfig.PLAYER_ABILITIES.light();
-            case SPECIAL -> GameConfig.PLAYER_ABILITIES.special();
-            case ULTIMATE -> GameConfig.PLAYER_ABILITIES.ultimate();
+            case LIGHT -> AREA_LOADOUT.light();
+            case SPECIAL -> AREA_LOADOUT.special();
+            case ULTIMATE -> AREA_LOADOUT.ultimate();
             case DASH -> throw new IllegalArgumentException("Dash does not deal damage");
         };
     }
