@@ -4,7 +4,8 @@ Java and LibGDX foundation for COMP2120 Assignment 3. The current application
 demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera using geometric placeholders. Player and
-enemy models share validated integer health, independent of the demonstration view.
+enemy models share validated integer health and one attack pipeline, independent
+of the demonstration view. Battle maps include a stationary combat-debug dummy.
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
@@ -241,8 +242,8 @@ To check manually:
   `new Player(bounds, speed, area, maxHp)` or `new Enemy(maxHp)`.
 - Movement and map/portal/fast-travel transitions preserve HP. This branch does
   not decide whether dead players may move/travel: future gameplay coordination
-  should apply that policy using `isAlive()`. No death callbacks, attacks, AI,
-  loot, persistence, health bars, effects, or new input bindings are introduced.
+  should apply that policy using `isAlive()`. The combat pipeline rejects attacks
+  from dead sources; health itself owns no input, AI, effects, or respawn workflow.
 - Use the model on the game-loop thread. It does not depend on LibGDX or load assets.
 
 For example, this helper demonstrates the API with an existing player. The HP
@@ -285,9 +286,98 @@ Run the graphics-independent checks with:
 ```
 
 `HealthTest` covers model boundaries and `EntityHealthTest` covers delegation,
-independent ownership, movement, and successful/failed map transitions. The
-desktop placeholder scene remains visually unchanged; no damage source or HP
-display has been added solely to demonstrate this model.
+independent ownership, movement, and successful/failed map transitions. The combat
+demonstration below exercises this same model rather than a separate debug HP counter.
+
+## Combat core and placeholder verification
+
+The common pipeline is:
+
+```text
+AttackSpec + registered source + world hitbox
+  -> active Attack invocation
+  -> self/faction/alive/already-hit filtering
+  -> positive-area hitbox/hurtbox overlap
+  -> shared raw-damage calculation
+  -> Damageable.takeDamage
+  -> existing Health clamping and derived death state
+```
+
+- `Combatant` adapts an existing `Damageable`, a `PLAYER`/`ENEMY` faction, and an
+  independent world-space `CollisionBox` hurtbox. It adds no second health state.
+  Maintain one stable adapter per entity in one arena; `register` rejects duplicate
+  receivers, even through another adapter. Dead/removed actors cannot be valid targets.
+- `AttackSpec(type, damage, activeSeconds, cooldownSeconds)` is reusable data.
+  Type is a label, not a class-specific formula. Damage is non-negative integer;
+  duration must be positive and finite; cooldown must be non-negative and finite.
+- `CombatSystem.tryAttack(source, spec, hitbox)` returns an `Optional<Attack>`.
+  Dead sources/cooling-down sources return empty; null arguments and unregistered
+  sources fail explicitly. Validation happens before consuming cooldown.
+- Each accepted invocation gets its own ID, fixed world-space hitbox, remaining
+  duration, and identity-based hit ledger. The same type can be reused by any actor.
+  One invocation hits each hostile receiver at most once, even across exit/re-entry,
+  healing, revival, or re-registration of the same receiver. Multiple enemies can
+  each receive one hit; a new invocation can hit them again.
+- `update(delta)` samples currently active attacks against current hurtboxes **before**
+  advancing duration/cooldown by delta. Creation is included; expiry is excluded.
+  Zero-time samples are safe. A large finite delta samples once then expires the attack;
+  there is no swept/moving-projectile detection. Negative/non-finite delta is rejected
+  before mutation. Registration order and attack creation order make resolution deterministic;
+  if an earlier strike kills an attacker, its later queued strike is cancelled.
+- Damage calculation currently passes validated raw damage unchanged. Health performs
+  lethal clamping. Armour, critical hits, elements, and class-specific modifiers are absent.
+  All future damage formulas should extend the shared calculation boundary.
+- Cooldown is per registered source across attack types, measured from creation.
+  A zero cooldown intentionally allows distinct invocations; it does not remove the
+  once-per-target rule. `clear()` cancels old attacks and removes registrations/cooldowns
+  without healing actors. `CombatDemo` uses the existing session transition stamp for
+  every map change, including same-map re-entry, portals, and fast travel.
+- The owner updates hurtboxes after movement, then submits attacks, then calls `update`
+  once per simulation step. Use one game-loop thread; custom damage receivers must not
+  call back into/mutate the combat system while damage is being delivered.
+
+Temporary controls (not final character skills):
+
+| Key | Debug action |
+| --- | --- |
+| J | One player strike; holding the key does not auto-repeat |
+| H | One stationary dummy strike; no enemy AI |
+| R | Restore player/dummy HP and clear attacks/cooldowns; no repositioning |
+
+1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. A red dummy
+   appears near the entry. It is non-solid; its placement is checked against map walls.
+2. The cyan outlines are hurtboxes. The player's is inset from its green body,
+   demonstrating independence from visual size. Press J: a yellow attack rectangle
+   lasts 0.25 simulation seconds, and the native title's dummy HP changes 100 -> 75.
+3. Stand still: one rectangle must not keep reducing HP. Press J again after at
+   least 0.5 simulation seconds to apply another 25 damage. Fast presses during
+   cooldown are ignored. Four successful strikes make the dummy grey and dead.
+4. Press R, then H: player HP changes 100 -> 75 through the same pipeline. Repeat
+   with cooldown gaps to reach zero; J must then do no damage until R restores HP.
+5. Walk upward far enough from the dummy and press J/H to verify misses. The debug
+   attack expands 96 units around the source hurtbox in all directions; it is not
+   a directional/class-specific weapon attack.
+6. Attack then fast-travel or enter a portal. Old yellow rectangles disappear and
+   cannot damage actors on the new map. Player HP is preserved; each new battle
+   scope gets a fresh dummy. Hub has no dummy. Resize still uses the existing camera.
+
+All tuning is in `GameConfig`; neither combat models nor detection import rendering
+or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
+the native title rather than loading fonts. `CombatDemo` only handles temporary input
+requests, placement, hurtbox synchronization, and reset/transition policy.
+
+Combat limitations: fixed axis-aligned hitboxes, discrete overlap samples, no wall
+occlusion/line-of-sight or projectile motion, and no armour, knockback, attack wind-up,
+invulnerability, combos, classes, elements, bosses, or final skill inputs. This debug
+strike may hit through nearby walls. Dead-player movement/travel is still allowed;
+only attacking is disabled. Dummy HP is not persisted across transitions. Pause freezes
+combat, and the existing frame-time cap discards excess stall time.
+
+Run combat-specific checks with:
+
+```bash
+./gradlew core:test --tests '*Combat*Test'
+```
 
 ## Current class responsibilities
 
@@ -298,8 +388,14 @@ display has been added solely to demonstrate this model.
 - `Player`: validated position/size/speed, eight-direction movement, and owned shared health.
 - `Health`: bounded integer HP, damage, healing, life status, and explicit restoration.
 - `Damageable`: common validated damage/life-status contract for combat targets.
+- `Combatant`: entity/faction adapter with independently supplied hurtbox geometry.
+- `Faction`: minimal player/enemy friendly-fire distinction.
+- `AttackSpec`: reusable validated attack tuning.
+- `Attack`: one invocation's identifier, hitbox, active lifetime, and hit ledger.
+- `CombatSystem`: registration, cooldowns, hit detection, damage calculation, and delivery.
+- `CombatDemo`: temporary battle dummy, attack requests, hurtbox sync, and map/reset cleanup.
 - `PlayerInput`: translates held WASD keys into movement intent.
-- `GameConfig`: shared player dimensions, speed, camera view size, and frame-time tuning.
+- `GameConfig`: shared player, camera, combat-debug, and frame-time tuning.
 - `CameraFollow`: stateless subject-centre, map-clamp, and small-map view mathematics.
 - `PlaceholderRenderer`: applies the follow camera and renders shapes through a fixed `FitViewport`.
 - `Enemy`: minimal hostile entity with independent shared health; no AI or rendering yet.
@@ -320,8 +416,8 @@ display has been added solely to demonstrate this model.
 
 This is intentionally a small foundation. Movement currently supports static,
 axis-aligned rectangles and three built-in maps. It does not include dynamic entity
-collision, external map-file loading, bosses, enemies, elemental map rules,
-saved map state, combat, or final artwork. Collision uses X-then-Y
+collision, external map-file loading, bosses, enemy AI, elemental map rules,
+saved map state, final character skills, or final artwork. Collision uses X-then-Y
 axis separation rather than a continuous diagonal sweep, so large diagonal steps
 can take a different route around corners than many smaller steps. Normal screen
 updates cap delta to keep this effect limited; each axis still cannot tunnel.

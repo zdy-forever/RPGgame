@@ -11,7 +11,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
 
 /**
- * Coordinates the map session, existing movement input, and geometry-only map presentation.
+ * Coordinates the map session, movement input, combat debug adapter, and geometry-only presentation.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -21,6 +21,10 @@ public final class GameScreen extends ScreenAdapter {
     private final GameSession session;
     /** Portal trigger/unlock state; delegates every map transition to the existing session. */
     private final TravelSystem travel;
+    /** Graphics-independent debug adapter; all damage goes through the shared combat pipeline. */
+    private final CombatDemo combatDemo;
+    /** Last HP/key feedback applied to the native title, avoiding redundant title updates. */
+    private String combatStatus = "";
     /** Brief travel feedback shown in the native window title without a font asset. */
     private String travelStatus = "Walk into purple portals; U unlocks fast travel (debug)";
     /** Adapter for the application's keyboard input. */
@@ -39,13 +43,14 @@ public final class GameScreen extends ScreenAdapter {
         session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
         travel = new TravelSystem(session, TravelCatalog.createPortals(), TravelCatalog.createDestinations());
+        combatDemo = new CombatDemo(session);
         input = new PlayerInput(Gdx.input);
         renderer = new PlaceholderRenderer(GameConfig.CAMERA_VIEW_WIDTH, GameConfig.CAMERA_VIEW_HEIGHT);
         updateMapView();
     }
 
     /**
-     * Updates movement before drawing. Frame stalls are capped to avoid a large resume jump.
+     * Updates movement/travel, then combat before drawing. Frame stalls are capped for simulation.
      *
      * @param delta seconds elapsed since the previous frame
      */
@@ -66,10 +71,18 @@ public final class GameScreen extends ScreenAdapter {
                 travelStatus = failure.getMessage();
                 updateMapView();
             }
+            combatDemo.update(Math.min(delta, GameConfig.MAX_FRAME_DELTA),
+                    Gdx.input.isKeyJustPressed(Input.Keys.J),
+                    Gdx.input.isKeyJustPressed(Input.Keys.H),
+                    Gdx.input.isKeyJustPressed(Input.Keys.R));
+            if (!combatStatus.equals(combatDemo.getStatus())) {
+                updateMapView();
+            }
         }
         skipNextUpdate = false;
         renderer.render(session.getCurrentMap(), session.getPlayer(),
-                travel.getPortals(session.getCurrentMap().getId()));
+                travel.getPortals(session.getCurrentMap().getId()),
+                combatDemo.getCombatants(), combatDemo.getActiveAttacks());
     }
 
     /**
@@ -104,9 +117,10 @@ public final class GameScreen extends ScreenAdapter {
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
         GameMap map = session.getCurrentMap();
+        combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.graphics.setTitle("COMP2120 | " + map.getName() + " [" + map.getId()
-                + "] | 1 Hub | 2 Training | 3 Crossroads | " + travelStatus);
+                + "] | " + combatStatus + " | " + travelStatus);
     }
 
     /**
