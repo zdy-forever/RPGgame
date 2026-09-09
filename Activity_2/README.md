@@ -6,6 +6,7 @@ player movement, static rectangle collision, automatic portals, and unlocked fas
 travel, and a map-bounded follow camera using geometric placeholders. Player and
 enemy models share validated integer health and one attack pipeline, independent
 of the demonstration view. Battle maps include multiple basic autonomous enemies.
+Crossroads also includes a two-phase placeholder Boss and encounter-scoped material drops.
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Author
@@ -701,6 +702,71 @@ not targets' complete movement paths; keyboard/visual verification remains manua
 
 ```bash
 ./gradlew core:test --tests '*KatanaAbilitiesTest' --tests '*PlayerClassTest' --tests '*CombatDemoTest'
+```
+
+## Boss encounter prototype
+
+Run `./gradlew lwjgl3:run`, press U then 3 to enter **Crossroads**. The Sentinel is
+a large 64 x 64 red rectangle, normally starting at (360, 100). It uses 400 HP and
+the same player/enemy combat pipeline. Hub and Training keep their existing behavior.
+The native window title reports Boss HP, phase, state and any dropped material.
+
+`Boss` composes the existing `Enemy` health owner and `EnemyAI` controller; there is
+no Boss-specific HP/damage engine or duplicated A*. `EnemyAI.update(target, delta,
+false)` performs normal detection, cached full-body A* chase, wall clearance and
+attack readiness without submitting a basic attack. Boss selects its pattern instead.
+The original two-argument EnemyAI update still performs normal enemy attacks.
+
+| Phase | Ordered pattern cycle | Damage | Reach | Active / cooldown |
+| --- | --- | --- | --- | --- |
+| 1 | Forward sweep | 15 | 96 | 0.2 s / 1.2 s |
+| 1 | Surrounding slam | 20 per target | 128 expansion | 0.3 s / 1.6 s |
+| 2 | Heavy forward sweep | 20 | 120 | 0.2 s / 0.8 s |
+| 2 | Heavy surrounding slam | 30 per target | 160 expansion | 0.3 s / 1.1 s |
+
+- Configuration is centralized in `GameConfig.SENTINEL` using validated `BossConfig`
+  and immutable pattern lists. Patterns reuse AttackSpec and AttackShape, not animation
+  events. A successful cast advances the cycle; rejected cooldown attempts do not.
+- Navigation speed is 70, detection radius 500, loss radius 650 and attack stopping
+  distance 96 (centre-to-centre). The existing conservative clear-corridor rule gates
+  attacks at the chosen target. Position/hurtbox updates use the current GameMap.
+- At HP <= 50%, phase changes from 1 to 2 exactly once. A 0.75-second transition
+  pauses navigation/new attacks and cancels existing Boss attacks **without resetting
+  source cooldown**. Healing does not revert phase or restart the pause. Large transition
+  frames discard leftover movement/attack time instead of issuing catch-up attacks.
+- The arena updates player/enemy/Boss decisions, advances CombatSystem once, then
+  calls `Boss.synchronizeOutcome()` so settled damage changes phase/death/drop state
+  before rendering. Lethal damage takes priority over phase change. Each attack uses
+  combat-core's per-target hit ledger; no frame-driven repeated damage is introduced.
+- Defeat stops decisions and cancels remaining Boss attacks. Exactly one immutable
+  `MaterialDrop` is generated at the last valid Boss position: a unique reward instance
+  ID, material ID `sentinel-core`, quantity 1, owning map ID and a small rectangle.
+  The existing renderer shows it in gold; no icon, texture, font or effect is loaded.
+- Inventory is still a placeholder. `getDrop()` supports inspection and `claimDrop()`
+  transfers a reward at most once. A future pickup/inventory adapter must check distance
+  and capacity/acceptance before claiming on the game-loop thread. There is deliberately
+  no automatic pickup or fake inventory storage in this branch.
+- Loot is encounter-scoped, not saved: travel/reset discards unclaimed rewards and
+  returning creates a fresh encounter. R restores the existing player/basic enemies
+  but replaces the Boss with a fresh, safely placed instance. It is a debug reset,
+  not a farming/persistence policy. Restoring a defeated Boss's Health alone does not
+  restart its encounter. Detached old-map Boss references cannot claim or generate loot.
+
+Manual checks: approach the Sentinel, attack with J/K/O and observe HP/phase in the
+title. Check that the second phase starts once at 200 HP and has a short pause.
+Defeat it and verify one gold drop remains after further updates. Try attacking then
+travelling with 1, or pressing R, to confirm cancellation and fresh encounter state.
+Boss bodies and attacks remain simple rectangles; no formal Boss UI or art is added.
+
+Limitations: two fixed-rectangle pattern cycles, no projectile Boss pattern, cutscene,
+animation, phase immunity or reaction system. The full-body navigation corridor can be
+conservative in narrow passages. Once cast, fixed hitboxes do not follow targets or
+clip against walls; the initial target requires clearance but secondary area targets
+may still be hit through walls. Actors have no mutual body collision. Inventory pickup,
+persistent defeat/drop state and final material/skill balance remain future work.
+
+```bash
+./gradlew core:test --tests '*Boss*Test' --tests '*EnemyAITest' --tests '*CombatSystemTest'
 ```
 
 ## Basic enemy AI

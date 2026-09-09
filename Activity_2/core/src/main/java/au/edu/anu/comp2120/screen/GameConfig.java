@@ -2,6 +2,10 @@ package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.enemy.EnemyConfig;
+import au.edu.anu.comp2120.enemy.BossConfig;
+import au.edu.anu.comp2120.player.AttackShape;
+import au.edu.anu.comp2120.world.CollisionBox;
+import java.util.List;
 import au.edu.anu.comp2120.player.AbilityLoadout;
 import au.edu.anu.comp2120.player.PlayerClasses;
 
@@ -37,6 +41,19 @@ public final class GameConfig {
     /** Basic AI tuning: speed, detection/loss/attack radii, and shared attack timing/damage. */
     public static final EnemyConfig BASIC_ENEMY = new EnemyConfig(80, 200, 260, 44,
             new AttackSpec("enemy-basic", 10, 0.2, 1));
+    /** Walkable candidates for the Crossroads Boss, checked against current actors before placement. */
+    public static final List<CollisionBox> BOSS_PLACEMENTS = List.of(
+            new CollisionBox(360, 100, 64, 64), new CollisionBox(840, 400, 64, 64),
+            new CollisionBox(840, 100, 64, 64));
+    /** Provisional two-phase sentinel: shared pursuit, alternating sweep/slam and one material reward. */
+    public static final BossConfig SENTINEL = new BossConfig(400,
+            new EnemyConfig(70, 500, 650, 96, new AttackSpec("boss-navigation-unused", 0, 0.2, 1)),
+            0.5, 0.75,
+            List.of(new BossConfig.Pattern(new AttackSpec("boss-sweep", 15, 0.2, 1.2), 96, AttackShape.FORWARD),
+                    new BossConfig.Pattern(new AttackSpec("boss-slam", 20, 0.3, 1.6), 128, AttackShape.AREA)),
+            List.of(new BossConfig.Pattern(new AttackSpec("boss-heavy-sweep", 20, 0.2, 0.8), 120, AttackShape.FORWARD),
+                    new BossConfig.Pattern(new AttackSpec("boss-heavy-slam", 30, 0.3, 1.1), 160, AttackShape.AREA)),
+            "sentinel-core", 1);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

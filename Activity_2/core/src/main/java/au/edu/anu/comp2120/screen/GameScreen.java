@@ -92,7 +92,7 @@ public final class GameScreen extends ScreenAdapter {
         skipNextUpdate = false;
         renderer.render(session.getCurrentMap(), session.getPlayer(),
                 travel.getPortals(session.getCurrentMap().getId()),
-                combatDemo.getCombatants(), combatDemo.getActiveAttacks());
+                combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
     }
 
     /**

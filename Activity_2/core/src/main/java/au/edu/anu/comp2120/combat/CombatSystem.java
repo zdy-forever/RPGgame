@@ -61,13 +61,25 @@ public final class CombatSystem {
         if (cooldowns.remove(combatant) == null) {
             return false;
         }
+        cancelAttacks(combatant);
+        return true;
+    }
+
+    /**
+     * Cancels a source's invocations without resetting registration, health or remaining cooldown.
+     * Used between combat updates for encounter transitions/death; never call from a damage receiver.
+     * An unknown source has no attacks and is harmless.
+     * @param combatant source whose fixed and moving attacks should stop
+     * @throws NullPointerException if combatant is null
+     */
+    public void cancelAttacks(Combatant combatant) {
+        Objects.requireNonNull(combatant, "combatant");
         for (Attack attack : attacks) {
             if (attack.getSource() == combatant) {
                 attack.cancel();
             }
         }
         attacks.removeIf(attack -> !attack.isActive());
-        return true;
     }
 
     /**

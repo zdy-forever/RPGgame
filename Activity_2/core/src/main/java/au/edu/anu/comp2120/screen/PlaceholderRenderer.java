@@ -1,6 +1,7 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.player.Player;
+import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.combat.Attack;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
@@ -56,9 +57,10 @@ public final class PlaceholderRenderer implements Disposable {
      * @param portals immutable portal snapshots; only current-map entries are drawn
      * @param combatants current-scope actors for enemy rectangles and hurtbox outlines
      * @param attacks active current-scope invocations for temporary hitbox outlines
+     * @param drops current-map unclaimed material rectangles, independent of inventory icons
      */
     public void render(GameMap map, Player player, List<Portal> portals,
-            List<Combatant> combatants, List<Attack> attacks) {
+            List<Combatant> combatants, List<Attack> attacks, List<MaterialDrop> drops) {
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
                 viewport.getWorldWidth(), viewport.getWorldHeight());
@@ -102,6 +104,12 @@ public final class PlaceholderRenderer implements Disposable {
                     shapes.setColor(0.30f, 0.30f, 0.30f, 1);
                 }
                 draw(actor.getHurtbox());
+            }
+        }
+        shapes.setColor(1.0f, 0.7f, 0.1f, 1);
+        for (MaterialDrop drop : drops) {
+            if (drop.mapId().equals(map.getId())) {
+                draw(drop.bounds());
             }
         }
         shapes.end();

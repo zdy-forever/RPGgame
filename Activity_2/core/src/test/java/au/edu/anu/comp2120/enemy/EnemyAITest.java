@@ -46,6 +46,19 @@ final class EnemyAITest {
         combat.register(target);
     }
 
+    /** Boss composition can reuse attack readiness without submitting a hidden basic attack or consuming cooldown. */
+    @Test
+    void decisionOnlyModePreservesBasicEnemyBehavior() {
+        target.setHurtbox(new CollisionBox(130, 100, 20, 20));
+        ai.update(target, 0, false);
+        assertEquals(EnemyState.ATTACK, ai.getState());
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        assertEquals(0, combat.getCooldownRemaining(ai.getCombatant()));
+        ai.update(target, 0);
+        assertEquals(1, combat.getActiveAttacks().size());
+        assertEquals("basic", combat.getActiveAttacks().get(0).getSpecification().type());
+    }
+
     /** A distant player leaves the enemy stably idle across many time steps. */
     @Test
     void distantPlayerLeavesEnemyIdle() {

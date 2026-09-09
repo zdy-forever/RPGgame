@@ -40,6 +40,29 @@ final class CombatSystemTest {
         system.register(target);
     }
 
+    /** Selective cancellation stops fixed and moving attacks without refreshing cooldown or harming other sources. */
+    @Test
+    void cancellationPreservesCooldownAndOtherSources() {
+        Attack fixed = system.tryAttack(source, new AttackSpec("fixed", 10, 1, 0), hitbox).orElseThrow();
+        Attack moving = system.tryProjectiles(source, new AttackSpec("moving", 10, 0.1, 2),
+                new ProjectileSpec(100, 4, 1, 1, 0), 100, 1, 0,
+                TestMaps.rectangle(500, 500, List.of())).get(0);
+        Attack hostile = system.tryAttack(target, strike, source.getHurtbox()).orElseThrow();
+        List<Combatant> registered = system.getCombatants();
+        system.cancelAttacks(source);
+        assertFalse(fixed.isActive());
+        assertFalse(moving.isActive());
+        assertTrue(hostile.isActive());
+        assertEquals(List.of(hostile), system.getActiveAttacks());
+        assertEquals(registered, system.getCombatants());
+        assertEquals(2, system.getCooldownRemaining(source));
+        system.cancelAttacks(new Combatant(new Enemy(), Faction.ENEMY, hitbox));
+        assertThrows(NullPointerException.class, () -> system.cancelAttacks(null));
+        system.update(0);
+        assertEquals(75, player.getHealth().getCurrentHp());
+        assertEquals(100, enemy.getHealth().getCurrentHp());
+    }
+
     /** A detected hit updates the actual enemy Health without modifying attacker HP. */
     @Test
     void playerDamagesEnemyThroughPipeline() {

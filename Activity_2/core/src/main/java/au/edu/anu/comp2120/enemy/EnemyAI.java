@@ -85,6 +85,19 @@ public final class EnemyAI {
      * @throws IllegalArgumentException if time or resulting movement/attack geometry is invalid
      */
     public void update(Combatant target, double delta) {
+        update(target, delta, true);
+    }
+
+    /**
+     * Reuses pursuit and attack-readiness decisions with optional basic attack submission.
+     * Boss composition disables submission and selects its own pattern through the same combat system.
+     * This method never advances combat time or applies damage.
+     * @param target registered hostile target, or null
+     * @param delta finite non-negative seconds with representable movement
+     * @param submitBasicAttack whether ATTACK readiness should submit the configured basic attack
+     * @throws IllegalArgumentException if time or resulting geometry is invalid
+     */
+    public void update(Combatant target, double delta, boolean submitBasicAttack) {
         if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(config.speed() * delta)) {
             throw new IllegalArgumentException("Enemy time and movement distance must be finite and non-negative");
         }
@@ -117,7 +130,9 @@ public final class EnemyAI {
         if (canAttack(target, distance)) {
             state = EnemyState.ATTACK;
             clearPath();
-            combat.tryAttack(combatant, config.attack(), attackBox(bounds));
+            if (submitBasicAttack) {
+                combat.tryAttack(combatant, config.attack(), attackBox(bounds));
+            }
         }
     }
 

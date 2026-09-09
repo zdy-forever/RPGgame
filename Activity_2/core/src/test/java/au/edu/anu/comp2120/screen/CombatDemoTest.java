@@ -226,7 +226,8 @@ final class CombatDemoTest {
                 session.switchMap(map.getId(), spawn);
                 demo.update(0, true, false);
                 assertTrue(demo.getActiveAttacks().isEmpty());
-                assertEquals(map.getType() == MapType.HUB ? 1 : 1 + GameConfig.ENEMY_COUNT,
+                assertEquals(map.getType() == MapType.HUB ? 1 : 1 + GameConfig.ENEMY_COUNT
+                                + (demo.getBoss().isPresent() ? 1 : 0),
                         demo.getCombatants().size());
                 for (Combatant actor : demo.getCombatants()) {
                     assertTrue(map.isWalkable(actor.getHurtbox()));
