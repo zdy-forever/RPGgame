@@ -5,6 +5,7 @@ import au.edu.anu.comp2120.combat.Attack;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Faction;
+import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.enemy.Enemy;
 import au.edu.anu.comp2120.enemy.EnemyAI;
 import au.edu.anu.comp2120.enemy.Boss;
@@ -187,16 +188,17 @@ public final class CombatDemo {
      */
     public String getStatus() {
         StringBuilder status = new StringBuilder("HP ")
-                .append(session.getPlayer().getHealth().getCurrentHp());
+                .append(session.getPlayer().getHealth().getCurrentHp()).append(elementLabel(player));
         for (int i = 0; i < enemies.size(); i++) {
             EnemyAI ai = enemies.get(i);
             status.append(" | E").append(i + 1).append(' ')
-                    .append(ai.getEnemy().getHealth().getCurrentHp()).append(' ').append(ai.getState());
+                    .append(ai.getEnemy().getHealth().getCurrentHp()).append(' ').append(ai.getState())
+                    .append(elementLabel(ai.getCombatant()));
         }
         if (boss != null) {
             status.append(" | ").append(boss.getName()).append(' ').append(boss.getHealth().getCurrentHp())
                     .append('/').append(boss.getHealth().getMaxHp()).append(" P").append(boss.getPhase())
-                    .append(' ').append(boss.getState());
+                    .append(' ').append(boss.getState()).append(elementLabel(boss.getCombatant()));
             boss.getDrop().ifPresent(drop -> status.append(" Drop ").append(drop.materialId())
                     .append(" x").append(drop.quantity()));
         }
@@ -206,6 +208,16 @@ public final class CombatDemo {
                 .append(" L ").append(abilities.getState(AbilitySlot.DASH))
                 .append(" O ").append(abilities.getState(AbilitySlot.ULTIMATE))
                 .append(" | R reset HP/abilities").toString();
+    }
+
+    /**
+     * Adds an optional element name to native-title diagnostics without loading a font or status icon.
+     * @param actor current-scope registered receiver
+     * @return empty text or the attached element label
+     */
+    private String elementLabel(Combatant actor) {
+        ElementType element = combat.getElementStatus(actor).element();
+        return element == ElementType.NONE ? "" : " [" + element.name() + "]";
     }
 
     /**

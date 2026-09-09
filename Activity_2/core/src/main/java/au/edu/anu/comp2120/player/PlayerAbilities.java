@@ -238,7 +238,7 @@ public final class PlayerAbilities {
     }
 
     /**
-     * Submits shape or projectile delivery to the shared pipeline, then starts the slot cooldown.
+     * Submits shape or projectile delivery, preserving the configured element, then starts slot cooldown.
      * @param slot attack slot
      * @param area common attack tuning and optional flight mode
      * @return true if combat accepted a new invocation
@@ -250,7 +250,7 @@ public final class PlayerAbilities {
             return false;
         }
         AttackSpec spec = area.attack();
-        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(), 0);
+        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(), 0, spec.element());
         Optional<Attack> accepted;
         if (area.projectile() != null) {
             List<Attack> volley = combat.tryProjectiles(source, invocation, area.projectile(), area.range(),

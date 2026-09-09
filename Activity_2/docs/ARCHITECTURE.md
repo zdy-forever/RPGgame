@@ -20,6 +20,9 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── Combatant.java
 │   ├── CombatSystem.java
 │   ├── Damageable.java
+│   ├── ElementType.java
+│   ├── ElementStatus.java
+│   ├── ElementRules.java
 │   ├── Faction.java
 │   ├── Health.java
 │   ├── Projectile.java
@@ -216,12 +219,12 @@ are documented boundaries but do not have empty packages yet.
   immutable world hurtbox data. It is not a new entity hierarchy or health model.
   Visual/collision sizes do not determine combat geometry; owners update hurtboxes
   after movement. Player and Enemy retain their existing health implementations.
-- `AttackSpec` is reusable type/damage/duration/cooldown data. `Attack` is one
+- `AttackSpec` is reusable type/damage/duration/cooldown/element data; its legacy constructor uses NONE. `Attack` is one
   system-created invocation: unique scope-local ID, source, fixed or projectile hitbox, active
   time, and lifetime receiver-identity ledger. Only the system mutates invocations.
 - `CombatSystem` registers one adapter per receiver and owns per-source cooldowns.
   It filters self, same faction, dead, and already-hit targets before positive-area
-  overlap, calculates raw damage centrally, then calls `Damageable.takeDamage`.
+  overlap, calculates base damage plus any reaction bonus centrally, then calls `Damageable.takeDamage`.
   Border contact alone is a miss. It never dispatches on Player/Enemy/Boss classes.
 - Update samples at the start of each step then ages attacks/cooldowns. Expired
   invocations cannot settle later; large steps sample once rather than doing swept
@@ -229,7 +232,7 @@ are documented boundaries but do not have empty packages yet.
   cannot retaliate later in the step. Invalid time is rejected before any mutation.
 - Register/attack requests reject nulls and invalid membership. Duplicate receiver
   aliases are rejected. Unregister cancels that source's attacks; target hit ledgers
-  survive re-registration. Clear cancels all attacks/registrations/cooldowns without
+  survive re-registration, while elemental attachments are removed. Clear cancels all attacks/registrations/cooldowns/attachments without
   changing HP, and invocation identifiers are not reused after clear.
 - `screen/CombatDemo` is an asset-free debug adapter, not part of core combat rules.
   It places multiple enemies near valid battle-map entries and clears scopes using
@@ -239,10 +242,46 @@ are documented boundaries but do not have empty packages yet.
   GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
   HP, AI and ability states use native window-title text. All AI updates precede exactly one
   shared combat update per simulation step.
-- No global area-attack wall occlusion, armour, final class skills, elements, combos, or
+- No global area-attack wall occlusion, armour, final class skills, combos, or
   damage effects are implemented. Future class/AI code supplies attack tuning and
   geometry to this pipeline instead of applying Health damage separately. Receivers
   must not re-enter the pipeline during damage delivery; simulation is single-threaded.
+
+### Elemental metadata and one-generation reaction delivery
+
+- ElementType provides NONE plus WATER/FIRE/LIGHTNING/ICE/WIND without string dispatch
+  or visual dependencies. AttackSpec's optional fifth constructor argument supplies the
+  element; its four-argument compatibility constructor supplies NONE. PlayerAbilities
+  preserves that value when building a zero-source-cooldown invocation. Existing class
+  definitions remain unchanged and opt-in, not implicitly assigned elements.
+- CombatSystem owns sparse per-canonical-target ElementStatus snapshots. One attachment
+  lasts three seconds by default. Same-element direct hits refresh; unknown pairs replace;
+  NONE and derived hits preserve attachment without refresh. Reactions consume it. Invalid
+  targets cannot attach, and death/unregister/clear remove status. Updates sample attacks
+  before aging statuses, including new ones, consistently with existing frame semantics.
+- ElementRules is a pure immutable recipe table with validated unique unordered pairs and
+  configurable duration. Its two provisional defaults are water/fire (+10 triggering damage)
+  and water/lightning (a 5-damage, 40-half-extent, 0.15-second child attack). Other pairs,
+  resistances, frozen/burning states, final element assignments and final balance are undefined.
+- The existing confirmed-hit path performs rule lookup, saturated integer base-plus-bonus
+  calculation and Damageable/Health delivery, then consumes/applies attachment and queues any
+  child. There is no elemental damage engine or new mutation inside Player/Enemy/Boss.
+- Attack gains parentAttackId/isDerived provenance. Each direct attack-target reaction
+  can create one child; the original attack hit ledger prevents repeat events. Children use
+  the triggering source and normal target filtering, and never consume extra cooldown.
+  They carry NONE and are explicitly forbidden from attaching/reacting, limiting depth to one.
+- CombatSystem iterates a start-of-update attack snapshot. New children join the same active
+  list but resolve next update, retaining their full initial duration until then. Each child
+  has its own lifetime ledger and can hit each eligible target once. Distinct reaction
+  events may produce overlapping child attacks; no global per-root damage suppression is assumed.
+- A hard bound of 64 live children limits fan-out. Full capacity, exhausted IDs or invalid
+  effect geometry discard only the optional child without retrying a consumed reaction.
+  Source death/cancellation/unregister/scope clear cancel children; end-step cleanup also
+  catches sources killed after they generated a child earlier that same update.
+- CombatDemo reads attached names for native-title text, and the existing renderer displays
+  derived Attack rectangles. No color-based logic, art, new input system or speculative
+  element UI is introduced. Tests cover the full pair matrix, status timing, deduplication,
+  bounded children, all three player classes, ordinary enemy attacks and Boss outcomes.
 
 ### Archer and shared projectile delivery
 
@@ -300,7 +339,7 @@ are documented boundaries but do not have empty packages yet.
   cooldown), not a teleport. HP, hurtboxes, input arbitration, timing and transitions
   use existing code. The placeholder renderer already reads moving/fixed Attack boxes.
 - Stable mage-light/mage-special/mage-ultimate IDs provide identification for future
-  extensions without implementing elements or reactions. New skill geometry/configuration
+  extensions; Mage contains no separate elemental reaction logic. New skill geometry/configuration
   can replace these prototypes through ClassDefinition/AbilityLoadout; all damage stays
   at the shared combat calculation boundary. Archer/Katana tuning is not changed.
 - MageAbilitiesTest covers real spell execution and lifecycle without graphics.
