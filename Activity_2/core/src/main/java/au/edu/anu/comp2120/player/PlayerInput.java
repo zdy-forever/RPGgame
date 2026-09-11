@@ -53,6 +53,14 @@ public final class PlayerInput {
     }
 
     /**
+     * Requests the next opt-in debug element without coupling keyboard input to reaction rules.
+     * @return true only on an F4 key edge, not while the key remains held
+     */
+    public boolean sampleElementCycle() {
+        return input.isKeyJustPressed(Input.Keys.F4);
+    }
+
+    /**
      * Samples held keys; opposing keys cancel independently on each axis.
      *
      * @param player player to update
