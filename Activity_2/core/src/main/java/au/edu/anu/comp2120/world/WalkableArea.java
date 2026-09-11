@@ -7,6 +7,19 @@ package au.edu.anu.comp2120.world;
  */
 public interface WalkableArea {
     /**
+     * Tests a centre-to-centre segment against static world blockers without a projectile body.
+     * Crossing obstacle interiors blocks; tangent edge/corner and endpoint-only contacts do not.
+     * Finite endpoints outside the closed world boundary are blocked, as are points inside walls.
+     * @param fromX fixed effect/source horizontal origin
+     * @param fromY fixed effect/source vertical origin
+     * @param toX target horizontal centre
+     * @param toY target vertical centre
+     * @return true if the whole segment is inside world bounds and crosses no obstacle interior
+     * @throws IllegalArgumentException if a coordinate or displacement is non-finite
+     */
+    boolean hasLineOfSight(double fromX, double fromY, double toX, double toY);
+
+    /**
      * Returns the finite outer region used to bound navigation searches.
      * @return immutable world boundary; obstacles may occupy part of this region
      */

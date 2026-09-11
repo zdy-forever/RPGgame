@@ -157,6 +157,9 @@ final class ProjectileTest {
         combat.tryProjectiles(source, damage, flight, 500, 1, 0, blocked);
         combat.update(1);
         assertEquals(75, near.getHealth().getCurrentHp());
+        // The second geometry is a different arena: clear/re-register before binding its world.
+        combat.clear();
+        combat.register(source);
         GameMap offPathWall = TestMaps.rectangle(2000, 2000, List.of(new CollisionBox(110, 150, 5, 5)));
         Attack diagonal = combat.tryProjectiles(source, damage, flight, 500, 1, 1, offPathWall).get(0);
         combat.update(1);

@@ -14,7 +14,34 @@ public interface AttackShape {
     /** All-direction rectangle used by the original common abilities and placeholder area spells. */
     AttackShape AREA = AttackShape::area;
     /** Rectangle covering the source and its normalized forward reach; not a moving projectile. */
-    AttackShape FORWARD = AttackShape::forward;
+    AttackShape FORWARD = new AttackShape() {
+        /** {@inheritDoc} */
+        @Override
+        public CollisionBox create(CollisionBox source, double range, double facingX, double facingY) {
+            return forward(source, range, facingX, facingY);
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public CollisionBox origin(CollisionBox source, CollisionBox hitbox) {
+            Objects.requireNonNull(hitbox, "hitbox");
+            return Objects.requireNonNull(source, "source");
+        }
+    };
+
+    /**
+     * Chooses the immutable cast-time occlusion anchor independently of class identity.
+     * Fixed-area/custom shapes default to their effect centre. Forward melee overrides this
+     * to use the attacker centre, so an extended hitbox cannot originate beyond a wall.
+     * @param source cast-time attacker hurtbox
+     * @param hitbox created fixed effect geometry
+     * @return anchor whose centre is used by the shared world-occlusion query
+     * @throws NullPointerException if source or hitbox is null
+     */
+    default CollisionBox origin(CollisionBox source, CollisionBox hitbox) {
+        Objects.requireNonNull(source, "source");
+        return Objects.requireNonNull(hitbox, "hitbox");
+    }
 
     /**
      * Builds one attack's fixed hitbox using world geometry rather than rendering dimensions.

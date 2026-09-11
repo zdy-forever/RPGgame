@@ -58,7 +58,7 @@ public final class PlayerAbilities {
      * @param source registered canonical player adapter
      * @param combat shared combat pipeline
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter
+     * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter or its world conflicts
      */
     public PlayerAbilities(Player player, Combatant source, CombatSystem combat) {
         this(player, source, combat, Objects.requireNonNull(player, "player").getClassDefinition().abilities());
@@ -72,7 +72,7 @@ public final class PlayerAbilities {
      * @param combat shared combat pipeline
      * @param loadout validated common ability tuning
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter
+     * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter or its world conflicts
      */
     public PlayerAbilities(Player player, Combatant source, CombatSystem combat, AbilityLoadout loadout) {
         this.player = Objects.requireNonNull(player, "player");
@@ -198,9 +198,10 @@ public final class PlayerAbilities {
      * Rebinds after the owner clears the old combat scope and registers the new player adapter.
      * Cancels dash/active observations, preserves cooldowns to prevent travel bypass, resets facing.
      * The map coordinator must cancel old pipeline attacks before calling this method.
+     * Binds the player's current collision world so fixed spells and derived attacks share its blockers.
      * @param next new canonical adapter with the new spawn's independent hurtbox
      * @throws NullPointerException if next is null
-     * @throws IllegalArgumentException if next is not this player's registered PLAYER adapter
+     * @throws IllegalArgumentException if next is not this player's registered PLAYER adapter or its world conflicts
      */
     public void bindAfterTransition(Combatant next) {
         Objects.requireNonNull(next, "source");
@@ -208,6 +209,7 @@ public final class PlayerAbilities {
                 || !combat.getCombatants().contains(next)) {
             throw new IllegalArgumentException("Abilities require the canonical registered player adapter");
         }
+        combat.bindWorld(player.getCollisionArea());
         source = next;
         insetX = next.getHurtbox().x() - player.getX();
         insetY = next.getHurtbox().y() - player.getY();
@@ -238,7 +240,7 @@ public final class PlayerAbilities {
     }
 
     /**
-     * Submits shape or projectile delivery, preserving the configured element, then starts slot cooldown.
+     * Submits shape/projectile delivery with its element and captured shape-selected origin, then starts cooldown.
      * @param slot attack slot
      * @param area common attack tuning and optional flight mode
      * @return true if combat accepted a new invocation
@@ -259,7 +261,7 @@ public final class PlayerAbilities {
         } else {
             CollisionBox hitbox = Objects.requireNonNull(area.shape().create(source.getHurtbox(), area.range(),
                     facingX, facingY), "attack shape result");
-            accepted = combat.tryAttack(source, invocation, hitbox);
+            accepted = combat.tryAttack(source, invocation, hitbox, area.shape().origin(source.getHurtbox(), hitbox));
         }
         if (accepted.isEmpty()) {
             return false;

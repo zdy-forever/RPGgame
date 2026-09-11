@@ -31,21 +31,40 @@ public final class CombatSystem {
     private final Map<Combatant, ElementStatus> elements = new LinkedHashMap<>();
     /** Pure immutable reaction table and attachment duration, replaceable without class-specific logic. */
     private final ElementRules elementRules;
+    /** Static world for this scope; null only for standalone map-free combat calculations. */
+    private WalkableArea world;
     /** Last issued identifier, retained across arena clears. */
     private long lastAttackId;
 
-    /** Creates an empty combat scope with no graphics resources. */
+    /** Creates an empty map-free scope; gameplay controllers bind their world before settlement. */
     public CombatSystem() {
         this(ElementRules.PROTOTYPE);
     }
 
     /**
-     * Creates a combat scope with explicit centralized elemental rules.
+     * Creates a map-free combat scope with explicit centralized elemental rules; bind its world for gameplay.
      * @param elementRules immutable attachment/reaction configuration
      * @throws NullPointerException if elementRules is null
      */
     public CombatSystem(ElementRules elementRules) {
         this.elementRules = Objects.requireNonNull(elementRules, "element rules");
+    }
+
+    /**
+     * Binds the collision world shared by all fixed attacks and derived effects in this scope.
+     * Player/AI controllers and projectile launches supply it automatically. Standalone map-free
+     * calculations have no blockers until bound. Rebinding the same instance is harmless; changing
+     * maps requires clear first so active attacks cannot borrow another world's collision data.
+     * @param area static collision provider for the current arena
+     * @throws NullPointerException if area is null
+     * @throws IllegalArgumentException if a different world is already bound
+     */
+    public void bindWorld(WalkableArea area) {
+        Objects.requireNonNull(area, "world");
+        if (world != null && world != area) {
+            throw new IllegalArgumentException("Clear the combat scope before changing its world");
+        }
+        world = area;
     }
 
     /**
@@ -103,6 +122,7 @@ public final class CombatSystem {
      * Attempts a new attack. A dead source or positive cooldown returns empty without mutation.
      * All arguments are validated first, even if the source is dead or cooling down.
      * New invocations are sampled by the next update, including an update with zero delta.
+     * Captures the source hurtbox centre as origin; fixed effects use the explicit-origin overload.
      * @param source canonical registered attacker
      * @param specification reusable validated attack tuning
      * @param hitbox immutable world-space geometry for this invocation
@@ -112,8 +132,28 @@ public final class CombatSystem {
      * @throws IllegalStateException if the system has exhausted its identifier range
      */
     public Optional<Attack> tryAttack(Combatant source, AttackSpec specification, CollisionBox hitbox) {
+        Objects.requireNonNull(source, "source");
+        return tryAttack(source, specification, hitbox, source.getHurtbox());
+    }
+
+    /**
+     * Creates a fixed invocation with explicit cast-time origin, without class-specific damage rules.
+     * Use the attacker hurtbox for melee; use hitbox itself for fixed AoE/field centres.
+     * Origin and hitbox remain fixed when the caster moves. Occluded candidates do not consume
+     * hit ledgers, apply elements or create reactions, and may become eligible later in the active window.
+     * @param source registered canonical attacker
+     * @param specification validated damage/timing/element tuning
+     * @param hitbox fixed hit region
+     * @param origin fixed anchor whose centre is queried against each target centre
+     * @return accepted invocation, or empty for a dead/cooling source
+     * @throws NullPointerException if an argument is null
+     * @throws IllegalArgumentException if source is unregistered
+     * @throws IllegalStateException if attack identifiers are exhausted
+     */
+    public Optional<Attack> tryAttack(Combatant source, AttackSpec specification, CollisionBox hitbox, CollisionBox origin) {
         Objects.requireNonNull(specification, "specification");
         Objects.requireNonNull(hitbox, "hitbox");
+        Objects.requireNonNull(origin, "origin");
         double remainingCooldown = getCooldownRemaining(source);
         if (!source.getEntity().isAlive() || remainingCooldown > 0) {
             return Optional.empty();
@@ -121,7 +161,7 @@ public final class CombatSystem {
         if (lastAttackId == Long.MAX_VALUE) {
             throw new IllegalStateException("Attack identifier range exhausted");
         }
-        Attack attack = new Attack(++lastAttackId, source, specification, hitbox);
+        Attack attack = new Attack(++lastAttackId, source, specification, hitbox, null, 0, origin);
         attacks.add(attack);
         cooldowns.put(source, specification.cooldownSeconds());
         return Optional.of(attack);
@@ -141,7 +181,7 @@ public final class CombatSystem {
      * @param area current collision environment
      * @return immutable accepted volley; empty for dead/cooling source or exhausted projectile capacity
      * @throws NullPointerException if a required argument is null
-     * @throws IllegalArgumentException if source, range, direction or full spawn geometry is invalid
+     * @throws IllegalArgumentException if source, range, direction, spawn or current-world binding is invalid
      * @throws IllegalStateException if there are not enough remaining attack identifiers
      */
     public List<Attack> tryProjectiles(Combatant source, AttackSpec attack, ProjectileSpec flight,
@@ -166,6 +206,7 @@ public final class CombatSystem {
             double dy = directionX / length * Math.sin(radians) + directionY / length * Math.cos(radians);
             shots.add(new Projectile(origin, flight, range, dx, dy, area));
         }
+        bindWorld(area);
         if (!source.getEntity().isAlive() || cooldown > 0
                 || attacks.stream().filter(a -> a.isActive() && a.getProjectile() != null).count()
                 + flight.count() > MAX_PROJECTILES) {
@@ -189,6 +230,8 @@ public final class CombatSystem {
      * duration, the start-of-step sample is resolved once; this is not swept collision detection.
      * Repeated zero-time updates cannot repeat a hit. Hits use attack order then registration order;
      * a source killed earlier in the same step cannot deliver a later attack.
+     * Fixed attacks also require a clear static-world segment from captured origin to target centre,
+     * before damage, hit-ledger consumption, elemental attachment or reaction creation.
      * Projectiles instead sweep their capped flight segment against current target hurtboxes and
      * static walls, choosing the nearest hit. Walls win equal-time ties; targets tie by registration.
      * Attachments are sampled during hit settlement and aged once afterwards, including new attachments.
@@ -277,23 +320,31 @@ public final class CombatSystem {
 
     /**
      * Cancels all attacks and removes registrations/cooldowns/attachments without changing entity health.
-     * Use at scene/map transitions; callers must register the new scope's actors afterward.
+     * Also unbinds the old world. At transitions, bind the new world and register its actors afterward.
      */
     public void clear() {
         attacks.forEach(Attack::cancel);
         attacks.clear();
         cooldowns.clear();
         elements.clear();
+        world = null;
     }
 
     /**
-     * Applies identity, faction, life, repeat-hit, and positive-area overlap rules.
+     * Applies identity, faction, life, repeat-hit, overlap and static-world occlusion rules.
      * @param attack active invocation
      * @param target registered candidate
-     * @return true only for a fresh hostile living receiver whose hurtbox overlaps
+     * @return true only for an overlapping fresh hostile living receiver not occluded by static walls
      */
     private boolean canHit(Attack attack, Combatant target) {
-        return isValidTarget(attack, target) && attack.getHitbox().overlaps(target.getHurtbox());
+        if (!isValidTarget(attack, target) || !attack.getHitbox().overlaps(target.getHurtbox())) {
+            return false;
+        }
+        CollisionBox origin = attack.getOrigin();
+        CollisionBox hurtbox = target.getHurtbox();
+        return world == null || world.hasLineOfSight(origin.x() + origin.width() / 2,
+                origin.y() + origin.height() / 2, hurtbox.x() + hurtbox.width() / 2,
+                hurtbox.y() + hurtbox.height() / 2);
     }
 
     /**
@@ -377,6 +428,7 @@ public final class CombatSystem {
     /**
      * Queues one-generation geometry for a confirmed reaction; never recursively delivers damage.
      * Children retain the incoming attacker, have their own ID/ledger, and do not charge cooldown.
+     * Their occlusion origin is the newly captured effect centre, not the original attacker's position.
      * Full capacity, exhausted IDs or unrepresentable effect geometry skip only the optional child;
      * the triggering damage/attachment consumption has already settled and is never retried.
      * @param parent confirmed direct elemental invocation
@@ -399,6 +451,6 @@ public final class CombatSystem {
         }
         AttackSpec specification = new AttackSpec("reaction-" + reaction.id(), effect.damage(), effect.activeSeconds(),
                 0, ElementType.NONE);
-        attacks.add(new Attack(++lastAttackId, parent.getSource(), specification, hitbox, null, parent.getId()));
+        attacks.add(new Attack(++lastAttackId, parent.getSource(), specification, hitbox, null, parent.getId(), hitbox));
     }
 }

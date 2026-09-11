@@ -54,7 +54,7 @@ public final class Boss {
      * @param config immutable encounter definition
      * @param combat shared arena pipeline
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if identity, placement or navigation geometry is invalid
+     * @throws IllegalArgumentException if identity, placement, navigation geometry or combat world binding is invalid
      */
     public Boss(String id, String name, CollisionBox bounds, GameMap map, BossConfig config, CombatSystem combat) {
         this.id = Objects.requireNonNull(id, "Boss ID");
@@ -72,6 +72,7 @@ public final class Boss {
     /**
      * Advances encounter decisions, never combat time or damage directly.
      * Pattern index advances only on an accepted attack; shared source cooldown blocks spam.
+     * Captures the pattern-selected origin; combat-core rechecks wall occlusion when each target settles.
      * Transition frames consume time without attacks/movement, discarding any excess frame time.
      * @param target eligible canonical hostile target, or null
      * @param delta finite non-negative simulation seconds with representable movement
@@ -105,7 +106,7 @@ public final class Boss {
         }
         CollisionBox hitbox = Objects.requireNonNull(pattern.shape().create(body, pattern.range(), dx, dy),
                 "Boss pattern geometry");
-        if (combat.tryAttack(getCombatant(), pattern.attack(), hitbox).isPresent()) {
+        if (combat.tryAttack(getCombatant(), pattern.attack(), hitbox, pattern.shape().origin(body, hitbox)).isPresent()) {
             nextPattern = (nextPattern + 1) % cycle.size();
         }
     }
