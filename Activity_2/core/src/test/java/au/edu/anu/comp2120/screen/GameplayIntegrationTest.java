@@ -10,8 +10,6 @@ import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossState;
-import au.edu.anu.comp2120.enemy.EnemyAI;
-import au.edu.anu.comp2120.enemy.EnemyState;
 import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.player.ClassDefinition;
 import au.edu.anu.comp2120.player.PlayerClass;
@@ -68,7 +66,9 @@ final class GameplayIntegrationTest {
         assertEquals(212, player.getX());
         assertTrue(session.getCurrentMap().isWalkable(player.getBounds()));
         assertCameraInsideMap();
-        assertTrue(demo.getEnemies().stream().anyMatch(ai -> ai.getState() == EnemyState.ATTACK));
+        assertTrue(demo.getEnemies().isEmpty());
+        assertTrue(demo.getBoss().isPresent());
+        assertEquals(2, demo.getCombatants().size());
         assertThrows(IllegalStateException.class, () -> travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY));
         travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);
         travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY);
@@ -79,24 +79,29 @@ final class GameplayIntegrationTest {
     }
 
     /**
-     * Every class can kill the real Training enemies with normal slot commands and no HP manipulation.
+     * Every class can defeat the real Crossroads Boss with normal slot commands and no HP manipulation.
      * @param type selected class
      */
     @ParameterizedTest
     @EnumSource(PlayerClass.class)
     void eachClassCompletesBattleAndCleansUpItsAttacks(PlayerClass type) {
-        session.switchMap(MapCatalog.TRAINING);
+        session.switchMap(MapCatalog.CROSSROADS);
         frame(0, PlayerCommand.NONE);
         demo.update(0, PlayerCommand.NONE, false, type);
-        fightUntilNoHostiles(100);
+        // Begin in range: this scenario validates each class's delivery, not a ranged kiting strategy.
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        Boss boss = demo.getBoss().orElseThrow();
+        fightUntilNoHostiles(300);
         assertTrue(session.getPlayer().isAlive());
-        assertTrue(demo.getEnemies().stream().allMatch(ai -> ai.getState() == EnemyState.DEAD));
-        List<CollisionBox> positions = demo.getEnemies().stream().map(EnemyAI::getBounds).toList();
+        assertTrue(demo.getLastDefeat().isEmpty(), "Auto-recovery must not count as winning");
+        assertEquals(BossState.DEAD, boss.getState());
+        assertTrue(demo.getEnemies().isEmpty());
+        CollisionBox position = boss.getBounds();
         for (int i = 0; i < 30; i++) {
             frame(0.1, PlayerCommand.NONE);
         }
         assertTrue(demo.getActiveAttacks().isEmpty());
-        assertEquals(positions, demo.getEnemies().stream().map(EnemyAI::getBounds).toList());
+        assertEquals(position, boss.getBounds());
         assertEquals(type, session.getPlayer().getPlayerClass());
     }
 
@@ -118,7 +123,7 @@ final class GameplayIntegrationTest {
             frame(0.1, PlayerCommand.NONE);
         }
         assertEquals(dropId, demo.getDrops().get(0).id());
-        List<EnemyAI> oldEnemies = demo.getEnemies();
+        List<Combatant> oldActors = demo.getCombatants();
         List<Attack> oldAttacks = demo.getActiveAttacks();
         travel.fastTravel(TravelCatalog.HUB_ENTRY);
         frame(0, PlayerCommand.NONE);
@@ -126,7 +131,7 @@ final class GameplayIntegrationTest {
         assertTrue(demo.getDrops().isEmpty());
         assertTrue(boss.claimDrop().isEmpty());
         assertTrue(oldAttacks.stream().noneMatch(Attack::isActive));
-        assertTrue(oldEnemies.stream().noneMatch(ai -> demo.getCombatants().contains(ai.getCombatant())));
+        assertTrue(oldActors.stream().noneMatch(demo.getCombatants()::contains));
         assertCameraInsideMap();
     }
 
@@ -269,7 +274,7 @@ final class GameplayIntegrationTest {
             assertTrue(demo.getActiveAttacks().isEmpty());
             assertEquals(80, session.getPlayer().getX());
             assertEquals(80, session.getPlayer().getY());
-            assertTrue(demo.getCombatants().size() <= 4);
+            assertEquals(2, demo.getCombatants().size());
             assertCameraInsideMap();
             demo.update(0, PlayerCommand.NONE, true);
         }

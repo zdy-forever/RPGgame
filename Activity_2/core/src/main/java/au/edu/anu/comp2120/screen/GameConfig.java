@@ -32,19 +32,10 @@ public final class GameConfig {
     public static final AbilityLoadout PLAYER_ABILITIES = PlayerClasses.get(PlayerClasses.DEFAULT).abilities();
     /** Inset separating the player's hurtbox from its movement collision/placeholder body. */
     public static final double COMBAT_HURTBOX_INSET = 4;
-    /** Enemy collision and placeholder width/height in world units. */
-    public static final double ENEMY_SIZE = 28;
-    /** Distance from entry used for candidate enemy placements. */
-    public static final double ENEMY_SPAWN_OFFSET = 96;
-    /** Maximum number of temporary autonomous enemies created in each battle arena. */
-    public static final int ENEMY_COUNT = 2;
-    /** Basic AI tuning: speed, detection/loss/attack radii, and shared attack timing/damage. */
-    public static final EnemyConfig BASIC_ENEMY = new EnemyConfig(80, 200, 260, 44,
-            new AttackSpec("enemy-basic", 10, 0.2, 1));
-    /** Walkable candidates for the Crossroads Boss, checked against current actors before placement. */
+    /** Walkable candidates for each battle map's single Boss, checked against the player before placement. */
     public static final List<CollisionBox> BOSS_PLACEMENTS = List.of(
             new CollisionBox(360, 100, 64, 64), new CollisionBox(840, 400, 64, 64),
-            new CollisionBox(840, 100, 64, 64));
+            new CollisionBox(840, 100, 64, 64), new CollisionBox(360, 400, 64, 64));
     /** Provisional two-phase sentinel: shared pursuit, alternating sweep/slam and one material reward. */
     public static final BossConfig SENTINEL = new BossConfig(400,
             new EnemyConfig(70, 500, 650, 96, new AttackSpec("boss-navigation-unused", 0, 0.2, 1)),
