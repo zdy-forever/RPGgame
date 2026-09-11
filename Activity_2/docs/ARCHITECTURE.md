@@ -234,9 +234,9 @@ are documented boundaries but do not have empty packages yet.
 - Every built-in Battle Map now creates one fresh sentinel and no ordinary mobs. Retry
   never reuses the old Boss: Health, AI, phase, pattern index, cooldown and pending loot
   start fresh. Custom maps need a walkable configured Boss placement; no invalid body is forced.
-- This checkout has no independent O-mode enum, selection field or mode-switch input.
-  Recovery preserves the existing ultimate configuration exactly (including custom shape,
-  projectile and element tuning); it does not claim to implement a missing mode selector.
+- Player stores one UltimateMode per PlayerClass. PlayerAbilities.selectUltimateMode and F5
+  require Hub; recovery preserves these choices and Mage element while cancelling active skills.
+  ClassDefinition supplies both ultimate definitions without duplicating Player or combat.
 - Invalid Hub configuration fails explicitly without healing in Battle. Hub death itself
   is not a battle failure. NPC/Quest logic, success return, loot persistence, death effects
   and a production respawn UI are outside this branch. R remains an explicit debug reset
@@ -247,19 +247,19 @@ are documented boundaries but do not have empty packages yet.
 - PlayerClass is an enum identity with stable explicit IDs, not a Player superclass
   or strategy interface. ClassDefinition composes that identity with AbilityLoadout.
   PlayerClasses provides all three immutable built-in configurations; Mage is the
-  default identity, using a magic bolt for J and fixed area pulses for K/O. GameConfig aliases
+  default identity, using elemental J, element-selection K and two stateful O modes. GameConfig aliases
   that default instead of duplicating class tuning or introducing a screen dependency.
 - Every class uses the same final Player, Health, movement/collision, Combatant,
   PlayerAbilities, shared J/K/L/O slots, cooldowns and map/portal interactions.
   No subclass duplicates HP, movement, timing or damage formulas.
-- AttackShape is the only new behaviour interface: a pure Strategy returning an
+- AttackShape is a pure geometry Strategy returning an
   immutable CollisionBox from source hurtbox, reach and facing. AREA and FORWARD
   supply two actual behaviours. The existing AreaAttack record gains this strategy
   component; its two-argument constructor still means AREA for compatibility.
   No code in the common executor dispatches on Archer/Mage/Katana identities.
 - Per-class J/K/O definitions choose hitbox strategy, range, damage, active window
   and cooldown. Dash varies speed/duration/cooldown through existing validated data.
-  Archer attacks and Mage J select shared projectile delivery rather than AttackShape.
+  Archer J/K and Mage J select shared projectile delivery rather than AttackShape.
   Future spells/combos must keep the same damage pipeline rather than calling Health
   separately; there is no universal speculative skill execution framework.
 - Player owns the selected definition. Its selection setter is package-private;
@@ -267,7 +267,7 @@ are documented boundaries but do not have empty packages yet.
   ability constructor respects the initial class; the legacy explicit-loadout
   constructor overrides initial tuning while retaining that identity.
 - Selection rejects null, dead/stale, identical-definition or active player
-  attack/dash cases, including projectile launch windows and flight (null throws,
+  attack/dash/stateful-skill cases, including projectile launch windows and flight (null throws,
   the others return false). Successful selection
   preserves the player/health/adapter, map, position, speed, facing and remaining
   slot cooldown seconds. No registration or health reset is involved.
@@ -280,7 +280,8 @@ are documented boundaries but do not have empty packages yet.
   all slot geometry/projectile/dash tuning. It uses the same guarded selection path and
   preserves cooldowns/HP/position. Rejected attempts consume new commands without queuing.
   F1/F2/F3 preserve the selected light-slot tag on the new class's J/K/O; F4 deliberately
-  gives all three attack slots one debug element. Catalog definitions are not mutated.
+  tags the definitions uniformly. Mage J and its field instead use the separate K-selected
+  element; rapid bolts draw independently. Catalog definitions are not mutated.
 - Rendering continues to consume generic attack rectangles, without class-specific
   assets or renderer branches. The native title displays the selected identity.
 
@@ -405,99 +406,51 @@ are documented boundaries but do not have empty packages yet.
   movement, portals, camera math, class abilities, enemy/Boss combat and reaction cleanup;
   it does not instantiate a graphics context or pretend to validate OS keyboard delivery.
 
-### Archer and shared projectile delivery
+### First-version class skills and shared execution
 
-- Archer J is one ordinary arrow, K one stronger/faster arrow, and O five arrows in
-  a symmetric 40-degree fan. K/O are explicitly provisional: the repository's Activity 0
-  file links to an online document that could not be read, so no final design is assumed.
-  L keeps the existing shared Archer dash configuration and collision rules.
-- The existing AbilityLoadout.AreaAttack record gains optional ProjectileSpec data;
-  null means the original shape delivery used by Mage K/O and Katana.
-  Range is the projectile distance cap; AttackSpec.activeSeconds is the launch
-  window, and ProjectileSpec.lifetime is independent flight expiry. PlayerAbilities
-  still owns slot cooldowns and calls the same CombatSystem for both delivery modes.
-- Projectile contains only flight geometry/direction/speed/range/time and captured
-  WalkableArea. CombatSystem owns its lifecycle through the same active Attack list;
-  no separate projectile manager or damage formula is introduced. Attack.getHitbox
-  exposes live arrow geometry to the existing renderer, which draws small rectangles.
-- CombatSystem.tryProjectiles validates a full bounded volley before allocating IDs
-  or consuming cooldown. Source/dead/capacity rejection is atomic. Each arrow is its
-  own invocation and non-piercing; O can hit one broad target with multiple arrows,
-  but an individual arrow never settles a target more than once.
-- During the existing one-per-frame combat update, projectile travel is capped by
-  both lifetime and range. CollisionSweep finds continuous full-body interior entry
-  against current hostile hurtboxes. WalkableArea.firstBlock supplies static wall
-  and world-boundary contact fractions; GameMap implements this without changing
-  the existing axis-separated actor movement. Its test adapter delegates the new query.
-- The first valid target/wall wins; walls win equal-time ties, and targets tie by
-  registration order. Self, friendly, dead and unregistered targets are ignored.
-  Detection then calls the same central damage calculation/delivery/Health pipeline
-  as area attacks. Invocation-order death filtering is preserved across both modes.
-- Arrow impact/expiry removes active membership, and clear/unregister/source death
-  cancels retained flight references. Capacity is capped at 256 live arrows per arena,
-  with at most nine per volley. Failed capacity checks do not charge player slots.
-- Independent launch-window timers prevent flight lifetime from blocking the next
-  ready J shot. Class selection, however, rejects active launch windows or any flying
-  arrow. Map transitions clear all arrows and preserve slot cooldowns; R explicitly
-  cancels flight and resets cooldowns. No duplicate Player/Health/CombatSystem exists.
-- Current target geometry is sampled after actor movement; relative swept target
-  motion is not implemented. No homing/gravity/piercing/ricochet or katana combo,
-  particle, sprite, texture, sound or other art asset is introduced.
+- PlayerClasses defines J/K/L and both O modes. AbilityLoadout.AreaAttack carries SkillKind;
+  direct/custom AttackShape and ProjectileSpec constructors remain compatible.
+  ClassSkills is a small stateful component of PlayerAbilities, not another combat engine.
+  SkillTuning centralizes new durations, wave counts, movement speeds and cast/buff parameters.
+- Archer J is one non-piercing arrow; K is five arrows across 40 degrees. Each projectile has
+  its own Attack and hit ledger. O A captures the nearest eligible hostile's position and emits
+  six fixed-area rain waves. O B temporarily sets the canonical Combatant untargetable.
+- Mage J uses Player's selected element; K cycles FIRE/WATER/LIGHTNING/ICE/WIND without attacking.
+  O A captures position and element, locks inputs for a damage-interruptible cast, then emits six
+  field waves. O B temporarily lowers J cooldown and emits two independently random-element
+  projectiles. The PlayerAbilities constructor accepts Random for deterministic tests.
+- Katana J uses the existing facing-based slash. K opens a parry window, then either a
+  collision-safe four-wave counter dash or missed-parry recovery. O A blocks one hit and
+  submits one strong counter. O B advances through collision-safe thrust and creates six
+  follow-up waves only after the probe records an accepted hit on the selected target.
+- Combatant exposes generic targetability and an optional HitInterceptor. EnemyAI (also used
+  by Boss) refuses new targeting when isTargetable is false. Damage delivery does NOT use
+  targetability as immunity: already-active attacks still hit.
+- CombatSystem checks blockable/interception after valid hit geometry and world occlusion,
+  before damage/elements. Blocked hits consume the ordinary hit ledger but not landedHits.
+  Interceptors only latch state. Attack.hasLandedHit distinguishes accepted thrust contact
+  from blocked contact. No class identity checks exist in CombatSystem.
+- Game-loop order is PlayerAbilities.update, CombatSystem.update, PlayerAbilities.afterCombat,
+  then encounter outcome coordination. afterCombat handles deferred counters and cast interruption.
+  Health exposes a monotonically changing effective-damage stamp, with no class-specific code;
+  damage followed by healing still interrupts a cast, while zero/dead-target damage does not.
+- Fixed field/counter/reaction waves are non-blockable AttackSpec submissions with explicit
+  bounded counts. Ordinary existing attacks default to blockable for constructor compatibility.
+  They still obey friendly/dead-target filtering, Health, elements and world occlusion.
+- Shared projectile delivery retains swept wall/target collision, range/lifetime expiry,
+  non-piercing hits, wall-wins-equal-time ties and cleanup. A mixed-AttackSpec volley overload
+  validates all shots and reserves capacity atomically; no partial Archer fan or Mage double shot.
+  Capacity remains 256 live projectiles and at most nine per volley.
+- Player owns persistent per-class UltimateMode selections (A initially) and Mage element.
+  selectUltimateMode always validates living Hub state and inactive execution, even in a
+  debug harness. F5 calls this API. Mode/class switches preserve remaining cooldowns.
+- Transition/reset unregisters defensive capabilities, restores targetability and clears
+  captured references, pending counters, fields, casts, buffs and movement activity.
+  Existing encounter cleanup cancels attacks/projectiles/elements; choices survive.
+- Geometry remains axis-aligned placeholders and centre-based occlusion. Finite catch-up
+  waves sample current target geometry, not historical movement. No assets or global event bus.
 
-### Mage composition on shared spell delivery
-
-- Mage adds configuration, not a new Player, projectile implementation, manager or
-  damage formula. Its J slot composes the existing ProjectileSpec with AttackSpec:
-  one 10-unit square, 400 units/s, 360 travel range, 1.5-second lifetime, 25 damage,
-  0.25-second launch window and 0.5-second slot cooldown. Current/last WASD facing is
-  normalized and captured at launch. All flight/collision/expiry/cleanup is shared.
-- K is a 40-damage small area pulse (120-unit hurtbox expansion, 0.3 seconds active,
-  2-second cooldown); O is a 75-damage large pulse (180 expansion, 0.5 seconds active,
-  8-second cooldown). These are provisional replacements for undefined final spells.
-  AttackShape.AREA captures fixed geometry; CombatSystem handles late entrants and
-  per-invocation hit deduplication. Area pulses use centre-based static-world occlusion,
-  while J keeps swept wall collision. There is no separate spell update loop.
-- L remains the common collision-safe dash (600 units/s for 0.2 seconds, 1-second
-  cooldown), not a teleport. HP, hurtboxes, input arbitration, timing and transitions
-  use existing code. The placeholder renderer already reads moving/fixed Attack boxes.
-- Stable mage-light/mage-special/mage-ultimate IDs provide identification for future
-  extensions; Mage contains no separate elemental reaction logic. New skill geometry/configuration
-  can replace these prototypes through ClassDefinition/AbilityLoadout; all damage stays
-  at the shared combat calculation boundary. Archer/Katana tuning is not changed.
-- MageAbilitiesTest covers real spell execution and lifecycle without graphics.
-  PlayerAbilitiesTest now uses an explicit area-only fixture so its generic executor
-  regressions do not incorrectly assume that the default class's J is an area attack.
-  Class and demo tests verify delayed Mage hits and shared selection/travel/reset rules.
-
-### Katana composition on shared melee delivery
-
-- Katana uses the existing Player, PlayerAbilities, AttackShape, Attack, CombatSystem
-  and Health. No new production class is necessary: class composition already supports
-  fixed melee attacks. PlayerClasses centralizes J/K/O and dash tuning; Archer/Mage
-  definitions and shared engine behavior are unchanged by this feature.
-- J is a 30-damage forward light slash (48 reach, 0.15 seconds active, 0.35 cooldown).
-  K replaces its former area shape with a forward heavy slash (45 damage, 80 reach,
-  0.25 seconds active, 2-second cooldown). Both reuse AttackShape.FORWARD, constructed
-  from the independent source hurtbox and normalized current/last WASD facing.
-- A slash captures geometry at cast time, so later movement/turning cannot redirect
-  it; subsequent swings use the new facing. Diagonal shapes are conservative AABBs,
-  not precise sword arcs. Collision geometry includes the source hurtbox, independent
-  of the player's visual body; self filtering remains combat-core's responsibility.
-- O is one surrounding area slash (85 damage per target, 110-unit expansion,
-  0.35-second active window, 7-second cooldown), not a multi-hit timeline. CombatSystem
-  samples currently overlapping targets before aging the attack. Its existing identity
-  ledger allows one hit per target per invocation, including late entrants, and avoids
-  re-entry/frame-spam damage. Expiry removes the attack; the next swing has a new ID.
-- L retains the shared dash executor with Katana tuning: 750 units/s for 0.16 seconds,
-  0.9-second cooldown and up to 120 units unobstructed. Swept map collision/axis sliding,
-  input arbitration, independent slot timers, death and transition cleanup are reused.
-- K/O are provisional skill definitions; there is no combo, animation dependency,
-  invulnerability or asset loading. The existing renderer reads attack rectangles.
-  Fixed J/K/O slashes use the shared static-wall visibility gate; this is distinct from
-  collision-safe dash movement and swept projectile world collision.
-- KatanaAbilitiesTest exercises eight-direction J/K hits, exact range boundaries,
-  captured facing, active-window late entry, repeated-hit prevention, cooldown recovery,
-  special/ultimate tuning, lethal/invalid targets, death and dash wall/map collision.
+See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and tests.
 
 ### Boss encounters and material drops
 

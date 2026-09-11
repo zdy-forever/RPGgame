@@ -180,7 +180,7 @@ final class PlayerDefeatTest {
     @EnumSource(AbilitySlot.class)
     void activeAbilityIsCancelledDuringFailure(AbilitySlot slot) {
         demo.getAbilities().update(0, command(slot));
-        assertEquals(AbilityState.ACTIVE, demo.getAbilities().getState(slot));
+        assertEquals(slot == AbilitySlot.SPECIAL ? AbilityState.COOLDOWN : AbilityState.ACTIVE, demo.getAbilities().getState(slot));
         double cooldown = demo.getAbilities().getCooldownRemaining(slot);
         List<Attack> old = combat.getActiveAttacks();
         lethalAttack();

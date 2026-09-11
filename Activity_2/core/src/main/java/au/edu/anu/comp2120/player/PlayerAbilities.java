@@ -13,10 +13,15 @@ import java.util.EnumMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.List;
+import java.util.Random;
+import java.util.ArrayList;
+import au.edu.anu.comp2120.combat.ElementType;
+import au.edu.anu.comp2120.combat.ProjectileSpec;
 
 /**
  * Common ability execution, slot cooldowns and collision-safe dash, independent of input/rendering.
- * The owner calls update once, then advances the shared CombatSystem once for all actors.
+ * The owner calls update once, advances the shared CombatSystem once for all actors, then calls
+ * afterCombat before encounter outcome coordination to settle deferred skill responses.
  * Slot cooldowns replace the pipeline's per-source delay for these attacks: submissions use zero
  * source delay, preserving one canonical player receiver and all existing hit/death rules.
  * Use one controller per player, called only on the game-loop thread.
@@ -29,6 +34,8 @@ public final class PlayerAbilities {
     private final CombatSystem combat;
     /** Production encounter policy; isolated ability demonstrations may select anywhere. */
     private final boolean hubOnlySelection;
+    /** Bounded stateful executions composed with the common input/cooldown/movement controller. */
+    private final ClassSkills skills;
     /** Remaining per-slot seconds, measured from successful triggering. */
     private final double[] cooldowns = new double[AbilitySlot.values().length];
     /** Short projectile launch windows, separate from longer flight lifetimes and slot cooldowns. */
@@ -84,7 +91,7 @@ public final class PlayerAbilities {
 
     /**
      * Adds a production selection policy without coupling ability execution to Quest state.
-     * All changes, including an O configuration on the same class, pass through selectClass.
+     * Definition changes pass through selectClass; A/B choices use Hub-only selectUltimateMode.
      * @param player existing shared player
      * @param source canonical registered adapter
      * @param combat shared pipeline
@@ -95,12 +102,68 @@ public final class PlayerAbilities {
      */
     public PlayerAbilities(Player player, Combatant source, CombatSystem combat,
             AbilityLoadout loadout, boolean hubOnlySelection) {
+        this(player, source, combat, loadout, hubOnlySelection, new Random());
+    }
+
+    /**
+     * Allows deterministic independent projectile elements without a global random source.
+     * @param player persistent owner
+     * @param source canonical adapter
+     * @param combat shared pipeline
+     * @param loadout initial tuning
+     * @param hubOnlySelection whether class/loadout changes require Hub
+     * @param random per-controller random source; supply a fixed seed in tests
+     * @throws NullPointerException if required data is null
+     * @throws IllegalArgumentException if registration/world binding is invalid
+     */
+    public PlayerAbilities(Player player, Combatant source, CombatSystem combat,
+            AbilityLoadout loadout, boolean hubOnlySelection, Random random) {
         this.player = Objects.requireNonNull(player, "player");
         this.combat = Objects.requireNonNull(combat, "combat");
         this.hubOnlySelection = hubOnlySelection;
+        skills = new ClassSkills(player, combat, Objects.requireNonNull(random, "random"));
         Objects.requireNonNull(loadout, "loadout");
         bindAfterTransition(source);
-        player.applyClassDefinition(new ClassDefinition(player.getPlayerClass(), loadout));
+        ClassDefinition previous = player.getClassDefinition();
+        player.applyClassDefinition(new ClassDefinition(player.getPlayerClass(), loadout,
+                loadout.equals(previous.abilities()) ? previous.alternateUltimate() : loadout.ultimate()));
+    }
+
+    /**
+     * Selects the current class's remembered O mode only in Hub, including debug/test controllers.
+     * Map transitions and recovery never call this method or reset the stored choices.
+     * @param mode requested A/B mode
+     * @return true if changed; false outside Hub, while unavailable/busy or already selected
+     * @throws NullPointerException if mode is null
+     */
+    public boolean selectUltimateMode(UltimateMode mode) {
+        Objects.requireNonNull(mode, "mode");
+        if (!(player.getCollisionArea() instanceof GameMap map) || map.getType() != MapType.HUB
+                || !available() || skills.busy() || dashRemaining > 0
+                || combat.getActiveAttacks().stream().anyMatch(attack -> attack.getSource() == source)
+                || Arrays.stream(launchWindows).anyMatch(remaining -> remaining > 0)
+                || mode == player.getUltimateMode()) {
+            return false;
+        }
+        player.applyUltimateMode(mode);
+        return true;
+    }
+
+    /**
+     * Completes one submitted frame after the shared combat update, before encounter outcome handling.
+     * Observes effective cast damage and executes deferred defensive responses outside callbacks.
+     * Repeated calls without another update are harmless.
+     */
+    public void afterCombat() {
+        skills.afterCombat();
+    }
+
+    /**
+     * Exposes stateful execution for placeholder diagnostics and tests.
+     * @return phase name, independent of rendering
+     */
+    public String getSkillStatus() {
+        return skills.status();
     }
 
     /**
@@ -120,7 +183,7 @@ public final class PlayerAbilities {
                 || map.getType() != MapType.HUB)) {
             return false;
         }
-        if (definition.equals(player.getClassDefinition()) || !available() || dashRemaining > 0
+        if (definition.equals(player.getClassDefinition()) || !available() || skills.busy() || dashRemaining > 0
                 || Arrays.stream(launchWindows).anyMatch(remaining -> remaining > 0)
                 || combat.getActiveAttacks().stream().anyMatch(attack -> attack.getSource() == source)) {
             return false;
@@ -151,11 +214,11 @@ public final class PlayerAbilities {
         AbilityLoadout loadout = player.getClassDefinition().abilities();
         if (available()) {
             boolean wasDashing = dashRemaining > 0;
-            if (!wasDashing && (command.horizontal() != 0 || command.vertical() != 0)) {
+            if (!wasDashing && !skills.locksInput() && (command.horizontal() != 0 || command.vertical() != 0)) {
                 facingX = command.horizontal();
                 facingY = command.vertical();
             }
-            if (!wasDashing && command.dash() && getState(AbilitySlot.DASH) == AbilityState.READY) {
+            if (!wasDashing && !skills.locksInput() && command.dash() && getState(AbilitySlot.DASH) == AbilityState.READY) {
                 double length = Math.hypot(facingX, facingY);
                 dashX = facingX / length;
                 dashY = facingY / length;
@@ -164,18 +227,31 @@ public final class PlayerAbilities {
                 triggered = Optional.of(AbilitySlot.DASH);
             }
             boolean dashFrame = dashRemaining > 0;
+            AbilityLoadout.AreaAttack ultimate = player.getClassDefinition().ultimate(player.getUltimateMode());
+            if (!dashFrame && !skills.locksInput()) {
+                if (command.ultimate() && isStateful(ultimate) && triggerAttack(AbilitySlot.ULTIMATE, ultimate)) {
+                    triggered = Optional.of(AbilitySlot.ULTIMATE);
+                } else if (!(command.ultimate() && !isStateful(ultimate) && getState(AbilitySlot.ULTIMATE) == AbilityState.READY)
+                        && command.special() && isStateful(loadout.special())
+                        && triggerAttack(AbilitySlot.SPECIAL, loadout.special())) {
+                    triggered = Optional.of(AbilitySlot.SPECIAL);
+                }
+            }
             double dashTime = Math.min(delta, dashRemaining);
             if (dashTime > 0) {
                 double distance = loadout.dash().speed() * dashTime;
                 player.moveBy(dashX * distance, dashY * distance);
                 dashRemaining = Math.max(0, dashRemaining - dashTime);
             }
-            player.updateMovement(command.horizontal(), command.vertical(), delta - dashTime);
+            if (!skills.locksInput()) {
+                player.updateMovement(command.horizontal(), command.vertical(), delta - dashTime);
+            }
+            skills.update(delta);
             syncHurtbox();
-            if (!dashFrame) {
-                if (command.ultimate() && triggerAttack(AbilitySlot.ULTIMATE, loadout.ultimate())) {
+            if (!dashFrame && !skills.locksInput() && triggered.isEmpty()) {
+                if (command.ultimate() && !isStateful(ultimate) && triggerAttack(AbilitySlot.ULTIMATE, ultimate)) {
                     triggered = Optional.of(AbilitySlot.ULTIMATE);
-                } else if (command.special() && triggerAttack(AbilitySlot.SPECIAL, loadout.special())) {
+                } else if (command.special() && !isStateful(loadout.special()) && triggerAttack(AbilitySlot.SPECIAL, loadout.special())) {
                     triggered = Optional.of(AbilitySlot.SPECIAL);
                 } else if (command.light() && triggerAttack(AbilitySlot.LIGHT, loadout.light())) {
                     triggered = Optional.of(AbilitySlot.LIGHT);
@@ -183,6 +259,7 @@ public final class PlayerAbilities {
             }
         } else {
             dashRemaining = 0;
+            skills.clear();
         }
         for (int i = 0; i < cooldowns.length; i++) {
             cooldowns[i] = Math.max(0, cooldowns[i] - delta);
@@ -202,8 +279,11 @@ public final class PlayerAbilities {
         if (!available()) {
             return AbilityState.UNAVAILABLE;
         }
+        if (skills.locksInput() && !skills.active(slot)) {
+            return AbilityState.UNAVAILABLE;
+        }
         Attack attack = attacks.get(slot);
-        if ((slot == AbilitySlot.DASH && dashRemaining > 0) || launchWindows[slot.ordinal()] > 0
+        if (skills.active(slot) || (slot == AbilitySlot.DASH && dashRemaining > 0) || launchWindows[slot.ordinal()] > 0
                 || (attack != null && attack.getProjectile() == null && attack.isActive())) {
             return AbilityState.ACTIVE;
         }
@@ -237,6 +317,7 @@ public final class PlayerAbilities {
         }
         combat.bindWorld(player.getCollisionArea());
         source = next;
+        skills.bind(next);
         insetX = next.getHurtbox().x() - player.getX();
         insetY = next.getHurtbox().y() - player.getY();
         hurtWidth = next.getHurtbox().width();
@@ -257,6 +338,7 @@ public final class PlayerAbilities {
         combat.getCooldownRemaining(source);
         combat.unregister(source);
         combat.register(source);
+        skills.bind(source);
         Arrays.fill(cooldowns, 0);
         Arrays.fill(launchWindows, 0);
         attacks.clear();
@@ -278,11 +360,38 @@ public final class PlayerAbilities {
             return false;
         }
         AttackSpec spec = area.attack();
-        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(), 0, spec.element());
+        if (isStateful(area)) {
+            if (area.kind() == SkillKind.ELEMENT_CYCLE && launchWindows[AbilitySlot.LIGHT.ordinal()] > 0) {
+                return false;
+            }
+            if (!skills.start(slot, area)) {
+                return false;
+            }
+            cooldowns[slot.ordinal()] = spec.cooldownSeconds();
+            return true;
+        }
+        boolean rapid = area.kind() == SkillKind.ELEMENT_PROJECTILE && skills.rapid();
+        ElementType element = area.kind() == SkillKind.ELEMENT_PROJECTILE ? player.getMageElement() : spec.element();
+        double active = rapid ? SkillTuning.RAPID_LAUNCH : spec.activeSeconds();
+        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), active, 0, element, spec.blockable());
         Optional<Attack> accepted;
         if (area.projectile() != null) {
-            List<Attack> volley = combat.tryProjectiles(source, invocation, area.projectile(), area.range(),
-                    facingX, facingY, player.getCollisionArea());
+            ProjectileSpec flight = area.projectile();
+            List<Attack> volley;
+            if (rapid) {
+                flight = new ProjectileSpec(flight.speed(), flight.size(), flight.lifetime(),
+                        SkillTuning.RAPID_COUNT, SkillTuning.RAPID_SPREAD);
+                List<AttackSpec> specifications = new ArrayList<>();
+                for (int i = 0; i < SkillTuning.RAPID_COUNT; i++) {
+                    specifications.add(new AttackSpec(spec.type(), spec.damage(), active, 0,
+                            skills.randomElement(), spec.blockable()));
+                }
+                volley = combat.tryProjectiles(source, specifications, flight, area.range(),
+                        facingX, facingY, player.getCollisionArea());
+            } else {
+                volley = combat.tryProjectiles(source, invocation, flight, area.range(),
+                        facingX, facingY, player.getCollisionArea());
+            }
             accepted = volley.stream().findFirst();
         } else {
             CollisionBox hitbox = Objects.requireNonNull(area.shape().create(source.getHurtbox(), area.range(),
@@ -294,10 +403,19 @@ public final class PlayerAbilities {
         }
         attacks.put(slot, accepted.get());
         if (area.projectile() != null) {
-            launchWindows[slot.ordinal()] = spec.activeSeconds();
+            launchWindows[slot.ordinal()] = active;
         }
-        cooldowns[slot.ordinal()] = spec.cooldownSeconds();
+        cooldowns[slot.ordinal()] = rapid ? SkillTuning.RAPID_COOLDOWN : spec.cooldownSeconds();
         return true;
+    }
+
+    /**
+     * Distinguishes stateful activation from ordinary immediate shape/projectile delivery.
+     * @param area immutable slot
+     * @return true when ClassSkills owns execution
+     */
+    private static boolean isStateful(AbilityLoadout.AreaAttack area) {
+        return area.kind() != SkillKind.DIRECT && area.kind() != SkillKind.ELEMENT_PROJECTILE;
     }
 
     /**

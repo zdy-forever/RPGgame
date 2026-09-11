@@ -6,39 +6,55 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Central built-in prototype definitions for Archer, Mage and Katana.
+ * Central first-version behaviour definitions for Archer, Mage and Katana.
  * No Player subclasses or asset lookups are needed.
- * Values demonstrate class differences; they are not final skill designs or balance decisions.
- * Mage uses a straight magic bolt for J, fixed surrounding pulses for K/O, and the shared
- * collision-safe dash for L. Built-in attacks use NONE; elemental tags remain opt-in configuration.
- * Katana uses forward light/heavy slashes and a single-hit surrounding ultimate, with the
- * existing faster dash. Slashes capture facing/geometry at invocation, not from a sprite.
+ * Behaviour is specified; numerical tuning remains provisional. Execution composes shared
+ * attacks, projectiles, health and collision-safe movement, never assets or Player subclasses.
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlayerClasses {
-    /** Default class; its magic bolt and area pulses share the common ability executor. */
+    /** Default class; elemental bolts and stateful spells share the common ability executor. */
     public static final PlayerClass DEFAULT = PlayerClass.MAGE;
     /** Complete immutable catalog; all mutable ability state stays in each player's controller. */
     private static final Map<PlayerClass, ClassDefinition> DEFINITIONS = Map.of(
             PlayerClass.ARCHER, new ClassDefinition(PlayerClass.ARCHER, new AbilityLoadout(
                     new AbilityLoadout.AreaAttack(new AttackSpec("archer-light", 20, 0.15, 0.45),
                             480, AttackShape.FORWARD, new ProjectileSpec(600, 6, 1.2, 1, 0)),
-                    new AbilityLoadout.AreaAttack(new AttackSpec("archer-special", 45, 0.25, 2.5),
-                            640, AttackShape.FORWARD, new ProjectileSpec(800, 8, 1.2, 1, 0)),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("archer-special", 20, 0.25, 2.5),
+                            640, AttackShape.FORWARD, new ProjectileSpec(800, 8, 1.2, 5, 40)),
                     new AbilityLoadout.Dash(650, 0.2, 1.2),
-                    new AbilityLoadout.AreaAttack(new AttackSpec("archer-ultimate", 30, 0.4, 8),
-                            500, AttackShape.FORWARD, new ProjectileSpec(550, 6, 1.2, 5, 40)))),
+                    skill("archer-rain", 18, 8, 100, SkillKind.ARROW_RAIN)),
+                    skill("archer-untargetable", 0, 8, 1, SkillKind.UNTARGETABLE)),
             PlayerClass.MAGE, new ClassDefinition(PlayerClass.MAGE, new AbilityLoadout(
                     new AbilityLoadout.AreaAttack(new AttackSpec("mage-light", 25, 0.25, 0.5),
-                            360, AttackShape.FORWARD, new ProjectileSpec(400, 10, 1.5, 1, 0)),
-                    attack("mage-special", 40, 0.3, 2, 120, AttackShape.AREA),
+                            360, AttackShape.FORWARD, new ProjectileSpec(400, 10, 1.5, 1, 0), SkillKind.ELEMENT_PROJECTILE),
+                    skill("mage-element-cycle", 0, 0.05, 1, SkillKind.ELEMENT_CYCLE),
                     new AbilityLoadout.Dash(600, 0.2, 1),
-                    attack("mage-ultimate", 75, 0.5, 8, 180, AttackShape.AREA))),
+                    skill("mage-circle", 25, 10, 160, SkillKind.MAGIC_CIRCLE)),
+                    skill("mage-rapid", 0, 10, 1, SkillKind.RAPID_BARRAGE)),
             PlayerClass.KATANA, new ClassDefinition(PlayerClass.KATANA, new AbilityLoadout(
-                    attack("katana-light", 30, 0.15, 0.35, 48, AttackShape.FORWARD),
-                    attack("katana-special", 45, 0.25, 2, 80, AttackShape.FORWARD),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("katana-light", 30, 0.15, 0.35),
+                            48, AttackShape.FORWARD),
+                    skill("katana-parry", 12, 2, 12, SkillKind.PARRY),
                     new AbilityLoadout.Dash(750, 0.16, 0.9),
-                    attack("katana-ultimate", 85, 0.35, 7, 110, AttackShape.AREA))));
+                    skill("katana-stance", 100, 7, 140, SkillKind.COUNTER_STANCE)),
+                    skill("katana-dragon", 18, 7, 80, SkillKind.DRAGON_THRUST)));
+
+    /**
+     * Builds a stateful slot without implying that its activation immediately creates a hitbox.
+     * @param id skill identifier
+     * @param damage wave/counter damage
+     * @param cooldown slot cooldown
+     * @param range effect expansion
+     * @param kind execution behaviour
+     * @return immutable skill definition
+     * @throws NullPointerException if id or kind is null
+     * @throws IllegalArgumentException if numeric tuning is invalid
+     */
+    private static AbilityLoadout.AreaAttack skill(String id, int damage, double cooldown, double range, SkillKind kind) {
+        return new AbilityLoadout.AreaAttack(new AttackSpec(id, damage, SkillTuning.TICK_ACTIVE, cooldown),
+                range, AttackShape.AREA, null, kind);
+    }
 
     /** Prevents construction of the immutable catalog holder. */
     private PlayerClasses() {
@@ -54,20 +70,4 @@ public final class PlayerClasses {
         return DEFINITIONS.get(Objects.requireNonNull(type, "class type"));
     }
 
-    /**
-     * Builds validated common attack tuning for the catalog.
-     * @param type attack identifier
-     * @param damage raw damage
-     * @param active active seconds
-     * @param cooldown slot cooldown seconds
-     * @param range world-space reach
-     * @param shape geometry strategy
-     * @return immutable common attack definition
-     * @throws NullPointerException if type or shape is null
-     * @throws IllegalArgumentException if numeric tuning is invalid
-     */
-    private static AbilityLoadout.AreaAttack attack(String type, int damage, double active,
-            double cooldown, double range, AttackShape shape) {
-        return new AbilityLoadout.AreaAttack(new AttackSpec(type, damage, active, cooldown), range, shape);
-    }
 }

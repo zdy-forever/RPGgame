@@ -76,7 +76,7 @@ public final class EnemyAI {
 
     /**
      * Chooses idle, chase, or attack for an eligible target; dead enemies do nothing.
-     * Null, dead, friendly, self, and unregistered targets cause idle without movement.
+     * Null, dead, untargetable, friendly, self, and unregistered targets cause idle without movement.
      * A controller removed from its arena also becomes idle. Detection includes its boundary;
      * tracking is lost only beyond loseRange. Attack-distance comparisons allow four coordinate ULPs
      * for arithmetic rounding, not additional gameplay reach. Clear pursuit stops at attack distance;
@@ -111,7 +111,7 @@ public final class EnemyAI {
         List<Combatant> registered = combat.getCombatants();
         if (!registered.contains(combatant) || target == null || !registered.contains(target)
                 || target.getEntity() == enemy || target.getFaction() == Faction.ENEMY
-                || !target.getEntity().isAlive()) {
+                || !target.isTargetable()) {
             state = EnemyState.IDLE;
             clearPath();
             return;

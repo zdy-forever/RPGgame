@@ -37,12 +37,15 @@ final class PlayerInputTest {
                 });
         PlayerInput input = new PlayerInput(keyboard);
         assertFalse(input.sampleElementCycle());
-        pressed.addAll(Set.of(Input.Keys.F4, Input.Keys.J, Input.Keys.F2));
+        assertFalse(input.sampleUltimateModeCycle());
+        pressed.addAll(Set.of(Input.Keys.F4, Input.Keys.F5, Input.Keys.J, Input.Keys.F2));
         assertTrue(input.sampleElementCycle());
+        assertTrue(input.sampleUltimateModeCycle());
         assertEquals(new PlayerCommand(0, 1, true, false, false, false), input.sample());
         assertEquals(Optional.of(PlayerClass.MAGE), input.sampleClassSelection());
         pressed.clear();
         assertFalse(input.sampleElementCycle());
+        assertFalse(input.sampleUltimateModeCycle());
         assertEquals(new PlayerCommand(0, 1, false, false, false, false), input.sample());
     }
 

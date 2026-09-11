@@ -97,35 +97,35 @@ final class ArcherAbilitiesTest {
         assertNotEquals(first.getId(), combat.getActiveAttacks().get(1).getId());
     }
 
-    /** K is the explicitly provisional single power-arrow prototype with its own damage and cooldown. */
+    /** K is a simultaneous fan with a longer interval than the single J arrow. */
     @Test
-    void specialCreatesFasterStrongerSingleArrow() {
+    void specialCreatesAtomicFanWithLongerCooldown() {
         Enemy enemy = target(new CollisionBox(300, 200, 20, 20));
         tick(0, command(AbilitySlot.SPECIAL));
-        Attack arrow = combat.getActiveAttacks().get(0);
-        assertEquals(1, combat.getActiveAttacks().size());
+        Attack arrow = combat.getActiveAttacks().get(2);
+        assertEquals(5, combat.getActiveAttacks().size());
         assertEquals(8, arrow.getHitbox().width());
         assertEquals(640, arrow.getProjectile().getRemainingRange());
         assertEquals(2.5, abilities.getCooldownRemaining(AbilitySlot.SPECIAL));
         tick(0.05, PlayerCommand.NONE);
         assertEquals(246, arrow.getHitbox().x());
         tick(0.1, PlayerCommand.NONE);
-        assertEquals(955, enemy.getHealth().getCurrentHp());
+        assertEquals(980, enemy.getHealth().getCurrentHp());
         assertFalse(arrow.isActive());
         assertTrue(tick(0, command(AbilitySlot.SPECIAL)).isEmpty());
         assertEquals(Optional.of(AbilitySlot.LIGHT), tick(0, command(AbilitySlot.LIGHT)));
     }
 
-    /** O emits a symmetric five-arrow fan, and every arrow can hit a different enemy once. */
+    /** K emits a symmetric five-arrow fan, and every arrow can hit a different enemy once. */
     @Test
-    void ultimateFansFiveArrowsThroughTheSamePipeline() {
+    void heavyFansFiveArrowsThroughTheSamePipeline() {
         List<Enemy> targets = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             double angle = Math.toRadians(-20 + i * 10);
             targets.add(target(new CollisionBox(210 + Math.cos(angle) * 200 - 5,
                     210 + Math.sin(angle) * 200 - 5, 10, 10)));
         }
-        tick(0, command(AbilitySlot.ULTIMATE));
+        tick(0, command(AbilitySlot.SPECIAL));
         List<Attack> volley = combat.getActiveAttacks();
         assertEquals(5, volley.size());
         for (int i = 0; i < volley.size(); i++) {
@@ -133,11 +133,11 @@ final class ArcherAbilitiesTest {
             assertEquals(Math.cos(angle), volley.get(i).getProjectile().getDirectionX(), 1e-9);
             assertEquals(Math.sin(angle), volley.get(i).getProjectile().getDirectionY(), 1e-9);
         }
-        assertEquals(8, abilities.getCooldownRemaining(AbilitySlot.ULTIMATE));
-        assertTrue(tick(0, command(AbilitySlot.ULTIMATE)).isEmpty());
+        assertEquals(2.5, abilities.getCooldownRemaining(AbilitySlot.SPECIAL));
+        assertTrue(tick(0, command(AbilitySlot.SPECIAL)).isEmpty());
         tick(0.5, PlayerCommand.NONE);
         for (Enemy enemy : targets) {
-            assertEquals(970, enemy.getHealth().getCurrentHp());
+            assertEquals(980, enemy.getHealth().getCurrentHp());
         }
         assertTrue(volley.stream().noneMatch(Attack::isActive));
         assertTrue(combat.getActiveAttacks().isEmpty());
@@ -145,13 +145,13 @@ final class ArcherAbilitiesTest {
 
     /** Separate fan arrows may each hit one broad target, but no arrow repeats its own damage. */
     @Test
-    void ultimateHasExplicitPerArrowDamage() {
+    void heavyHasExplicitPerArrowDamage() {
         Enemy broad = target(new CollisionBox(300, 100, 20, 220));
-        tick(0, command(AbilitySlot.ULTIMATE));
+        tick(0, command(AbilitySlot.SPECIAL));
         tick(0.5, PlayerCommand.NONE);
-        assertEquals(850, broad.getHealth().getCurrentHp());
+        assertEquals(900, broad.getHealth().getCurrentHp());
         tick(0.5, PlayerCommand.NONE);
-        assertEquals(850, broad.getHealth().getCurrentHp());
+        assertEquals(900, broad.getHealth().getCurrentHp());
     }
 
     /** L still uses the existing Archer dash values and shared swept movement. */
@@ -172,6 +172,7 @@ final class ArcherAbilitiesTest {
     @ParameterizedTest
     @EnumSource(AbilitySlot.class)
     void deathAndRecoveryUseExistingRules(AbilitySlot slot) {
+        target(new CollisionBox(300, 200, 20, 20));
         player.takeDamage(100);
         assertTrue(tick(0, command(slot)).isEmpty());
         assertTrue(combat.getActiveAttacks().isEmpty());
@@ -185,14 +186,14 @@ final class ArcherAbilitiesTest {
     /** Active volleys prevent class switching even if their short launch window has already ended. */
     @Test
     void classChangeCannotCarryFlyingArrowsToAnotherClass() {
-        tick(0, command(AbilitySlot.ULTIMATE));
+        tick(0, command(AbilitySlot.SPECIAL));
         tick(0.41, PlayerCommand.NONE);
-        assertEquals(AbilityState.COOLDOWN, abilities.getState(AbilitySlot.ULTIMATE));
+        assertEquals(AbilityState.COOLDOWN, abilities.getState(AbilitySlot.SPECIAL));
         assertFalse(abilities.selectClass(PlayerClasses.get(PlayerClass.MAGE)));
         tick(2, PlayerCommand.NONE);
-        double cooldown = abilities.getCooldownRemaining(AbilitySlot.ULTIMATE);
+        double cooldown = abilities.getCooldownRemaining(AbilitySlot.SPECIAL);
         assertTrue(abilities.selectClass(PlayerClasses.get(PlayerClass.MAGE)));
-        assertEquals(cooldown, abilities.getCooldownRemaining(AbilitySlot.ULTIMATE));
+        assertEquals(cooldown, abilities.getCooldownRemaining(AbilitySlot.SPECIAL));
     }
 
     /** Actual session transitions and R reset cancel all arrows, including non-leading volley members. */
@@ -201,21 +202,21 @@ final class ArcherAbilitiesTest {
         GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB, 28, 28, 180);
         CombatDemo demo = new CombatDemo(session);
         demo.update(0, PlayerCommand.NONE, false, PlayerClass.ARCHER);
-        demo.update(0, command(AbilitySlot.ULTIMATE), false);
+        demo.update(0, command(AbilitySlot.SPECIAL), false);
         List<Attack> old = demo.getActiveAttacks();
         assertEquals(5, old.size());
         session.switchMap(MapCatalog.TRAINING);
         demo.update(0, PlayerCommand.NONE, false);
         assertTrue(old.stream().noneMatch(Attack::isActive));
         assertTrue(demo.getActiveAttacks().isEmpty());
-        assertEquals(8, demo.getAbilities().getCooldownRemaining(AbilitySlot.ULTIMATE));
+        assertEquals(2.5, demo.getAbilities().getCooldownRemaining(AbilitySlot.SPECIAL));
         demo.update(0, PlayerCommand.NONE, true);
-        demo.update(0, command(AbilitySlot.ULTIMATE), false);
+        demo.update(0, command(AbilitySlot.SPECIAL), false);
         List<Attack> next = demo.getActiveAttacks();
         assertEquals(5, next.size());
         demo.update(0, PlayerCommand.NONE, true);
         assertTrue(next.stream().noneMatch(Attack::isActive));
-        assertEquals(0, demo.getAbilities().getCooldownRemaining(AbilitySlot.ULTIMATE));
+        assertEquals(0, demo.getAbilities().getCooldownRemaining(AbilitySlot.SPECIAL));
     }
 
     /** Rejected launches at capacity do not start a slot's cooldown or launch window. */
@@ -226,9 +227,9 @@ final class ArcherAbilitiesTest {
             combat.tryProjectiles(source, new AttackSpec("fill", 0, 0.1, 0), light.projectile(),
                     light.range(), 1, 0, map);
         }
-        assertTrue(tick(0, command(AbilitySlot.ULTIMATE)).isEmpty());
-        assertEquals(0, abilities.getCooldownRemaining(AbilitySlot.ULTIMATE));
-        assertEquals(AbilityState.READY, abilities.getState(AbilitySlot.ULTIMATE));
+        assertTrue(tick(0, command(AbilitySlot.SPECIAL)).isEmpty());
+        assertEquals(0, abilities.getCooldownRemaining(AbilitySlot.SPECIAL));
+        assertEquals(AbilityState.READY, abilities.getState(AbilitySlot.SPECIAL));
         assertEquals(CombatSystem.MAX_PROJECTILES, combat.getActiveAttacks().size());
     }
 
@@ -241,6 +242,7 @@ final class ArcherAbilitiesTest {
     private Optional<AbilitySlot> tick(double delta, PlayerCommand command) {
         Optional<AbilitySlot> result = abilities.update(delta, command);
         combat.update(delta);
+        abilities.afterCombat();
         return result;
     }
 

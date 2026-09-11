@@ -38,9 +38,22 @@ public record AbilityLoadout(AreaAttack light, AreaAttack special, Dash dash, Ar
      * @param range positive finite reach interpreted by the selected shape strategy
      * @param shape side-effect-free strategy interpreting range as reach or area extension
      * @param projectile flight configuration, or null for a shape-generated area attack
+     * @param kind configured gameplay execution, independent of graphics
      * @author Daoyan Zhu (u7782042)
      */
-    public record AreaAttack(AttackSpec attack, double range, AttackShape shape, ProjectileSpec projectile) {
+    public record AreaAttack(AttackSpec attack, double range, AttackShape shape, ProjectileSpec projectile, SkillKind kind) {
+        /**
+         * Preserves directly executed custom shape/projectile definitions.
+         * @param attack combat tuning
+         * @param range reach
+         * @param shape geometry strategy
+         * @param projectile optional flight configuration
+         * @throws NullPointerException if required data is null
+         * @throws IllegalArgumentException if timing or range is invalid
+         */
+        public AreaAttack(AttackSpec attack, double range, AttackShape shape, ProjectileSpec projectile) {
+            this(attack, range, shape, projectile, SkillKind.DIRECT);
+        }
         /**
          * Preserves existing shape-only class definitions without changing their execution.
          * @param attack combat tuning
@@ -70,12 +83,14 @@ public record AbilityLoadout(AreaAttack light, AreaAttack special, Dash dash, Ar
          * @param range reach in world units interpreted by the strategy
          * @param shape hitbox construction strategy
          * @param projectile optional flight mode; shape is used only when this is null
+         * @param kind gameplay execution kind
          * @throws NullPointerException if attack or shape is null
          * @throws IllegalArgumentException if range is invalid or cooldown is shorter than active time
          */
         public AreaAttack {
             Objects.requireNonNull(attack, "attack");
             Objects.requireNonNull(shape, "shape");
+            Objects.requireNonNull(kind, "kind");
             if (!Double.isFinite(range) || range <= 0 || !Double.isFinite(2 * range)
                     || attack.cooldownSeconds() < attack.activeSeconds()) {
                 throw new IllegalArgumentException("Area attack needs positive range and cooldown >= active time");

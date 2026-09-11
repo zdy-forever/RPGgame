@@ -61,6 +61,14 @@ public final class PlayerInput {
     }
 
     /**
+     * Requests an O mode toggle; the gameplay API, not this input adapter, enforces Hub-only selection.
+     * @return true on an F5 key edge
+     */
+    public boolean sampleUltimateModeCycle() {
+        return input.isKeyJustPressed(Input.Keys.F5);
+    }
+
+    /**
      * Samples held keys; opposing keys cancel independently on each axis.
      *
      * @param player player to update

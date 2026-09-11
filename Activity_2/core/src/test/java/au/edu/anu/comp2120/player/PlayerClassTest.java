@@ -123,6 +123,17 @@ final class PlayerClassTest {
                 case DASH -> throw new AssertionError("Not an attack");
             };
             f.tick(0, command(slot));
+            if (tuning.kind() == SkillKind.ELEMENT_CYCLE) {
+                assertTrue(f.combat().getActiveAttacks().isEmpty());
+                assertEquals(ElementType.WATER, f.player().getMageElement());
+                continue;
+            }
+            if (tuning.kind() == SkillKind.MAGIC_CIRCLE || tuning.kind() == SkillKind.PARRY
+                    || tuning.kind() == SkillKind.COUNTER_STANCE) {
+                assertTrue(f.combat().getActiveAttacks().isEmpty());
+                assertEquals(AbilityState.ACTIVE, f.abilities().getState(slot));
+                continue;
+            }
             Attack attack = f.combat().getActiveAttacks().get(0);
             assertSame(f.source(), attack.getSource());
             assertEquals(tuning.attack().type(), attack.getSpecification().type());
@@ -140,7 +151,9 @@ final class PlayerClassTest {
             }
             assertEquals(tuning.attack().activeSeconds(), attack.getRemainingSeconds());
             assertEquals(tuning.attack().cooldownSeconds(), f.abilities().getCooldownRemaining(slot));
-            assertEquals(tuning.shape().create(f.source().getHurtbox(), tuning.range(), 1, 0), attack.getHitbox());
+            CollisionBox origin = tuning.kind() == SkillKind.ARROW_RAIN
+                    ? new CollisionBox(60, 100, 20, 20) : f.source().getHurtbox();
+            assertEquals(tuning.shape().create(origin, tuning.range(), 1, 0), attack.getHitbox());
             assertEquals(1000 - tuning.attack().damage(), front.getHealth().getCurrentHp());
             assertEquals(tuning.shape() == AttackShape.AREA ? 1000 - tuning.attack().damage() : 1000,
                     behind.getHealth().getCurrentHp());
@@ -206,7 +219,8 @@ final class PlayerClassTest {
     @ParameterizedTest
     @EnumSource(AbilitySlot.class)
     void activeAbilitiesRejectSelection(AbilitySlot slot) {
-        Fixture f = fixture(PlayerClass.MAGE);
+        Fixture f = fixture(PlayerClass.ARCHER);
+        f.combat().register(new Combatant(new Enemy(1000), Faction.ENEMY, new CollisionBox(160, 100, 20, 20)));
         f.tick(0, command(slot));
         ClassDefinition before = f.player().getClassDefinition();
         double cooldown = f.abilities().getCooldownRemaining(slot);
@@ -214,7 +228,7 @@ final class PlayerClassTest {
         assertSame(before, f.player().getClassDefinition());
         assertEquals(cooldown, f.abilities().getCooldownRemaining(slot));
         assertEquals(AbilityState.ACTIVE, f.abilities().getState(slot));
-        f.tick(1.5, PlayerCommand.NONE);
+        f.tick(3, PlayerCommand.NONE);
         assertTrue(f.abilities().selectClass(PlayerClasses.get(PlayerClass.KATANA)));
     }
 
@@ -336,6 +350,7 @@ final class PlayerClassTest {
         void tick(double delta, PlayerCommand command) {
             abilities.update(delta, command);
             combat.update(delta);
+            abilities.afterCombat();
         }
     }
 }

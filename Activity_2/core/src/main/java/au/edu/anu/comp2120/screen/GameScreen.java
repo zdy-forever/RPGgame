@@ -59,8 +59,10 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Gives external Quest/Inventory adapters acceptance, result and one-time reward APIs.
      * All calls must run on the game-loop thread; no NPC or Quest implementation is provided here.
+     * Intentionally exposed for external adapter integration, even before a local caller exists.
      * @return this screen's persistent gameplay integration boundary
      */
+    @SuppressWarnings("unused") // Public cross-module integration endpoint, not dead implementation code.
     public EncounterFlow getEncounterFlow() {
         return encounterFlow;
     }
@@ -108,7 +110,8 @@ public final class GameScreen extends ScreenAdapter {
                 travelConsumed ? PlayerCommand.NONE : input.sample(),
                 !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R),
                 travelConsumed ? null : input.sampleClassSelection().orElse(null),
-                !travelConsumed && input.sampleElementCycle());
+                !travelConsumed && input.sampleElementCycle(),
+                !travelConsumed && input.sampleUltimateModeCycle());
         if (session.getTransitionVersion() != beforeCombat) {
             showBattleReturn();
             return;

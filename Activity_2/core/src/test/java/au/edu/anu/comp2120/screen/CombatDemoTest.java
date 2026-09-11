@@ -115,7 +115,7 @@ final class CombatDemoTest {
     @ParameterizedTest
     @EnumSource(AbilitySlot.class)
     void mapTransitionPreservesAbilityCooldownsAndCancelsActivity(AbilitySlot slot) {
-        GameSession session = session(MapCatalog.HUB);
+        GameSession session = session(MapCatalog.CROSSROADS);
         CombatDemo demo = new CombatDemo(session);
         PlayerCommand request = new PlayerCommand(0, 0, slot == AbilitySlot.LIGHT,
                 slot == AbilitySlot.SPECIAL, slot == AbilitySlot.DASH, slot == AbilitySlot.ULTIMATE);
@@ -132,7 +132,7 @@ final class CombatDemoTest {
         assertTrue(demo.getActiveAttacks().isEmpty());
         demo.update(0.1, PlayerCommand.NONE, false);
         assertEquals(spawn, session.getPlayer().getBounds());
-        assertEquals(cooldown - 0.1, demo.getAbilities().getCooldownRemaining(slot), 1e-9);
+        assertEquals(Math.max(0, cooldown - 0.1), demo.getAbilities().getCooldownRemaining(slot), 1e-9);
         demo.update(0, request, true);
         assertEquals(AbilityState.READY, demo.getAbilities().getState(slot));
         assertEquals(spawn, session.getPlayer().getBounds());
@@ -146,8 +146,10 @@ final class CombatDemoTest {
         session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
         enemy(demo).takeDamage(300);
         demo.update(0, new PlayerCommand(0, 0, false, true, false, false), false);
-        assertEquals(60, enemy(demo).getHealth().getCurrentHp());
-        demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
+        assertEquals(100, enemy(demo).getHealth().getCurrentHp(), "Mage K selects an element, not damage");
+        for (int i = 0; i < 4; i++) {
+            demo.update(0.5, new PlayerCommand(0, 0, true, false, false, false), false);
+        }
         assertFalse(enemy(demo).isAlive());
         assertEquals(BossState.DEAD, demo.getBoss().orElseThrow().getState());
         demo.update(0, PlayerCommand.NONE, true);

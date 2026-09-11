@@ -5,6 +5,8 @@ import au.edu.anu.comp2120.combat.Health;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.WalkableArea;
 import java.util.Objects;
+import java.util.EnumMap;
+import au.edu.anu.comp2120.combat.ElementType;
 
 /**
  * Holds player geometry and health, with time-based eight-direction movement independent of graphics.
@@ -25,6 +27,42 @@ public final class Player implements Damageable {
     private WalkableArea area;
     /** Selected immutable class definition; movement and health remain owned by this same Player. */
     private ClassDefinition classDefinition;
+    /** Persistent selection per profession; untouched by map/health/encounter reset. */
+    private final EnumMap<PlayerClass, UltimateMode> ultimateModes = new EnumMap<>(PlayerClass.class);
+    /** Mage's independent element choice, also preserved while another class is selected. */
+    private ElementType mageElement = ElementType.FIRE;
+
+    /**
+     * Reads the current profession's remembered selection, defaulting to A.
+     * @return current class ultimate mode
+     */
+    public UltimateMode getUltimateMode() {
+        return ultimateModes.getOrDefault(getPlayerClass(), UltimateMode.A);
+    }
+
+    /**
+     * Stores mode only after the ability controller approves Hub selection.
+     * @param mode validated selection
+     */
+    void applyUltimateMode(UltimateMode mode) {
+        ultimateModes.put(getPlayerClass(), mode);
+    }
+
+    /**
+     * Reads Mage's independently selected element.
+     * @return one of the five gameplay elements, never NONE
+     */
+    public ElementType getMageElement() {
+        return mageElement;
+    }
+
+    /**
+     * Applies a validated gameplay element after the controller accepts K.
+     * @param element selected non-NONE element
+     */
+    void applyMageElement(ElementType element) {
+        mageElement = element;
+    }
 
     /**
      * Creates a player entirely inside a walkable region with default full health.

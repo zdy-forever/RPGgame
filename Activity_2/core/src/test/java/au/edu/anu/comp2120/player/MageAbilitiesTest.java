@@ -168,13 +168,16 @@ final class MageAbilitiesTest {
     }
 
     /**
-     * K/O use fixed surrounding rectangles, include late entrants once, and expire through combat-core.
+     * Custom direct area slots retain overlap/late-entry semantics; final Mage K/O use selection/casting instead.
      * @param slot area spell slot
      */
     @ParameterizedTest
     @EnumSource(value = AbilitySlot.class, names = {"SPECIAL", "ULTIMATE"})
     void areaSpellsHitEachTargetOnceInsideConfiguredRange(AbilitySlot slot) {
-        AbilityLoadout.AreaAttack tuning = slot == AbilitySlot.SPECIAL ? loadout.special() : loadout.ultimate();
+        AbilityLoadout.AreaAttack tuning = new AbilityLoadout.AreaAttack(
+                new au.edu.anu.comp2120.combat.AttackSpec("custom-area", 40, 0.3, 2), 120);
+        abilities.selectClass(new ClassDefinition(PlayerClass.MAGE,
+                new AbilityLoadout(loadout.light(), tuning, loadout.dash(), tuning)));
         Enemy front = target(new CollisionBox(300, 200, 20, 20));
         Enemy behind = target(new CollisionBox(150, 200, 20, 20));
         Enemy touching = target(new CollisionBox(216 + tuning.range(), 200, 20, 20));
@@ -186,7 +189,7 @@ final class MageAbilitiesTest {
         Attack pulse = combat.getActiveAttacks().get(0);
         CollisionBox original = pulse.getHitbox();
         assertNull(pulse.getProjectile());
-        assertEquals(slot == AbilitySlot.SPECIAL ? "mage-special" : "mage-ultimate",
+        assertEquals("custom-area",
                 pulse.getSpecification().type());
         assertEquals(AttackShape.AREA.create(source.getHurtbox(), tuning.range(), 1, 0), original);
         combat.update(0);
@@ -211,14 +214,18 @@ final class MageAbilitiesTest {
     @ParameterizedTest
     @EnumSource(AbilitySlot.class)
     void cooldownRejectsSpamAndRecovers(AbilitySlot slot) {
+        target(new CollisionBox(500, 200, 20, 20));
         assertEquals(Optional.of(slot), tick(0, command(slot)));
         double cooldown = abilities.getCooldownRemaining(slot);
-        assertEquals(AbilityState.ACTIVE, abilities.getState(slot));
+        assertEquals(slot == AbilitySlot.SPECIAL ? AbilityState.COOLDOWN : AbilityState.ACTIVE, abilities.getState(slot));
         for (int i = 0; i < 30; i++) {
             assertTrue(tick(0, command(slot)).isEmpty());
         }
         assertEquals(cooldown, abilities.getCooldownRemaining(slot));
         tick(cooldown, PlayerCommand.NONE);
+        if (slot == AbilitySlot.ULTIMATE) {
+            tick(3, PlayerCommand.NONE);
+        }
         assertEquals(AbilityState.READY, abilities.getState(slot));
         assertEquals(Optional.of(slot), tick(0, command(slot)));
     }
@@ -245,16 +252,17 @@ final class MageAbilitiesTest {
     /** Spells can overlap across slots without sharing cooldowns or accumulating expired objects. */
     @Test
     void spellsShareOneLifecycleOwnerAndResetCancelsEverything() {
+        Enemy receiver = target(new CollisionBox(600, 200, 20, 20));
         for (int i = 0; i < 100; i++) {
-            for (AbilitySlot slot : List.of(AbilitySlot.LIGHT, AbilitySlot.SPECIAL, AbilitySlot.ULTIMATE)) {
-                assertEquals(Optional.of(slot), tick(0, command(slot)));
-            }
-            assertEquals(3, combat.getActiveAttacks().size());
-            tick(8, PlayerCommand.NONE);
+            receiver.getHealth().restoreFull();
+            assertEquals(Optional.of(AbilitySlot.SPECIAL), tick(0.1, command(AbilitySlot.SPECIAL)));
+            assertTrue(combat.getActiveAttacks().isEmpty());
+            assertEquals(Optional.of(AbilitySlot.LIGHT), tick(0.6, command(AbilitySlot.LIGHT)));
+            assertEquals(Optional.of(AbilitySlot.ULTIMATE), tick(1.5, command(AbilitySlot.ULTIMATE)));
+            tick(10, PlayerCommand.NONE);
             assertTrue(combat.getActiveAttacks().isEmpty());
         }
         tick(0, command(AbilitySlot.LIGHT));
-        tick(0, command(AbilitySlot.SPECIAL));
         List<Attack> retained = combat.getActiveAttacks();
         player.takeDamage(30);
         abilities.reset();
@@ -342,6 +350,7 @@ final class MageAbilitiesTest {
     private Optional<AbilitySlot> tick(double delta, PlayerCommand command) {
         Optional<AbilitySlot> result = abilities.update(delta, command);
         combat.update(delta);
+        abilities.afterCombat();
         return result;
     }
 

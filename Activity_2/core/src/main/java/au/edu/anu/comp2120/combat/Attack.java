@@ -29,6 +29,25 @@ public final class Attack {
     private final Projectile projectile;
     /** Receivers already settled by this invocation, tracked by object identity. */
     private final Set<Damageable> hitEntities = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** Non-intercepted receivers, separate from the consumed-hit ledger used for blocked attacks. */
+    private final Set<Damageable> landedHits = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Reports an accepted hit for post-settlement ability follow-ups without a damage callback.
+     * @param entity receiver identity
+     * @return true if a hit reached damage delivery rather than defensive interception
+     */
+    public boolean hasLandedHit(Damageable entity) {
+        return landedHits.contains(entity);
+    }
+
+    /**
+     * Records accepted damage delivery for deferred follow-up observation.
+     * @param entity receiver that was not blocked
+     */
+    void recordLandedHit(Damageable entity) {
+        landedHits.add(entity);
+    }
     /** Fixed-area active time; projectile invocations use their own flight lifetime instead. */
     private double remainingSeconds;
 
