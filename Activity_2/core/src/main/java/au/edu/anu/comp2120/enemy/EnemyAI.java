@@ -49,13 +49,14 @@ public final class EnemyAI {
     /**
      * Creates and registers one enemy controller at a fully walkable position.
      * Validation finishes before registration. No player state, health, or map data is changed.
+     * Binds the static collision world for shared attack settlement, including Boss-owned navigation.
      * @param enemy existing health-owning enemy
      * @param bounds initial positive collision body
      * @param area arena movement/collision environment
      * @param config reusable enemy tuning
      * @param combat shared arena pipeline
      * @throws NullPointerException if any argument is null
-     * @throws IllegalArgumentException if geometry/grid size is invalid or the enemy is already registered
+     * @throws IllegalArgumentException if geometry/grid size/world binding is invalid or the enemy is already registered
      */
     public EnemyAI(Enemy enemy, CollisionBox bounds, WalkableArea area, EnemyConfig config, CombatSystem combat) {
         this.enemy = Objects.requireNonNull(enemy, "enemy");
@@ -69,6 +70,7 @@ public final class EnemyAI {
         attackBox(bounds);
         pathfinder = new AStarPathfinder(area, bounds.width(), bounds.height(), config.pathCellSize());
         combatant = new Combatant(enemy, Faction.ENEMY, bounds);
+        combat.bindWorld(area);
         combat.register(combatant);
     }
 

@@ -149,6 +149,21 @@ public final class GameMap implements WalkableArea {
 
     /** {@inheritDoc} */
     @Override
+    public boolean hasLineOfSight(double fromX, double fromY, double toX, double toY) {
+        if (!Double.isFinite(fromX) || !Double.isFinite(fromY) || !Double.isFinite(toX)
+                || !Double.isFinite(toY) || !Double.isFinite(toX - fromX) || !Double.isFinite(toY - fromY)) {
+            throw new IllegalArgumentException("Sight coordinates and displacement must be finite");
+        }
+        if (fromX < 0 || fromY < 0 || toX < 0 || toY < 0 || fromX > bounds.right()
+                || toX > bounds.right() || fromY > bounds.top() || toY > bounds.top()) {
+            return false;
+        }
+        return obstacles.stream().noneMatch(wall ->
+                CollisionSweep.segmentCrossesInterior(fromX, fromY, toX, toY, wall));
+    }
+
+    /** {@inheritDoc} */
+    @Override
     public boolean isWalkable(float x, float y) {
         return isWalkablePoint(x, y);
     }

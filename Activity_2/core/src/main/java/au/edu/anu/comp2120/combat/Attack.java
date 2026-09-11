@@ -23,23 +23,14 @@ public final class Attack {
     private final AttackSpec specification;
     /** Initial/fixed geometry; projectile invocations expose their live flight geometry instead. */
     private final CollisionBox hitbox;
+    /** Immutable origin anchor captured at cast; its centre is used only for fixed-attack occlusion. */
+    private final CollisionBox origin;
     /** Optional straight flight owned by the same pipeline; null for unchanged area attacks. */
     private final Projectile projectile;
     /** Receivers already settled by this invocation, tracked by object identity. */
     private final Set<Damageable> hitEntities = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Fixed-area active time; projectile invocations use their own flight lifetime instead. */
     private double remainingSeconds;
-
-    /**
-     * Creates an invocation after validation by the owning system.
-     * @param id system-issued positive identifier
-     * @param source validated registered source
-     * @param specification validated tuning
-     * @param hitbox validated immutable hitbox
-     */
-    Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox) {
-        this(id, source, specification, hitbox, null);
-    }
 
     /**
      * Creates a fixed or projectile-backed invocation after pipeline validation.
@@ -63,11 +54,27 @@ public final class Attack {
      * @param parentAttackId triggering direct ID, or zero for an ordinary invocation
      */
     Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox, Projectile projectile, long parentAttackId) {
+        this(id, source, specification, hitbox, projectile, parentAttackId, source.getHurtbox());
+    }
+
+    /**
+     * Captures one invocation's geometry, provenance and immutable source/effect origin.
+     * @param id unique positive ID
+     * @param source canonical source
+     * @param specification immutable tuning
+     * @param hitbox initial or fixed attack geometry
+     * @param projectile optional flight, which uses swept collision rather than origin rays
+     * @param parentAttackId direct parent ID, or zero
+     * @param origin validated fixed anchor whose centre defines line-of-sight origin
+     */
+    Attack(long id, Combatant source, AttackSpec specification, CollisionBox hitbox, Projectile projectile,
+            long parentAttackId, CollisionBox origin) {
         this.id = id;
         this.parentAttackId = parentAttackId;
         this.source = source;
         this.specification = specification;
         this.hitbox = hitbox;
+        this.origin = origin;
         this.projectile = projectile;
         remainingSeconds = specification.activeSeconds();
     }
@@ -118,6 +125,14 @@ public final class Attack {
      */
     public CollisionBox getHitbox() {
         return projectile == null ? hitbox : projectile.getBounds();
+    }
+
+    /**
+     * Returns the captured source/effect anchor, unaffected by later source movement or facing.
+     * @return immutable rectangle whose centre is the fixed attack's occlusion origin
+     */
+    public CollisionBox getOrigin() {
+        return origin;
     }
 
     /**

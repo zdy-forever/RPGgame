@@ -177,6 +177,12 @@ final class EnemyNavigationTest {
 
         /** {@inheritDoc} */
         @Override
+        public boolean hasLineOfSight(double fromX, double fromY, double toX, double toY) {
+            return map.hasLineOfSight(fromX, fromY, toX, toY);
+        }
+
+        /** {@inheritDoc} */
+        @Override
         public CollisionBox getBounds() {
             return map.getBounds();
         }

@@ -162,7 +162,7 @@ are documented boundaries but do not have empty packages yet.
   lifecycle. No ability/controller/model loads art or depends on graphics APIs.
 - This foundation exposes common slots, selected class tuning, AttackShape strategies and straight
   projectile delivery, not final class skill designs. Ultimate energy,
-  swept portal triggers, combo buffering and global wall occlusion remain future work.
+  swept portal triggers and combo buffering remain future work; shared wall occlusion is implemented below.
 
 ### Player defeat and Hub recovery
 
@@ -286,10 +286,41 @@ are documented boundaries but do not have empty packages yet.
   GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
   HP, AI and ability states use native window-title text. All AI updates precede exactly one
   shared combat update per simulation step.
-- No global area-attack wall occlusion, armour, final class skills, combos, or
+- No armour, final class skills, combos, or
   damage effects are implemented. Future class/AI code supplies attack tuning and
   geometry to this pipeline instead of applying Health damage separately. Receivers
   must not re-enter the pipeline during damage delivery; simulation is single-threaded.
+
+### Unified static-world attack occlusion
+
+- WalkableArea.hasLineOfSight queries a segment against the same immutable GameMap obstacle
+  rectangles used by movement and projectiles. CollisionSweep.segmentCrossesInterior uses
+  slab intervals, without sampling, epsilon-expanded walls or a physics dependency. It does
+  not alter the existing projectile rectangle sweep or wall-wins-equal-time policy.
+- Fixed attacks require both positive hitbox/hurtbox overlap and clear line of sight before
+  CombatSystem delivers damage, records the hit, applies an element or creates a reaction.
+  Occluded candidates may become eligible later during the same active window; accepted
+  targets still receive at most one hit per invocation. There is no class/Boss type dispatch.
+- Attack captures an immutable origin anchor. The legacy tryAttack overload uses the cast-time
+  source hurtbox centre; its explicit-origin overload supports effects. AttackShape.FORWARD
+  uses source centre, while AREA/custom fixed shapes default to fixed hitbox centre. Player
+  slots and Boss patterns pass this geometry policy to the common pipeline. Future custom
+  melee shapes should override origin rather than inheriting fixed-area semantics.
+- Derived reaction areas capture their own effect centre and use the same occlusion gate.
+  Moving the original caster cannot redirect a fixed effect or its visibility ray. Every
+  target uses its current hurtbox centre; partial visibility is intentionally not sampled.
+- Solid wall interior crossings block; pure edge/corner tangency and endpoint-only boundary
+  contact are clear. An origin/target centre inside a wall or outside world bounds is blocked.
+  Non-finite coordinates throw explicitly. Placeholder attack outlines are not visually clipped.
+- CombatSystem.bindWorld associates one WalkableArea with a scope. CombatDemo binds on map
+  sync/reset, PlayerAbilities on binding, EnemyAI on creation, and projectile launches bind
+  their existing collision provider. Rebinding the same instance is harmless; a different
+  map requires clear first. Clear removes the world along with all old combat state.
+  Standalone map-free combat calculations remain supported; gameplay adapters must bind a world.
+- This checkout has no concrete Arrow Rain or ElementField implementation. Fixed-area contract
+  tests exercise configurable Archer O and an elemental field-style invocation without adding
+  final skill mechanics or replacing Archer's fan. Future fields/rain use fixed centre origins;
+  aiming range and cast-placement validation remain the ability owner's responsibility.
 
 ### Elemental metadata and one-generation reaction delivery
 
@@ -382,8 +413,8 @@ are documented boundaries but do not have empty packages yet.
   2-second cooldown); O is a 75-damage large pulse (180 expansion, 0.5 seconds active,
   8-second cooldown). These are provisional replacements for undefined final spells.
   AttackShape.AREA captures fixed geometry; CombatSystem handles late entrants and
-  per-invocation hit deduplication. Area pulses retain the existing no-wall-occlusion
-  rule, while J uses swept wall collision. There is no separate spell update loop.
+  per-invocation hit deduplication. Area pulses use centre-based static-world occlusion,
+  while J keeps swept wall collision. There is no separate spell update loop.
 - L remains the common collision-safe dash (600 units/s for 0.2 seconds, 1-second
   cooldown), not a teleport. HP, hurtboxes, input arbitration, timing and transitions
   use existing code. The placeholder renderer already reads moving/fixed Attack boxes.
@@ -420,7 +451,7 @@ are documented boundaries but do not have empty packages yet.
   input arbitration, independent slot timers, death and transition cleanup are reused.
 - K/O are provisional skill definitions; there is no combo, animation dependency,
   invulnerability or asset loading. The existing renderer reads attack rectangles.
-  Fixed J/K/O slashes retain the common no-wall-occlusion rule; this is distinct from
+  Fixed J/K/O slashes use the shared static-wall visibility gate; this is distinct from
   collision-safe dash movement and swept projectile world collision.
 - KatanaAbilitiesTest exercises eight-direction J/K hits, exact range boundaries,
   captured facing, active-window late entry, repeated-hit prevention, cooldown recovery,
@@ -460,9 +491,9 @@ are documented boundaries but do not have empty packages yet.
   rectangles. The native title displays phase/HP/state/material text, with no asset load.
   There is no Boss UI, cutscene, animation, pickup UI or inventory rewrite.
 - Limitations: two static rectangular pattern cycles, conservative navigation corridors,
-  no actor-body collision, no post-cast wall clipping, no save/defeat persistence. An
-  attack requires an initially clear target corridor but secondary area targets may be
-  hit through walls. A defeated encounter stays stopped even if its Health is restored;
+  no actor-body collision, no visual hitbox clipping, no save/defeat persistence. An
+  attack requires an initially clear target corridor; all targets also pass post-cast
+  world occlusion at settlement. A defeated encounter stays stopped even if its Health is restored;
   a deliberate new encounter/reset is needed to fight and reward it again.
 
 ### Enemy
@@ -510,8 +541,8 @@ are documented boundaries but do not have empty packages yet.
 - No behaviour trees, patrol/home return, crowd avoidance, or dynamic navigation
   graph updates are implemented. Sealed areas return no route; thin/off-grid
   passages may need finer sampling. Static-map collision occupancy is cached.
-  AI attack-initiation clearance is not global combat occlusion; existing player
-  attacks and collateral overlap hits retain their previous rules.
+  AI attack-initiation clearance remains separate from the shared combat occlusion gate,
+  which checks player attacks and collateral overlap hits when damage settles.
 
 ### World / Map
 

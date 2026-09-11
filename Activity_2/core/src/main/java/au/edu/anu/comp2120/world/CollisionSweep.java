@@ -3,13 +3,50 @@ package au.edu.anu.comp2120.world;
 import java.util.Objects;
 
 /**
- * Continuous axis-aligned rectangle intersection for straight projectile paths, without rendering.
+ * Continuous rectangle sweeps and point-segment obstruction against static rectangles, without rendering.
  * Tangential edge/corner contact is not an interior hit; entry must occur before the step ends.
  * @author Daoyan Zhu (u7782042)
  */
 public final class CollisionSweep {
     /** Prevents construction of the pure geometry utility. */
     private CollisionSweep() {
+    }
+
+    /**
+     * Tests a zero-width closed segment against an open rectangle using slab intervals.
+     * No epsilon, sampling or graphics size is used. Pure tangency and endpoint-only boundary
+     * contact are clear; a stationary point strictly inside the blocker is obstructed.
+     * @param fromX segment start x
+     * @param fromY segment start y
+     * @param toX segment end x
+     * @param toY segment end y
+     * @param blocker static rectangle whose interior is solid
+     * @return true if any part of the segment lies strictly inside the blocker
+     * @throws NullPointerException if blocker is null
+     * @throws IllegalArgumentException if coordinates or their differences are non-finite
+     */
+    public static boolean segmentCrossesInterior(double fromX, double fromY, double toX, double toY,
+            CollisionBox blocker) {
+        Objects.requireNonNull(blocker, "blocker");
+        double dx = toX - fromX;
+        double dy = toY - fromY;
+        if (!Double.isFinite(fromX) || !Double.isFinite(fromY) || !Double.isFinite(toX)
+                || !Double.isFinite(toY) || !Double.isFinite(dx) || !Double.isFinite(dy)) {
+            throw new IllegalArgumentException("Segment coordinates and displacement must be finite");
+        }
+        if ((dx == 0 && (fromX <= blocker.x() || fromX >= blocker.right()))
+                || (dy == 0 && (fromY <= blocker.y() || fromY >= blocker.top()))) {
+            return false;
+        }
+        double xEnter = dx == 0 ? Double.NEGATIVE_INFINITY
+                : (dx > 0 ? blocker.x() - fromX : blocker.right() - fromX) / dx;
+        double xExit = dx == 0 ? Double.POSITIVE_INFINITY
+                : (dx > 0 ? blocker.right() - fromX : blocker.x() - fromX) / dx;
+        double yEnter = dy == 0 ? Double.NEGATIVE_INFINITY
+                : (dy > 0 ? blocker.y() - fromY : blocker.top() - fromY) / dy;
+        double yExit = dy == 0 ? Double.POSITIVE_INFINITY
+                : (dy > 0 ? blocker.top() - fromY : blocker.y() - fromY) / dy;
+        return Math.max(0, Math.max(xEnter, yEnter)) < Math.min(1, Math.min(xExit, yExit));
     }
 
     /**

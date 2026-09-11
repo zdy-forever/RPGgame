@@ -12,6 +12,25 @@ The shared combat pipeline supports opt-in elemental attachment, two provisional
 and bounded one-generation derived attacks; built-in class attacks remain non-elemental by default.
 It loads no images, fonts, animation, sound, or music assets.
 
+## Attack wall obstruction
+
+All gameplay attacks now respect static walls. Projectiles retain their existing swept
+collision and wall-wins-equal-time rule. Fixed melee, spells, Boss patterns and reaction
+areas require line of sight before damage or elemental settlement:
+
+- Forward melee: cast-time attacker centre to current target hurtbox centre.
+- Fixed AoE/custom area: fixed effect centre to target centre.
+- Reaction child: its own captured centre to target centre.
+
+Crossing a solid rectangle's interior blocks the hit. Merely touching its edge/corner does
+not; a centre inside a wall or outside the map cannot hit. Moving the caster does not move
+an already-cast area/origin. Yellow debug rectangles may extend through walls visually,
+but occluded targets receive no damage, element attachment or reaction.
+
+No concrete Arrow Rain or ElementField exists in this checkout. Their fixed-centre contract
+is tested through existing configurable abilities/attacks; Archer's current O remains a fan.
+Details and validation: [wall occlusion report](docs/COMBAT_OCCLUSION_REPORT.md).
+
 ## Player failure and retry
 
 Battle HP reaching zero means challenge **FAILURE**. After combat settlement, the existing
@@ -407,11 +426,10 @@ the native title rather than loading fonts. `CombatDemo` delegates common moveme
 execution to `PlayerAbilities`, coordinates placement and reset/transition policy,
 updates the Boss, then advances the shared CombatSystem exactly once before processing failure.
 
-Combat limitations: axis-aligned hitboxes, discrete area-attack overlap samples, no global wall
-occlusion/line-of-sight for area attacks, and no armour, knockback, attack wind-up,
-invulnerability, combos, or final class skills. These debug
-area attacks may hit through nearby walls. Dead-player movement/abilities are blocked
-by the common controller; debug fast travel remains allowed. Enemy HP is not persisted across transitions. Pause freezes
+Combat limitations: axis-aligned hitboxes, discrete area-attack overlap samples and centre-only
+visibility, with no armour, knockback, attack wind-up, invulnerability, combos or final class skills.
+Debug rectangles are not visually clipped against walls. Dead-player movement/abilities are blocked
+by the common controller; battle failure is handled before travel. Enemy HP is not persisted across transitions. Pause freezes
 combat, and the existing frame-time cap discards excess stall time.
 
 ### Common player abilities
@@ -610,8 +628,8 @@ Mage spells and Katana slashes are available with F2/F3 after arrows disappear.
 Limitations: this is straight non-piercing projectile flight, not homing, gravity,
 ricochet, penetration, arrow rain, animation or final skill balance. Enemy hurtboxes
 are sampled after their movement each frame; relative swept collision against the
-target's entire movement path is not implemented. Fixed Mage/Katana area attacks
-still retain their previous no-wall-occlusion rules. Graphics-level key/visual checks
+target's entire movement path is not implemented. Fixed Mage/Katana attacks now share
+the centre-based wall-occlusion gate. Graphics-level key/visual checks
 remain separate from the headless JUnit coverage.
 
 ```bash
@@ -642,8 +660,8 @@ in `PlayerClasses`; Archer and Katana configurations are unchanged by this featu
   removed on impact, expiry, source death, reset or map transition. No new manager exists.
 - K/O capture an axis-aligned area at cast time; it does not follow the caster.
   Each valid enemy entering during its active window can be hit once. Touching only
-  the rectangle edge is not a hit. These inherited area attacks do **not** test wall
-  occlusion; they are not projectiles, circles, explosions, or damage-over-time spells.
+  the rectangle edge is not a hit. These area attacks require clear static-world sight
+  from their fixed centre; they are not projectiles, circles or damage-over-time spells.
 - L retains ordinary shared collision/axis sliding, with no teleport, immunity or
   wall bypass. Every slot keeps independent cooldowns and existing input arbitration.
   Class switching waits for active spells/flight to end; map travel cancels them but
@@ -657,12 +675,12 @@ in `PlayerClasses`; Archer and Katana configurations are unchanged by this featu
 
 Manual verification: run `./gradlew lwjgl3:run`, select F2, then U and 2 for Training.
 Use WASD to aim J and verify delayed impact rather than immediate ranged damage.
-Fire toward a wall, spam J/K/O during cooldown, and try K/O with multiple nearby enemies.
+Fire toward a wall, spam J/K/O during cooldown, and try K/O with the Boss behind a wall.
 Dash into a wall with L; fire then travel/reset to confirm cleanup. Battle death automatically returns to Hub.
 The automated suite exercises model integration; keyboard/visual checks remain manual.
 
 Limitations: straight non-homing bolts; no relative sweep against the target's entire
-movement during a frame; K/O square areas can affect enemies through walls. These
+movement during a frame; K/O use a centre ray, not partial-cover visibility sampling. These
 are provisional spell effects and balance values, with no final class UI or artwork.
 
 ```bash
@@ -717,14 +735,13 @@ explicitly replaceable prototypes, not an assumed final combo or animation desig
 
 Manual verification: run `./gradlew lwjgl3:run`, select F3, then U and 2 for Training.
 Face enemies from each direction with WASD and tap J. Try K at a distance where J
-misses, then face away and confirm J/K do not hit behind. Use O among several enemies;
-each should lose HP only once. Spam inputs during cooldown, dash into a wall with L,
+misses, then face away and confirm J/K do not hit behind. Use O near the Boss;
+it should lose HP only once and not through a separating wall. Spam cooldown inputs, dash into a wall with L,
 then attack and travel/reset to check cleanup. Battle death automatically returns to Hub.
 
 Limitations: fixed rectangular slash prototypes, no precise sword arc, combo, charge,
-multi-hit timeline or final skill balance. Like the existing fixed-area attacks,
-J/K/O do not check wall occlusion and can hit through walls within their rectangles.
-Only L movement is wall-constrained. Melee samples current hurtboxes per update,
+multi-hit timeline or final skill balance. J/K/O now check static-world occlusion;
+L remains constrained by the separate movement collision resolver. Melee samples current hurtboxes per update,
 not targets' complete movement paths; keyboard/visual verification remains manual.
 
 ```bash
@@ -790,8 +807,8 @@ Boss bodies and attacks remain simple rectangles; no formal Boss UI or art is ad
 Limitations: two fixed-rectangle pattern cycles, no projectile Boss pattern, cutscene,
 animation or phase immunity. Shared elemental reactions can affect Boss health. The full-body navigation corridor can be
 conservative in narrow passages. Once cast, fixed hitboxes do not follow targets or
-clip against walls; the initial target requires clearance but secondary area targets
-may still be hit through walls. Actors have no mutual body collision. Inventory pickup,
+clip visually against walls; all candidate targets now require clear origin-to-centre
+segments at settlement, in addition to initial AI clearance. Actors have no mutual body collision. Inventory pickup,
 persistent defeat/drop state and final material/skill balance remain future work.
 
 ```bash
@@ -896,7 +913,7 @@ area attack on the following simulation update. Press R to reset the encounter i
 Still undecided: every reaction other than the two prototypes above, including water/ice,
 fire/ice, fire/lightning and all wind combinations; final direction-dependent multipliers,
 attachment duration/stacking, freeze/stun/burn behavior, class assignments and resistance rules.
-These are not implemented. Area children currently use square hitboxes without wall clipping,
+These are not implemented. Area children use square hitboxes with centre-based wall obstruction,
 not a circle, chain lightning, damage-over-time system or VFX. One-update child latency and
 the existing frame-sampled attachment timing are intentional foundation semantics.
 
@@ -960,9 +977,9 @@ Grids above 20,000 nodes are rejected instead of allocating unbounded search dat
 Collision occupancy is cached for static maps; rebuild the pathfinder if terrain changes.
 Conservative rectangular corridors may choose longer routes than an exact line sweep.
 There is no patrol, home return, dynamic entity avoidance, or crowd pathfinding.
-Detection remains distance-based. The enemy's attack-initiation clearance check does
-not add global wall occlusion to combat-core: player attacks and collateral hits still
-use its existing overlap rules. No animation, audio, particles, loot, or enemy-state
+Detection remains distance-based. The enemy's attack-initiation clearance check is
+separate from combat-core's shared wall-occlusion gate for player attacks and collateral hits.
+No animation, audio, particles, loot, or enemy-state
 persistence is implemented. HP/state use the title; geometry remains placeholder-only.
 
 To check the new detour behaviour manually, lure enemies near the first Training wall

@@ -158,6 +158,7 @@ public final class CombatDemo {
         player.setHurtbox(playerHurtbox());
         if (reset) {
             combat.clear();
+            combat.bindWorld(session.getCurrentMap());
             session.getPlayer().getHealth().restoreFull();
             combat.register(player);
             abilities.reset();
@@ -315,6 +316,7 @@ public final class CombatDemo {
             return false;
         }
         combat.clear();
+        combat.bindWorld(session.getCurrentMap());
         player = new Combatant(session.getPlayer(), Faction.PLAYER, playerHurtbox());
         combat.register(player);
         if (abilities == null) {
