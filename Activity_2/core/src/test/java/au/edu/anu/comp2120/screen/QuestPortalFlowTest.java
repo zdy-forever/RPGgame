@@ -418,12 +418,16 @@ final class QuestPortalFlowTest {
         enter(permission("element-cleanup", MapCatalog.CROSSROADS, "hub-crossroads"));
         var receiver = demo.getCombatants().get(0);
         CollisionBox effect = receiver.getHurtbox();
-        for (ElementType element : List.of(ElementType.WATER, ElementType.LIGHTNING, ElementType.WATER)) {
+        for (ElementType element : List.of(ElementType.ICE, ElementType.LIGHTNING, ElementType.WATER,
+                ElementType.LIGHTNING, ElementType.WATER, ElementType.WIND, ElementType.WATER)) {
             combat.tryAttack(boss().getCombatant(), new AttackSpec("test-element", 1, 1, 0, element),
                     effect, effect).orElseThrow();
             combat.update(0);
         }
         List<Attack> oldAttacks = combat.getActiveAttacks();
+        var oldFields = combat.getElementFields();
+        assertFalse(oldFields.isEmpty());
+        assertTrue(receiver.getStatus().getChargedRemaining() > 0);
         assertTrue(oldAttacks.stream().anyMatch(Attack::isDerived));
         assertEquals(ElementType.WATER, combat.getElementStatus(receiver).element());
         if (outcome == BattleResult.Outcome.SUCCESS) {
@@ -435,6 +439,10 @@ final class QuestPortalFlowTest {
         assertHubRecovered();
         assertTrue(oldAttacks.stream().noneMatch(Attack::isActive));
         assertTrue(combat.getActiveAttacks().isEmpty());
+        assertTrue(combat.getElementFields().isEmpty());
+        assertTrue(oldFields.stream().noneMatch(au.edu.anu.comp2120.combat.ElementField::isActive));
+        assertEquals(0, receiver.getStatus().getChargedRemaining());
+        assertEquals(1, receiver.getStatus().physicalMultiplier());
         assertThrows(IllegalArgumentException.class, () -> combat.getElementStatus(receiver));
         assertEquals(ElementType.NONE, combat.getElementStatus(demo.getCombatants().get(0)).element());
         demo.update(1, false, false);

@@ -391,7 +391,8 @@ final class ClassSkills {
      */
     private Optional<Attack> emit(CollisionBox box, CollisionBox origin, int damage) {
         return combat.tryAttack(source, new AttackSpec(definition.attack().type(), damage,
-                SkillTuning.TICK_ACTIVE, 0, element, false), box, origin);
+                SkillTuning.TICK_ACTIVE, 0, element, false, definition.kind() == SkillKind.MAGIC_CIRCLE
+                        ? au.edu.anu.comp2120.combat.DamageType.ELEMENTAL : definition.attack().damageType()), box, origin);
     }
 
     /**

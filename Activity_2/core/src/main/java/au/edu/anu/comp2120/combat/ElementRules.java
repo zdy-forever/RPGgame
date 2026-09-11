@@ -5,24 +5,74 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Central immutable reaction table, not a second damage engine. Matching is symmetric and pure.
+ * Central immutable reaction table, not a second damage engine. Matching distinguishes attached and triggering elements.
  * Reactions consume attachment; unknown pairs replace it with the incoming element.
  * @param attachmentSeconds positive finite duration refreshed by an ordinary elemental hit
- * @param reactions distinct unordered pair rules, defensively copied
+ * @param reactions distinct ordered pair rules, defensively copied
  * @author Daoyan Zhu (u7782042)
  */
 public record ElementRules(double attachmentSeconds, List<Reaction> reactions) {
-    /** Explicit provisional rules, pending an agreed final game-design reaction table. */
-    public static final ElementRules PROTOTYPE = new ElementRules(3, List.of(
-            new Reaction("vaporize", ElementType.WATER, ElementType.FIRE, 10, null),
-            new Reaction("discharge", ElementType.WATER, ElementType.LIGHTNING, 0, new DerivedEffect(5, 40, 0.15))));
+    /** Agreed first-version ordered reaction table; numeric balance remains provisional. */
+    public static final ElementRules DEFAULT = standard();
 
     /**
-     * Validates timing and rejects duplicate/reversed definitions instead of ambiguous precedence.
+     * Builds the small ordered table without string-based pair dispatch.
+     * @return immutable first-version rules
+     */
+    private static ElementRules standard() {
+        java.util.ArrayList<Reaction> rules = new java.util.ArrayList<>();
+        rules.add(new Reaction("vaporize", ElementType.FIRE, ElementType.WATER, 0, null, 2, Kind.DAMAGE));
+        rules.add(new Reaction("vaporize", ElementType.WATER, ElementType.FIRE, 0, null, 1.5, Kind.DAMAGE));
+        rules.add(new Reaction("melt", ElementType.ICE, ElementType.FIRE, 0, null, 2, Kind.DAMAGE));
+        rules.add(new Reaction("melt", ElementType.FIRE, ElementType.ICE, 0, null, 1.5, Kind.DAMAGE));
+        pair(rules, "overload", ElementType.FIRE, ElementType.LIGHTNING, Kind.OVERLOAD,
+                new DerivedEffect(ReactionTuning.OVERLOAD_DAMAGE, ReactionTuning.OVERLOAD_RADIUS,
+                        ReactionTuning.PULSE_ACTIVE, ElementType.FIRE));
+        pair(rules, "electro-charged", ElementType.WATER, ElementType.LIGHTNING, Kind.ELECTRO_CHARGED, null);
+        pair(rules, "freeze", ElementType.WATER, ElementType.ICE, Kind.FREEZE, null);
+        pair(rules, "superconduct", ElementType.ICE, ElementType.LIGHTNING, Kind.SUPERCONDUCT,
+                new DerivedEffect(ReactionTuning.SUPERCONDUCT_DAMAGE, ReactionTuning.SUPERCONDUCT_RADIUS,
+                        ReactionTuning.PULSE_ACTIVE, ElementType.ICE));
+        for (ElementType attached : List.of(ElementType.FIRE, ElementType.WATER, ElementType.ICE, ElementType.LIGHTNING)) {
+            rules.add(new Reaction("swirl-" + attached.name().toLowerCase(java.util.Locale.ROOT),
+                    attached, ElementType.WIND, 0, null, 1, Kind.SWIRL));
+        }
+        return new ElementRules(ReactionTuning.ATTACHMENT, rules);
+    }
+
+    /**
+     * Adds both explicit orders for a symmetric behaviour.
+     * @param rules destination table
+     * @param id shared reaction label
+     * @param a first element
+     * @param b second element
+     * @param kind effect behaviour
+     * @param effect optional area
+     */
+    private static void pair(List<Reaction> rules, String id, ElementType a, ElementType b, Kind kind, DerivedEffect effect) {
+        rules.add(new Reaction(id, a, b, 0, effect, 1, kind));
+        rules.add(new Reaction(id, b, a, 0, effect, 1, kind));
+    }
+
+    /**
+     * Small reaction outcome vocabulary, not actor-specific behaviour.
+     * @author Daoyan Zhu (u7782042)
+     */
+    public enum Kind {
+        /** Triggering damage only. */ DAMAGE,
+        /** Fire area, poise loss and queued knockback. */ OVERLOAD,
+        /** Target-local finite lightning ticks. */ ELECTRO_CHARGED,
+        /** Temporary action suppression. */ FREEZE,
+        /** Ice area and physical vulnerability. */ SUPERCONDUCT,
+        /** Fixed field carrying the consumed attachment element. */ SWIRL
+    }
+
+    /**
+     * Validates timing and rejects duplicate ordered definitions instead of ambiguous precedence.
      * @param attachmentSeconds positive finite attachment duration
      * @param reactions required rule list, possibly empty
      * @throws NullPointerException if rules or any entry is null
-     * @throws IllegalArgumentException if timing or unordered pair uniqueness is invalid
+     * @throws IllegalArgumentException if timing or ordered pair uniqueness is invalid
      */
     public ElementRules {
         reactions = List.copyOf(reactions);
@@ -33,8 +83,8 @@ public record ElementRules(double attachmentSeconds, List<Reaction> reactions) {
             Reaction current = reactions.get(i);
             for (int j = 0; j < i; j++) {
                 Reaction earlier = reactions.get(j);
-                if (earlier.matches(current.first(), current.second()) || earlier.id().equals(current.id())) {
-                    throw new IllegalArgumentException("Reaction pairs and IDs must be unique");
+                if (earlier.matches(current.attachedElement(), current.triggeringElement())) {
+                    throw new IllegalArgumentException("Ordered reaction pairs must be unique");
                 }
             }
         }
@@ -54,61 +104,96 @@ public record ElementRules(double attachmentSeconds, List<Reaction> reactions) {
     }
 
     /**
-     * Declarative result of a compatible unordered pair; combat-core performs actual settlement.
+     * Declarative result of a compatible ordered pair; combat-core performs actual settlement.
      * @param id stable non-blank reaction label
-     * @param first first non-NONE element
-     * @param second different non-NONE element
+     * @param attachedElement existing non-NONE attachment
+     * @param triggeringElement incoming different non-NONE element
      * @param bonusDamage non-negative addition to the triggering hit's base damage
      * @param derived optional one-generation area effect, null for bonus-only reactions
+     * @param multiplier positive finite triggering-damage multiplier
+     * @param kind outcome behaviour
      * @author Daoyan Zhu (u7782042)
      */
-    public record Reaction(String id, ElementType first, ElementType second, int bonusDamage, DerivedEffect derived) {
+    public record Reaction(String id, ElementType attachedElement, ElementType triggeringElement, int bonusDamage,
+            DerivedEffect derived, double multiplier, Kind kind) {
+        /**
+         * Creates a custom ordered bonus/child rule with an identity multiplier.
+         * @param id label
+         * @param attachedElement existing element
+         * @param triggeringElement incoming element
+         * @param bonusDamage non-negative bonus
+         * @param derived optional child
+         * @throws NullPointerException if identity/elements are null
+         * @throws IllegalArgumentException if rule data is invalid
+         */
+        public Reaction(String id, ElementType attachedElement, ElementType triggeringElement,
+                int bonusDamage, DerivedEffect derived) {
+            this(id, attachedElement, triggeringElement, bonusDamage, derived, 1, Kind.DAMAGE);
+        }
         /**
          * Validates one rule without hard-coding class-specific behavior.
          * @param id non-blank rule ID
-         * @param first non-NONE element
-         * @param second distinct non-NONE element
+         * @param attachedElement non-NONE existing element
+         * @param triggeringElement distinct incoming element
          * @param bonusDamage non-negative bonus
          * @param derived optional area-effect configuration
+         * @param multiplier positive finite damage multiplier
+         * @param kind non-null effect behaviour
          * @throws NullPointerException if identity or elements are null
          * @throws IllegalArgumentException if pair, label or damage is invalid
          */
         public Reaction {
             Objects.requireNonNull(id, "reaction ID");
-            Objects.requireNonNull(first, "first element");
-            Objects.requireNonNull(second, "second element");
-            if (id.isBlank() || first == ElementType.NONE || second == ElementType.NONE || first == second || bonusDamage < 0) {
+            Objects.requireNonNull(attachedElement, "attached element");
+            Objects.requireNonNull(triggeringElement, "triggering element");
+            Objects.requireNonNull(kind, "kind");
+            if (id.isBlank() || attachedElement == ElementType.NONE || triggeringElement == ElementType.NONE
+                    || attachedElement == triggeringElement || bonusDamage < 0 || !Double.isFinite(multiplier) || multiplier <= 0) {
                 throw new IllegalArgumentException("Reaction requires distinct non-NONE elements and non-negative damage");
             }
         }
 
         /**
-         * Tests a pair in either arrival order.
+         * Tests the exact attachment/trigger ordering.
          * @param attached current attachment
          * @param incoming incoming element
-         * @return true for either ordering of this rule's pair
+         * @return true only for this ordered pair
          */
         private boolean matches(ElementType attached, ElementType incoming) {
-            return (first == attached && second == incoming) || (second == attached && first == incoming);
+            return attachedElement == attached && triggeringElement == incoming;
         }
     }
 
     /**
-     * One non-elemental rectangular child attack centred on the reacting target's hurtbox.
+     * One explicitly tagged rectangular child attack centred on the reacting target's hurtbox.
      * @param damage non-negative raw child damage
      * @param radius positive finite half-width/half-height of the resulting square
+     * @param element child damage element; derived provenance prevents reattachment/reaction
      * @param activeSeconds positive finite active duration, starting at the next combat update
      * @author Daoyan Zhu (u7782042)
      */
-    public record DerivedEffect(int damage, double radius, double activeSeconds) {
+    public record DerivedEffect(int damage, double radius, double activeSeconds, ElementType element) {
+        /**
+         * Preserves custom untagged child definitions; all children still use ELEMENTAL damage category.
+         * @param damage base damage
+         * @param radius square half-extent
+         * @param activeSeconds active duration
+         * @throws IllegalArgumentException if tuning is invalid
+         */
+        public DerivedEffect(int damage, double radius, double activeSeconds) {
+            this(damage, radius, activeSeconds, ElementType.NONE);
+        }
         /**
          * Validates bounded geometry and lifecycle tuning.
          * @param damage non-negative damage
          * @param radius finite positive square half-extent
          * @param activeSeconds finite positive duration
+         * @param element required child tag
+         * @throws NullPointerException if element is null
          * @throws IllegalArgumentException if damage, geometry or duration is invalid
          */
         public DerivedEffect {
+            Objects.requireNonNull(element, "child element");
             if (damage < 0 || !Double.isFinite(radius) || radius <= 0 || !Double.isFinite(2 * radius)
                     || !Double.isFinite(activeSeconds) || activeSeconds <= 0) {
                 throw new IllegalArgumentException("Derived effect requires legal damage, range and duration");

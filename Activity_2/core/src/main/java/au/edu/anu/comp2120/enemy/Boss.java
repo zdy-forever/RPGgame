@@ -74,6 +74,7 @@ public final class Boss {
      * Pattern index advances only on an accepted attack; shared source cooldown blocks spam.
      * Captures the pattern-selected origin; combat-core rechecks wall occlusion when each target settles.
      * Transition frames consume time without attacks/movement, discarding any excess frame time.
+     * Generic freeze/stagger pauses decisions; navigation still resolves queued collision-safe knockback.
      * @param target eligible canonical hostile target, or null
      * @param delta finite non-negative simulation seconds with representable movement
      * @throws IllegalArgumentException if time or resulting geometry is invalid
@@ -85,6 +86,10 @@ public final class Boss {
         }
         synchronizeOutcome();
         if (defeated || !registered()) {
+            return;
+        }
+        if (getCombatant().getStatus().blocksActions()) {
+            navigation.update(null, delta, false);
             return;
         }
         if (transitionRemaining > 0) {
@@ -150,6 +155,12 @@ public final class Boss {
         }
         if (!registered()) {
             return BossState.IDLE;
+        }
+        if (getCombatant().getStatus().isFrozen()) {
+            return BossState.FROZEN;
+        }
+        if (getCombatant().getStatus().blocksActions()) {
+            return BossState.STAGGERED;
         }
         if (transitionRemaining > 0) {
             return BossState.PHASE_TRANSITION;

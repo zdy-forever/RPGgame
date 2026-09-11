@@ -1,6 +1,8 @@
 package au.edu.anu.comp2120.player;
 
 import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.combat.DamageType;
+import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.combat.ProjectileSpec;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +28,8 @@ public final class PlayerClasses {
                     skill("archer-rain", 18, 8, 100, SkillKind.ARROW_RAIN)),
                     skill("archer-untargetable", 0, 8, 1, SkillKind.UNTARGETABLE)),
             PlayerClass.MAGE, new ClassDefinition(PlayerClass.MAGE, new AbilityLoadout(
-                    new AbilityLoadout.AreaAttack(new AttackSpec("mage-light", 25, 0.25, 0.5),
+                    new AbilityLoadout.AreaAttack(new AttackSpec("mage-light", 25, 0.25, 0.5,
+                            ElementType.NONE, true, DamageType.ELEMENTAL),
                             360, AttackShape.FORWARD, new ProjectileSpec(400, 10, 1.5, 1, 0), SkillKind.ELEMENT_PROJECTILE),
                     skill("mage-element-cycle", 0, 0.05, 1, SkillKind.ELEMENT_CYCLE),
                     new AbilityLoadout.Dash(600, 0.2, 1),
@@ -52,7 +55,8 @@ public final class PlayerClasses {
      * @throws IllegalArgumentException if numeric tuning is invalid
      */
     private static AbilityLoadout.AreaAttack skill(String id, int damage, double cooldown, double range, SkillKind kind) {
-        return new AbilityLoadout.AreaAttack(new AttackSpec(id, damage, SkillTuning.TICK_ACTIVE, cooldown),
+        return new AbilityLoadout.AreaAttack(new AttackSpec(id, damage, SkillTuning.TICK_ACTIVE, cooldown,
+                ElementType.NONE, true, kind == SkillKind.MAGIC_CIRCLE ? DamageType.ELEMENTAL : DamageType.PHYSICAL),
                 range, AttackShape.AREA, null, kind);
     }
 

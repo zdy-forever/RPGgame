@@ -29,6 +29,8 @@ public final class CombatSystem {
     private final List<Attack> attacks = new ArrayList<>();
     /** Sparse current-scope attachments keyed by canonical receiver adapters, never shared across maps. */
     private final Map<Combatant, ElementStatus> elements = new LinkedHashMap<>();
+    /** Fixed ground fields owned by this combat scope, never the renderer. */
+    private final List<ElementField> fields = new ArrayList<>();
     /** Pure immutable reaction table and attachment duration, replaceable without class-specific logic. */
     private final ElementRules elementRules;
     /** Static world for this scope; null only for standalone map-free combat calculations. */
@@ -38,7 +40,7 @@ public final class CombatSystem {
 
     /** Creates an empty map-free scope; gameplay controllers bind their world before settlement. */
     public CombatSystem() {
-        this(ElementRules.PROTOTYPE);
+        this(ElementRules.DEFAULT);
     }
 
     /**
@@ -85,7 +87,7 @@ public final class CombatSystem {
     }
 
     /**
-     * Removes a canonical actor and cancels its active attacks. Other attacks retain their
+     * Removes a canonical actor, clears its status and cancels source-owned attacks/fields/charged effects. Other attacks retain their
      * hit ledger, so removing/re-registering a target cannot make it take the same hit again.
      * @param combatant canonical actor to remove
      * @return true if registered, false if unknown or a different adapter
@@ -97,13 +99,16 @@ public final class CombatSystem {
             return false;
         }
         elements.remove(combatant);
+        cooldowns.keySet().forEach(actor -> {
+            if (actor.getStatus().chargedSource() == combatant) { actor.getStatus().clearCharge(); }
+        });
         combatant.clearCapabilities();
         cancelAttacks(combatant);
         return true;
     }
 
     /**
-     * Cancels a source's invocations without resetting registration, health or remaining cooldown.
+     * Cancels source-owned invocations, fields and charged effects without resetting registration, health or cooldown.
      * Used between combat updates for encounter transitions/death; never call from a damage receiver.
      * An unknown source has no attacks and is harmless.
      * @param combatant source whose fixed and moving attacks should stop
@@ -117,6 +122,11 @@ public final class CombatSystem {
             }
         }
         attacks.removeIf(attack -> !attack.isActive());
+        fields.stream().filter(field -> field.getSource() == combatant).forEach(ElementField::cancel);
+        fields.removeIf(field -> !field.isActive());
+        cooldowns.keySet().forEach(actor -> {
+            if (actor.getStatus().chargedSource() == combatant) { actor.getStatus().clearCharge(); }
+        });
     }
 
     /**
@@ -255,7 +265,8 @@ public final class CombatSystem {
      * Samples currently active hitboxes against current hurtboxes, then advances time by delta.
      * The active interval includes creation and excludes expiry. Even if delta spans the whole
      * duration, the start-of-step sample is resolved once; this is not swept collision detection.
-     * Repeated zero-time updates cannot repeat a hit. Hits use attack order then registration order;
+     * Repeated zero-time updates cannot repeat a hit. Previously scheduled target-local ticks settle first;
+     * other hits use attack creation order then registration order, including newly queued ground ticks.
      * a source killed earlier in the same step cannot deliver a later attack.
      * Fixed attacks also require a clear static-world segment from captured origin to target centre,
      * before damage, hit-ledger consumption, elemental attachment or reaction creation.
@@ -263,7 +274,9 @@ public final class CombatSystem {
      * static walls, choosing the nearest hit. Walls win equal-time ties; targets tie by registration.
      * Attachments are sampled during hit settlement and aged once afterwards, including new attachments.
      * Derived attacks created this step are queued in the same list but first resolve next update;
-     * they cannot create reactions or children. Zero-time updates are valid but do not repeat settled hits.
+     * they cannot create reactions or children. Periodic reaction clocks advance before direct settlement;
+     * newly applied reaction statuses/fields start aging next update. Ground ticks are retired after one sample.
+     * Zero-time updates are valid but do not repeat settled hits.
      * @param delta finite non-negative elapsed simulation seconds
      * @throws IllegalArgumentException if delta is negative or non-finite; no state changes occur
      */
@@ -271,6 +284,7 @@ public final class CombatSystem {
         if (!Double.isFinite(delta) || delta < 0) {
             throw new IllegalArgumentException("Combat delta must be finite and non-negative");
         }
+        List<Attack> fieldTicks = advanceReactions(delta);
         for (Attack attack : List.copyOf(attacks)) {
             if (!attack.getSource().getEntity().isAlive()) {
                 attack.cancel();
@@ -294,11 +308,14 @@ public final class CombatSystem {
                 attack.cancel();
             }
         }
+        // Periodic ground ticks sample once; a tiny frame must not leave a hitbox after field expiry.
+        fieldTicks.forEach(Attack::cancel);
         attacks.removeIf(attack -> !attack.isActive());
         elements.replaceAll((target, status) -> status.advance(delta));
         elements.entrySet().removeIf(entry -> !entry.getKey().getEntity().isAlive()
                 || entry.getValue().element() == ElementType.NONE);
         cooldowns.replaceAll((source, remaining) -> Math.max(0, remaining - delta));
+        cleanupReactions();
     }
 
     /**
@@ -346,7 +363,7 @@ public final class CombatSystem {
     }
 
     /**
-     * Cancels all attacks and removes registrations/cooldowns/attachments without changing entity health.
+     * Cancels attacks/fields and removes registrations/cooldowns/attachments/reaction statuses without changing HP.
      * Also unbinds the old world. At transitions, bind the new world and register its actors afterward.
      */
     public void clear() {
@@ -355,6 +372,8 @@ public final class CombatSystem {
         cooldowns.keySet().forEach(Combatant::clearCapabilities);
         cooldowns.clear();
         elements.clear();
+        fields.forEach(ElementField::cancel);
+        fields.clear();
         world = null;
     }
 
@@ -432,7 +451,7 @@ public final class CombatSystem {
         ElementType incoming = attack.getSpecification().element();
         ElementRules.Reaction reaction = attack.isDerived() || incoming == ElementType.NONE ? null
                 : elementRules.find(getElementStatus(target).element(), incoming).orElse(null);
-        target.getEntity().takeDamage(calculateDamage(attack, reaction));
+        target.getEntity().takeDamage(calculateDamage(attack, target, reaction));
         attack.recordLandedHit(target.getEntity());
         attack.recordHit(target.getEntity());
         if (!target.getEntity().isAlive() || reaction != null) {
@@ -440,21 +459,29 @@ public final class CombatSystem {
         } else if (!attack.isDerived() && incoming != ElementType.NONE) {
             elements.put(target, new ElementStatus(incoming, elementRules.attachmentSeconds()));
         }
-        if (reaction != null && reaction.derived() != null) {
-            enqueueDerived(attack, target, reaction);
+        if (reaction != null) {
+            if (reaction.derived() != null) { enqueueDerived(attack, target, reaction); }
+            applyReaction(attack, target, reaction);
         }
+        if (!target.getEntity().isAlive()) { target.getStatus().clear(); }
     }
 
     /**
      * Central damage calculation boundary for ordinary, elemental and derived hits.
-     * Adds reaction bonus with saturation to prevent integer overflow; future armour/modifiers belong here.
+     * Applies ordered reaction amplification then physical vulnerability; floors once and saturates.
+     * Baseline physical resistance is zero; only PHYSICAL damage receives the temporary reduction.
      * Health remains responsible for saturating lethal damage at zero.
      * @param attack invocation that passed detection
+     * @param target confirmed receiver whose physical vulnerability may modify this hit
      * @param reaction matched rule, or null for ordinary/non-reacting/derived hits
      * @return non-negative damage to deliver through Damageable
      */
-    private int calculateDamage(Attack attack, ElementRules.Reaction reaction) {
-        long total = (long) attack.getSpecification().damage() + (reaction == null ? 0 : reaction.bonusDamage());
+    private int calculateDamage(Attack attack, Combatant target, ElementRules.Reaction reaction) {
+        double total = (double) attack.getSpecification().damage() * (reaction == null ? 1 : reaction.multiplier())
+                + (reaction == null ? 0 : reaction.bonusDamage());
+        if (attack.getSpecification().damageType() == DamageType.PHYSICAL) {
+            total *= target.getStatus().physicalMultiplier();
+        }
         return (int) Math.min(Integer.MAX_VALUE, total);
     }
 
@@ -484,7 +511,129 @@ public final class CombatSystem {
             return;
         }
         AttackSpec specification = new AttackSpec("reaction-" + reaction.id(), effect.damage(), effect.activeSeconds(),
-                0, ElementType.NONE, false);
+                0, effect.element(), false, DamageType.ELEMENTAL);
         attacks.add(new Attack(++lastAttackId, parent.getSource(), specification, hitbox, null, parent.getId(), hitbox));
+    }
+
+    /**
+     * Exposes current fixed fields without permitting list mutation or timer updates.
+     * @return immutable active-field membership snapshot
+     */
+    public List<ElementField> getElementFields() {
+        return List.copyOf(fields);
+    }
+
+    /**
+     * Applies control/status or creates a fixed field after confirmed direct damage.
+     * State is latched here; movement owners resolve displacement outside this settlement.
+     * @param parent direct invocation with a consumed reaction event
+     * @param target reacting receiver
+     * @param reaction ordered rule
+     */
+    private void applyReaction(Attack parent, Combatant target, ElementRules.Reaction reaction) {
+        if (reaction.kind() == ElementRules.Kind.SWIRL) {
+            if (fields.size() >= ReactionTuning.MAX_FIELDS) { return; }
+            CollisionBox body = target.getHurtbox();
+            var definition = new ElementField.Definition(reaction.attachedElement(), ReactionTuning.FIELD_DAMAGE,
+                    ReactionTuning.FIELD_RADIUS, ReactionTuning.FIELD_SECONDS, ReactionTuning.FIELD_INTERVAL);
+            try {
+                fields.add(new ElementField(definition, body.x() + body.width() / 2,
+                        body.y() + body.height() / 2, parent.getSource(), parent.getId()));
+            } catch (IllegalArgumentException unrepresentableGeometry) {
+                // Optional geometry cannot undo already confirmed damage or consumed attachment.
+            }
+            return;
+        }
+        if (!target.getEntity().isAlive()) { return; }
+        CombatStatus status = target.getStatus();
+        switch (reaction.kind()) {
+            case OVERLOAD -> {
+                CollisionBox from = parent.getOrigin();
+                CollisionBox to = target.getHurtbox();
+                double dx = to.x() + to.width() / 2 - (from.x() + from.width() / 2);
+                double dy = to.y() + to.height() / 2 - (from.y() + from.height() / 2);
+                double length = Math.hypot(dx, dy);
+                status.overload(length == 0 || !Double.isFinite(length) ? 1 : dx / length,
+                        length == 0 || !Double.isFinite(length) ? 0 : dy / length);
+            }
+            case ELECTRO_CHARGED -> status.charge(parent.getSource(), parent.getId());
+            case FREEZE -> status.freeze();
+            case SUPERCONDUCT -> status.superconduct();
+            case DAMAGE -> { } // SWIRL was handled and returned before target-status dispatch.
+        }
+    }
+
+    /**
+     * Advances previously created reaction schedules before this step's direct hit snapshot.
+     * New reactions start their clocks next update; zero time never emits another periodic tick.
+     * Charged pulses settle only their afflicted target, never chain to neighbours. Ground ticks
+     * enter the ordinary attack list and use the shared overlap/occlusion gate for all recipients.
+     * @param delta validated elapsed time
+     * @return this step's ground pulses to retire immediately after their one shared hit sample
+     */
+    private List<Attack> advanceReactions(double delta) {
+        List<Attack> fieldTicks = new ArrayList<>();
+        cleanupReactions();
+        for (Combatant target : cooldowns.keySet()) {
+            CombatStatus status = target.getStatus();
+            int due = status.advance(delta);
+            Combatant source = status.chargedSource();
+            for (int i = 0; i < due && target.getEntity().isAlive(); i++) {
+                CollisionBox box = target.getHurtbox();
+                Attack pulse = reactionPulse(source, status.chargedParent(), "reaction-electro-charged",
+                        ElementType.LIGHTNING, ReactionTuning.CHARGED_DAMAGE, box);
+                if (pulse != null) {
+                    if (canHit(pulse, target)) { deliverDamage(pulse, target); }
+                    pulse.cancel();
+                }
+            }
+            if (status.getChargedRemaining() == 0) { status.clearCharge(); }
+        }
+        for (ElementField field : fields) {
+            int due = field.advance(delta);
+            for (int i = 0; i < due; i++) {
+                var definition = field.getDefinition();
+                Attack pulse = reactionPulse(field.getSource(), field.getParentAttackId(), "reaction-field",
+                        definition.element(), definition.damage(), field.getBounds());
+                if (pulse != null) { attacks.add(pulse); fieldTicks.add(pulse); }
+            }
+        }
+        fields.removeIf(field -> !field.isActive());
+        return fieldTicks;
+    }
+
+    /**
+     * Builds one bounded non-blockable, non-recursive elemental reaction invocation.
+     * @param source original direct attacker
+     * @param parent direct attack ID
+     * @param label diagnostic type
+     * @param element damage tag, never attached by this child
+     * @param damage base damage
+     * @param box fixed effect centre and geometry
+     * @return child, or null for dead/detached source, exhausted IDs or live capacity
+     */
+    private Attack reactionPulse(Combatant source, long parent, String label, ElementType element,
+            int damage, CollisionBox box) {
+        if (source == null || !source.getEntity().isAlive() || !cooldowns.containsKey(source)
+                || lastAttackId == Long.MAX_VALUE
+                || attacks.stream().filter(a -> a.isActive() && a.isDerived()).count() >= MAX_DERIVED_ATTACKS) {
+            return null;
+        }
+        return new Attack(++lastAttackId, source, new AttackSpec(label, damage, ReactionTuning.PULSE_ACTIVE,
+                0, element, false, DamageType.ELEMENTAL), box, null, parent, box);
+    }
+
+    /** Clears terminal actor statuses and source-owned effects without retaining old-map entities. */
+    private void cleanupReactions() {
+        for (Combatant actor : cooldowns.keySet()) {
+            CombatStatus status = actor.getStatus();
+            Combatant source = status.chargedSource();
+            if (source != null && (!source.getEntity().isAlive() || !cooldowns.containsKey(source))) {
+                status.clearCharge();
+            }
+        }
+        fields.stream().filter(field -> !field.getSource().getEntity().isAlive()
+                || !cooldowns.containsKey(field.getSource())).forEach(ElementField::cancel);
+        fields.removeIf(field -> !field.isActive());
     }
 }

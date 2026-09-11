@@ -68,6 +68,6 @@ public record ClassDefinition(PlayerClass type, AbilityLoadout abilities, Abilit
     private static AbilityLoadout.AreaAttack tag(AbilityLoadout.AreaAttack slot, ElementType element) {
         AttackSpec spec = slot.attack();
         return new AbilityLoadout.AreaAttack(new AttackSpec(spec.type(), spec.damage(), spec.activeSeconds(),
-                spec.cooldownSeconds(), element, spec.blockable()), slot.range(), slot.shape(), slot.projectile(), slot.kind());
+                spec.cooldownSeconds(), element, spec.blockable(), spec.damageType()), slot.range(), slot.shape(), slot.projectile(), slot.kind());
     }
 }

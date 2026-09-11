@@ -124,7 +124,7 @@ final class CombatCapabilitiesTest {
         assertEquals(List.of(ElementType.WATER, ElementType.FIRE),
                 volley.stream().map(attack -> attack.getSpecification().element()).toList());
         combat.update(0.5);
-        assertEquals(70, health.getCurrentHp());
+        assertEquals(75, health.getCurrentHp()); // WATER first, then FIRE: 10 + 10 * 1.5.
         assertTrue(combat.getActiveAttacks().isEmpty());
     }
 }

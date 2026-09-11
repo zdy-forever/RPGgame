@@ -8,8 +8,8 @@ enemy models share validated integer health and one attack pipeline, independent
 of the demonstration view. Each built-in Battle Map contains one two-phase placeholder
 Boss and no ordinary enemies. Player defeat automatically returns to Hub, restores full
 HP and clears the encounter while retaining player identity and selected class/ultimate configuration.
-The shared combat pipeline supports opt-in elemental attachment, two provisional reactions,
-and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
+The shared combat pipeline supports the first-version ordered elemental reactions, finite
+reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 It loads no images, fonts, animation, sound, or music assets.
 
 ## Current production flow: externally accepted encounters
@@ -630,109 +630,63 @@ persistent defeat/drop state and final material/skill balance remain future work
 
 ## Element attachment, reactions and derived attacks
 
-The local repository contains no agreed elemental reaction table. The following rules
-are **explicit prototypes**, not final class assignments, balance or element-design decisions.
-All elements use `ElementType`: NONE, WATER, FIRE, LIGHTNING, ICE and WIND.
-No particles, shaders, textures, fonts, sounds or status icons are loaded.
+The agreed first-version reactions use the same CombatSystem confirmed-hit calculation and
+delivery boundary. ElementRules.DEFAULT matches **attachedElement → triggeringElement**;
+the reverse order is a separate rule, not an unordered pair.
 
-### Current centralized rules
-
-| Attached + incoming (either order) | Reaction | Result |
+| Attached → triggering | Reaction | Result |
 | --- | --- | --- |
-| WATER + FIRE | vaporize | Add 10 damage to the triggering hit; consume attachment |
-| WATER + LIGHTNING | discharge | Consume attachment; queue one 5-damage square attack, half-extent 40, active 0.15 s |
-| Same element | None | Refresh attachment duration without bonus damage |
-| Other non-NONE pairs | Undefined / no reaction | Replace attachment with the incoming element |
-| Incoming NONE | None | Preserve existing attachment without refreshing it |
+| FIRE → WATER | Vaporize | Triggering damage × 2 |
+| WATER → FIRE | Vaporize | Triggering damage × 1.5 |
+| ICE → FIRE | Melt | Triggering damage × 2 |
+| FIRE → ICE | Melt | Triggering damage × 1.5 |
+| FIRE ↔ LIGHTNING | Overload | FIRE area damage, poise loss, collision-safe queued knockback |
+| WATER ↔ LIGHTNING | Electro-Charged | Four target-local LIGHTNING ticks; no chain lightning |
+| WATER ↔ ICE | Freeze | Finite movement/new-attack suppression |
+| ICE ↔ LIGHTNING | Superconduct | ICE area damage and temporary physical resistance reduction |
+| FIRE/WATER/ICE/LIGHTNING → WIND | Swirl | Fixed ground field carrying the consumed attachment element |
 
-- `ElementRules.PROTOTYPE` centralizes the two recipes and 3-second attachment lifetime.
-  `new CombatSystem(customRules)` supports an alternative immutable table without editing
-  Player, Mage, Enemy or Boss. Reversed/duplicate pair definitions are rejected.
-- Each registered target has at most one attachment in CombatSystem, exposed as immutable
-  `ElementStatus`. Any valid direct elemental hit, including zero damage, can apply it.
-  Misses, edge-only contact, self, friendly and dead targets cannot apply or react.
-- Timing follows existing combat semantics: sample hits at the start of the update,
-  then age attachments once by delta, including newly applied statuses. An attachment
-  expires at zero; invalid delta is rejected before changes. Separate same-step attacks
-  resolve in invocation order, so later direct hits can react with earlier applications.
-- A reaction consumes the existing element without leaving the incoming element behind.
-  Death, unregister and arena clear also remove attachments. R and map transitions use
-  those existing cleanup paths. Cancelling attacks alone does not clear target attachments.
-- There is one damage path: confirmed hit -> pure rule lookup -> central saturated
-  base-plus-bonus calculation -> Damageable -> Health. Elements have no separate damage
-  method or HP implementation; Boss phase/death/drop handling observes the same HP.
+Reactions consume attachment without applying the incoming element again. Ordinary same-element
+hits refresh; NONE preserves without refreshing. Non-reacting pairs replace with the incoming
+element. WIND attached followed by another element does not swirl; the specified trigger is WIND.
 
-### Derived attack safeguards
+DamageType is independent of AttackSpec.element. Archer arrows/rain and Katana slashes/counters
+are PHYSICAL; Mage bolts/circle and all reaction children/ticks are ELEMENTAL. Baseline physical
+resistance is zero; Superconduct temporarily reduces it by 0.25, giving physical damage × 1.25.
+Damage is amplified in the shared calculator, floored once and saturated at Integer.MAX_VALUE.
+Legacy constructors infer a category; explicit category is preserved when tagging/copying definitions.
 
-- A reaction child is a normal fixed `Attack` owned by the same CombatSystem, with a
-  new ID, the original incoming attacker, and `parentAttackId` for provenance. It does
-  not consume another source/slot cooldown. Geometry is centred on the reacting target.
-- New children first resolve on the **next combat update**, even if that update has
-  zero delta; they are not recursively executed inside damage delivery. Their lifetime
-  starts being sampled/aged there, not during the creation step.
-- Children are explicitly marked derived and cannot apply elements or trigger reactions.
-  They carry NONE and share normal faction, alive, geometry and once-per-target filtering.
-  Nearby targets keep their attachments unless killed. No grandchildren are possible.
-- One direct attack-target hit can generate at most one child, using the existing hit
-  ledger. Two different reacting targets are two events and may produce overlapping
-  children; those distinct attacks can each damage a shared nearby target once.
-- A lethal reaction may still produce its child. Source death, cancellation, unregister
-  and map/reset clearing cancel queued/active children. A source killed later in the same
-  update cannot leave a child to damage targets on the next step.
-- At most 64 derived attacks may be live at once. Capacity exhaustion, ID exhaustion or
-  unrepresentable effect geometry skips only the optional child; the triggering hit and
-  attachment consumption remain settled and are never retried. No reaction history grows
-  indefinitely; completed attacks and expired/dead-target statuses are removed.
+CombatStatus is a small composition on Combatant: finite freeze/stagger/vulnerability, configurable
+poise and queued displacement. EnemyAI applies displacement through WalkableArea.move outside hit
+callbacks and pauses new decisions while controlled; Boss reuses that capability and reports
+FROZEN/STAGGERED without a Boss-specific branch in CombatSystem. Existing active attacks are not
+cancelled merely by freezing. Existing HP phase-transition cancellation remains unchanged.
 
-### Opt-in class configuration and diagnostics
+ElementField has immutable Definition data, fixed square geometry, source/direct parent ID and
+a finite ReactionTimer. Ground ticks use the existing overlap/centre-occlusion and damage pipeline;
+WATER fields cause real damage. Charged status uses the same timer but settles only its afflicted
+target. Neither periodic effect emits ticks during zero-time spam. The first tick occurs after one
+interval; the final scheduled boundary tick is allowed, but no post-expiry hitbox survives.
 
-Existing four-argument AttackSpec calls still produce NONE. Archer/Mage/Katana retain
-their previous tuning and behavior until a slot's AttackSpec is configured with an element:
+All reaction-generated attacks have nonzero direct parent provenance, ELEMENTAL category and
+non-blockable ground-damage semantics. Derived hits cannot attach, refresh or react. One-shot
+children settle next update; periodic clocks start advancing on the update after application.
+Ordinary attachment aging retains the existing end-of-step semantics. Fixed fields never follow
+Boss movement, and charged damage never jumps to another actor.
 
-```text
-new AttackSpec("mage-light", 25, 0.25, 0.5, ElementType.WATER)
-```
+Limits: 64 live derived attacks, 64 fields, at most 64 ticks per configured periodic instance.
+Capacity rejection consumes that scheduled opportunity without retry; it never repeats the original
+reaction. Death/unregister clears target statuses. Source death/cancellation/unregister cancels its
+fields and charged effects; existing map/encounter clear cancels everything, including retained
+references. A target dying does not relocate or erase another living source's fixed field; normal
+Boss outcome return clears that entire encounter.
 
-Keep the slot's existing range/shape/ProjectileSpec when replacing its AttackSpec.
-PlayerAbilities preserves that tag when submitting attacks with zero source-level cooldown.
-EnemyConfig and BossConfig.Pattern already accept AttackSpec, so they need no separate
-elemental controller. No hard-coded profession-to-element mapping is introduced.
+No assets, VFX, audio, renderer changes or weapon-enchantment system were introduced. Mage still
+uses K-selected elements, independent rapid-shot RNG and cast-locked circle element. Existing F4
+is only the previously present debug tag path, not a new weapon-enchantment mechanic.
 
-For placeholder acceptance, F4 (Fn+F4 if necessary) cycles one outgoing element on J/K/O.
-It uses `ClassDefinition.withElement` to preserve damage, range, shape, projectile and dash
-configuration. Built-in catalog definitions remain NONE and immutable. Selection goes through
-the existing `PlayerAbilities.selectClass` guard: live attacks/projectiles, launch windows,
-dash and death reject changes. Slot cooldowns, position, facing and HP are never reset.
-Wait for the current attack to end and press again; rejected requests are not queued.
-Frame priority is settled Battle defeat, then travel/reset, then F1/F2/F3, then F4,
-then ordinary ability/movement requests.
-Selection attempts consume new commands but do not pause existing AI/combat. Class selection
-preserves the currently selected light-slot element; F4 intentionally tags all three attack slots.
-The selection persists through travel and debug R reset, not application restart.
-
-CombatDemo displays attached names such as `[WATER]` in the native window title for
-player, enemies and Boss; the outgoing selection is shown as `Element WATER [F4 cycle]`.
-Derived attacks use existing yellow hitbox rectangles. Default loadouts remain non-elemental
-until explicitly configured or cycled. Automated class/demo tests exercise input arbitration,
-reactions, reset and map cleanup without graphics.
-
-Manual reaction check: enter Crossroads with U then 3, select Katana with F3, approach the
-Boss facing it, press F4 once for WATER and hit J. After the swing ends, press F4 for FIRE
-and hit K within the three-second attachment window. Water/fire adds 10 damage. After
-all player hitboxes end, cycle back to WATER and apply J; then select LIGHTNING (two F4
-presses from WATER) and use a ready attack. The reaction creates a short-lived yellow
-area attack on the following simulation update. Press R to reset the encounter if needed.
-
-Still undecided: every reaction other than the two prototypes above, including water/ice,
-fire/ice, fire/lightning and all wind combinations; final direction-dependent multipliers,
-attachment duration/stacking, freeze/stun/burn behavior, class assignments and resistance rules.
-These are not implemented. Area children use square hitboxes with centre-based wall obstruction,
-not a circle, chain lightning, damage-over-time system or VFX. One-update child latency and
-the existing frame-sampled attachment timing are intentional foundation semantics.
-
-```bash
-./gradlew core:test --tests '*Element*Test'
-```
+See [Element reaction completion report](docs/ELEMENT_REACTION_COMPLETION_REPORT.md) for tuning,
+files, validation and limitations.
 
 ## Basic enemy AI
 

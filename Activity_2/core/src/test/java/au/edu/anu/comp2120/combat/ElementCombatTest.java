@@ -17,14 +17,22 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Tests elements inside the real shared pipeline, including queued child attacks and cleanup boundaries.
+ * Tests elements inside the real shared pipeline, including custom-rule queued child attacks and cleanup boundaries.
+ * This explicit bonus-rule fixture preserves generic engine regression contracts; the formal table
+ * and status behaviours are covered independently by ReactionCompletionTest.
  * @author Daoyan Zhu (u7782042)
  */
 final class ElementCombatTest {
     /** Static projectile collision environment without rendering. */
     private final GameMap map = TestMaps.rectangle(600, 500, List.of());
-    /** One shared arena with the explicit provisional rule table. */
-    private final CombatSystem combat = new CombatSystem();
+    /** One shared arena with explicit custom bonus/child rules, not production defaults. */
+    private final CombatSystem combat = new CombatSystem(new ElementRules(3, List.of(
+            new ElementRules.Reaction("vaporize", ElementType.WATER, ElementType.FIRE, 10, null),
+            new ElementRules.Reaction("vaporize", ElementType.FIRE, ElementType.WATER, 10, null),
+            new ElementRules.Reaction("discharge", ElementType.WATER, ElementType.LIGHTNING, 0,
+                    new ElementRules.DerivedEffect(5, 40, 0.15)),
+            new ElementRules.Reaction("discharge", ElementType.LIGHTNING, ElementType.WATER, 0,
+                    new ElementRules.DerivedEffect(5, 40, 0.15)))));
     /** Friendly-side source using the same Damageable contract as Player. */
     private final Combatant source = new Combatant(new Enemy(1000), Faction.PLAYER, new CollisionBox(10, 100, 20, 20));
     /** Hostile target whose HP and attachment are observed independently. */

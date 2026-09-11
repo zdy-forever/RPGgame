@@ -93,7 +93,8 @@ public final class EnemyAI {
     /**
      * Reuses pursuit and attack-readiness decisions with optional basic attack submission.
      * Boss composition disables submission and selects its own pattern through the same combat system.
-     * This method never advances combat time or applies damage.
+     * Reaction displacement is resolved against the world before decisions; frozen/staggered actors
+     * remain idle without new attacks. This method never advances combat time or applies damage.
      * @param target registered hostile target, or null
      * @param delta finite non-negative seconds with representable movement
      * @param submitBasicAttack whether ATTACK readiness should submit the configured basic attack
@@ -109,9 +110,15 @@ public final class EnemyAI {
             return;
         }
         List<Combatant> registered = combat.getCombatants();
+        if (registered.contains(combatant)) { applyReactionMovement(); }
         if (!registered.contains(combatant) || target == null || !registered.contains(target)
                 || target.getEntity() == enemy || target.getFaction() == Faction.ENEMY
                 || !target.isTargetable()) {
+            state = EnemyState.IDLE;
+            clearPath();
+            return;
+        }
+        if (combatant.getStatus().blocksActions()) {
             state = EnemyState.IDLE;
             clearPath();
             return;
@@ -237,6 +244,20 @@ public final class EnemyAI {
             if (canAttack(target, distanceTo(target))) {
                 break;
             }
+        }
+    }
+
+    /**
+     * Consumes queued reaction knockback through the existing world movement/collision resolver.
+     * No position mutation occurs inside damage callbacks; path caching is invalidated afterwards.
+     */
+    private void applyReactionMovement() {
+        var status = combatant.getStatus();
+        if (status.getKnockbackX() != 0 || status.getKnockbackY() != 0) {
+            bounds = area.move(bounds, status.getKnockbackX(), status.getKnockbackY());
+            combatant.setHurtbox(bounds);
+            status.clearKnockback();
+            clearPath();
         }
     }
 
