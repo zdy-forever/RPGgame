@@ -201,7 +201,7 @@ final class PlayerDefeatTest {
         Combatant oldPlayer = playerActor();
         Boss oldBoss = demo.getBoss().orElseThrow();
         Combatant hostile = oldBoss.getCombatant();
-        combat.tryAttack(oldPlayer, new AttackSpec("water-prime", 0, 10, 0, ElementType.WATER), hostile.getHurtbox());
+        combat.tryAttack(oldPlayer, new AttackSpec("ice-prime", 0, 10, 0, ElementType.ICE), hostile.getHurtbox());
         combat.tryAttack(hostile, new AttackSpec("ice-prime", 0, 10, 0, ElementType.ICE), oldPlayer.getHurtbox());
         combat.update(0);
         combat.tryAttack(oldPlayer, new AttackSpec("reaction", 0, 10, 0, ElementType.LIGHTNING), hostile.getHurtbox());

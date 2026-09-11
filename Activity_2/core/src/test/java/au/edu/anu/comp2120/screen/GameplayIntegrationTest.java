@@ -157,17 +157,16 @@ final class GameplayIntegrationTest {
         cycleElement();
         assertEquals(ElementType.FIRE, element());
         demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
-        assertEquals(330, boss.getHealth().getCurrentHp());
+        assertEquals(325, boss.getHealth().getCurrentHp());
         demo.update(0.36, PlayerCommand.NONE, false);
-        // FIRE -> LIGHTNING -> ICE -> WIND -> NONE -> WATER, without bypassing live-attack guards.
-        for (int i = 0; i < 5; i++) {
+        // Re-select FIRE after cycling through the other tags; the next LIGHTNING triggers Overload.
+        for (int i = 0; i < 6; i++) {
             cycleElement();
         }
-        assertEquals(ElementType.WATER, element());
+        assertEquals(ElementType.FIRE, element());
         demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
-        assertEquals(300, boss.getHealth().getCurrentHp());
+        assertEquals(295, boss.getHealth().getCurrentHp());
         demo.update(0.36, PlayerCommand.NONE, false);
-        cycleElement();
         cycleElement();
         assertEquals(ElementType.LIGHTNING, element());
         demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);

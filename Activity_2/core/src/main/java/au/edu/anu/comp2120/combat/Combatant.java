@@ -17,6 +17,8 @@ public final class Combatant {
     private final Faction faction;
     /** Current immutable hurt geometry, independent of artwork. */
     private CollisionBox hurtbox;
+    /** Scope-local reaction controls, poise and vulnerability; no second health model. */
+    private final CombatStatus status = new CombatStatus();
     /** Selection eligibility only; existing attack geometry can still damage this receiver. */
     private boolean targetable = true;
     /** Optional scope-local defensive response, never a class-specific combat rule. */
@@ -55,10 +57,20 @@ public final class Combatant {
         return attack.getSpecification().blockable() && interceptor != null && interceptor.blocks(attack);
     }
 
+    /**
+     * Observes reaction controls, clearing terminal receiver state even before the next combat update.
+     * @return scope-local generic status
+     */
+    public CombatStatus getStatus() {
+        if (!entity.isAlive()) { status.clear(); }
+        return status;
+    }
+
     /** Clears transient capabilities when this adapter leaves its scope. */
     void clearCapabilities() {
         targetable = true;
         interceptor = null;
+        status.clear();
     }
 
     /**

@@ -373,7 +373,8 @@ public final class PlayerAbilities {
         boolean rapid = area.kind() == SkillKind.ELEMENT_PROJECTILE && skills.rapid();
         ElementType element = area.kind() == SkillKind.ELEMENT_PROJECTILE ? player.getMageElement() : spec.element();
         double active = rapid ? SkillTuning.RAPID_LAUNCH : spec.activeSeconds();
-        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), active, 0, element, spec.blockable());
+        AttackSpec invocation = new AttackSpec(spec.type(), spec.damage(), active, 0, element, spec.blockable(), area.kind() == SkillKind.ELEMENT_PROJECTILE
+                ? au.edu.anu.comp2120.combat.DamageType.ELEMENTAL : spec.damageType());
         Optional<Attack> accepted;
         if (area.projectile() != null) {
             ProjectileSpec flight = area.projectile();
@@ -384,7 +385,7 @@ public final class PlayerAbilities {
                 List<AttackSpec> specifications = new ArrayList<>();
                 for (int i = 0; i < SkillTuning.RAPID_COUNT; i++) {
                     specifications.add(new AttackSpec(spec.type(), spec.damage(), active, 0,
-                            skills.randomElement(), spec.blockable()));
+                            skills.randomElement(), spec.blockable(), au.edu.anu.comp2120.combat.DamageType.ELEMENTAL));
                 }
                 volley = combat.tryProjectiles(source, specifications, flight, area.range(),
                         facingX, facingY, player.getCollisionArea());

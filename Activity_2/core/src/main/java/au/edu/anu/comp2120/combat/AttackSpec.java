@@ -12,10 +12,27 @@ import java.util.Objects;
  * @param cooldownSeconds finite non-negative attacker cooldown from attack creation
  * @param element element applied by valid direct hits; NONE preserves ordinary attack behavior
  * @param blockable whether generic defensive interception may consume this hit
+ * @param damageType physical or elemental calculation category, independent of attachment
  * @author Daoyan Zhu (u7782042)
  */
 public record AttackSpec(String type, int damage, double activeSeconds, double cooldownSeconds,
-        ElementType element, boolean blockable) {
+        ElementType element, boolean blockable, DamageType damageType) {
+    /**
+     * Infers legacy category from element; explicit category constructors support independent metadata.
+     * @param type label
+     * @param damage non-negative base damage
+     * @param activeSeconds positive active duration
+     * @param cooldownSeconds non-negative cooldown
+     * @param element required attachment metadata
+     * @param blockable whether interception is allowed
+     * @throws NullPointerException if type or element is null
+     * @throws IllegalArgumentException if tuning is invalid
+     */
+    public AttackSpec(String type, int damage, double activeSeconds, double cooldownSeconds,
+            ElementType element, boolean blockable) {
+        this(type, damage, activeSeconds, cooldownSeconds, element, blockable,
+                element == ElementType.NONE ? DamageType.PHYSICAL : DamageType.ELEMENTAL);
+    }
     /**
      * Preserves ordinary blockable elemental attacks.
      * @param type attack label
@@ -49,12 +66,14 @@ public record AttackSpec(String type, int damage, double activeSeconds, double c
      * @param cooldownSeconds finite non-negative cooldown
      * @param element required element identity, including NONE
      * @param blockable whether defensive interception is allowed
-     * @throws NullPointerException if type or element is null
+     * @param damageType required calculation category
+     * @throws NullPointerException if type, element or damageType is null
      * @throws IllegalArgumentException if the label, damage, or timing is invalid
      */
     public AttackSpec {
         Objects.requireNonNull(type, "attack type");
         Objects.requireNonNull(element, "element");
+        Objects.requireNonNull(damageType, "damage type");
         if (type.isBlank() || damage < 0 || !Double.isFinite(activeSeconds) || activeSeconds <= 0
                 || !Double.isFinite(cooldownSeconds) || cooldownSeconds < 0) {
             throw new IllegalArgumentException("Attack requires a label, non-negative damage/cooldown and positive duration");

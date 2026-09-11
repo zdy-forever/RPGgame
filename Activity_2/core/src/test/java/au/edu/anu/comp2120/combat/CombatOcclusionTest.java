@@ -158,7 +158,7 @@ final class CombatOcclusionTest {
     }
 
     /**
-     * A real WATER/LIGHTNING reaction produces one child which cannot reach the next receiver through a wall.
+     * A real ICE/LIGHTNING reaction produces one child which cannot reach the next receiver through a wall.
      * @param blocked whether a wall divides the reacting target from the collateral target
      */
     @ParameterizedTest
@@ -170,7 +170,7 @@ final class CombatOcclusionTest {
         Combatant reacting = target(combat, 120);
         reacting.setHurtbox(new CollisionBox(120, 100, 8, 20));
         Combatant behind = target(combat, 150);
-        combat.tryAttack(source, new AttackSpec("water", 0, 0.1, 0, ElementType.WATER), reacting.getHurtbox());
+        combat.tryAttack(source, new AttackSpec("ice", 0, 0.1, 0, ElementType.ICE), reacting.getHurtbox());
         combat.update(0.1);
         combat.tryAttack(source, new AttackSpec("lightning", 10, 0.1, 0, ElementType.LIGHTNING), reacting.getHurtbox());
         combat.update(0);
@@ -178,10 +178,10 @@ final class CombatOcclusionTest {
         assertEquals(child.getHitbox(), child.getOrigin());
         assertEquals(100, hp(behind), "Children settle on the next update");
         combat.update(0);
-        assertEquals(85, hp(reacting));
-        assertEquals(blocked ? 100 : 95, hp(behind));
+        assertEquals(78, hp(reacting));
+        assertEquals(blocked ? 100 : 88, hp(behind));
         combat.update(0);
-        assertEquals(blocked ? 100 : 95, hp(behind));
+        assertEquals(blocked ? 100 : 88, hp(behind));
         combat.update(1);
         assertTrue(combat.getActiveAttacks().isEmpty());
     }

@@ -58,7 +58,7 @@ final class ElementClassIntegrationTest {
         assertEquals(ElementType.FIRE, light.getSpecification().element());
         combat.update(0.2);
         int baseDamage = PlayerClasses.get(type).abilities().light().attack().damage();
-        assertEquals(1000 - baseDamage - 10, enemy.getHealth().getCurrentHp());
+        assertEquals(1000 - (int) (baseDamage * 1.5), enemy.getHealth().getCurrentHp());
         assertEquals(ElementType.NONE, combat.getElementStatus(target).element());
         assertEquals(Player.class, player.getClass());
         assertEquals(100, player.getHealth().getCurrentHp());

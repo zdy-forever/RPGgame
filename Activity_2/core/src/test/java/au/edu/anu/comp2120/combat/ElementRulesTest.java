@@ -10,7 +10,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Tests the complete provisional element-pair matrix and immutable rule/status validation.
+ * Tests the complete ordered first-version element-pair matrix and immutable rule/status validation.
  * @author Daoyan Zhu (u7782042)
  */
 final class ElementRulesTest {
@@ -19,27 +19,21 @@ final class ElementRulesTest {
     }
 
     /**
-     * Only water/fire and water/lightning react; all other ordered pairs are deliberately undefined.
+     * All distinct non-NONE pairs react except WIND attachment followed by another element.
      * @param first first element, including NONE
      */
     @ParameterizedTest
     @EnumSource(ElementType.class)
     void checksEveryPairIncludingUndefinedAndSameElement(ElementType first) {
         for (ElementType second : ElementType.values()) {
-            boolean vaporize = (first == ElementType.WATER && second == ElementType.FIRE)
-                    || (first == ElementType.FIRE && second == ElementType.WATER);
-            boolean discharge = (first == ElementType.WATER && second == ElementType.LIGHTNING)
-                    || (first == ElementType.LIGHTNING && second == ElementType.WATER);
-            var result = ElementRules.PROTOTYPE.find(first, second);
-            assertEquals(vaporize || discharge, result.isPresent(), first + " + " + second);
-            if (vaporize) {
-                assertEquals("vaporize", result.orElseThrow().id());
-                assertEquals(10, result.orElseThrow().bonusDamage());
-                assertNull(result.orElseThrow().derived());
-            } else if (discharge) {
-                assertEquals("discharge", result.orElseThrow().id());
-                assertEquals(new ElementRules.DerivedEffect(5, 40, 0.15), result.orElseThrow().derived());
-            }
+            boolean expected = first != ElementType.NONE && second != ElementType.NONE
+                    && first != second && first != ElementType.WIND;
+            var result = ElementRules.DEFAULT.find(first, second);
+            assertEquals(expected, result.isPresent(), first + " + " + second);
+            result.ifPresent(rule -> {
+                assertEquals(first, rule.attachedElement());
+                assertEquals(second, rule.triggeringElement());
+            });
         }
     }
 
@@ -50,26 +44,27 @@ final class ElementRulesTest {
         var mutable = new ArrayList<>(List.of(custom));
         var rules = new ElementRules(5, mutable);
         mutable.clear();
-        assertEquals(custom, rules.find(ElementType.WIND, ElementType.ICE).orElseThrow());
+        assertEquals(custom, rules.find(ElementType.ICE, ElementType.WIND).orElseThrow());
         assertTrue(rules.find(ElementType.WATER, ElementType.FIRE).isEmpty());
         assertThrows(UnsupportedOperationException.class, () -> rules.reactions().clear());
         assertTrue(new ElementRules(1, List.of()).find(ElementType.FIRE, ElementType.WATER).isEmpty());
-        assertTrue(ElementRules.PROTOTYPE.find(ElementType.ICE, ElementType.WIND).isEmpty());
+        assertTrue(ElementRules.DEFAULT.find(ElementType.WIND, ElementType.ICE).isEmpty());
     }
 
-    /** Ambiguous reversed pairs and duplicate IDs are rejected rather than relying on list ordering. */
+    /** Duplicate ordered pairs are rejected; reverse order and shared reaction labels are permitted. */
     @Test
     void rejectsDuplicateRulesAndMalformedPairs() {
         var first = new ElementRules.Reaction("first", ElementType.WATER, ElementType.FIRE, 1, null);
         var reverse = new ElementRules.Reaction("reverse", ElementType.FIRE, ElementType.WATER, 2, null);
         var sameId = new ElementRules.Reaction("first", ElementType.ICE, ElementType.WIND, 1, null);
-        assertThrows(IllegalArgumentException.class, () -> new ElementRules(3, List.of(first, reverse)));
-        assertThrows(IllegalArgumentException.class, () -> new ElementRules(3, List.of(first, sameId)));
+        assertDoesNotThrow(() -> new ElementRules(3, List.of(first, reverse)));
+        assertDoesNotThrow(() -> new ElementRules(3, List.of(first, sameId)));
+        assertThrows(IllegalArgumentException.class, () -> new ElementRules(3, List.of(first, first)));
         assertThrows(IllegalArgumentException.class, () -> new ElementRules.Reaction("bad", ElementType.NONE, ElementType.FIRE, 1, null));
         assertThrows(IllegalArgumentException.class, () -> new ElementRules.Reaction("bad", ElementType.FIRE, ElementType.FIRE, 1, null));
         assertThrows(IllegalArgumentException.class, () -> new ElementRules.Reaction(" ", ElementType.FIRE, ElementType.WATER, 1, null));
         assertThrows(IllegalArgumentException.class, () -> new ElementRules.Reaction("bad", ElementType.FIRE, ElementType.WATER, -1, null));
-        assertThrows(NullPointerException.class, () -> ElementRules.PROTOTYPE.find(null, ElementType.FIRE));
+        assertThrows(NullPointerException.class, () -> ElementRules.DEFAULT.find(null, ElementType.FIRE));
         assertThrows(NullPointerException.class, () -> new CombatSystem(null));
     }
 

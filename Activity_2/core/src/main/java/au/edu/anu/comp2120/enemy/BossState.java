@@ -11,6 +11,10 @@ public enum BossState {
     CHASE,
     /** Within attack distance, including time waiting for shared source cooldown. */
     ATTACK,
+    /** Reaction freeze suppresses movement and new attacks, not existing hitboxes. */
+    FROZEN,
+    /** Broken poise briefly suppresses new actions. */
+    STAGGERED,
     /** One-time pause after entering the second HP phase. */
     PHASE_TRANSITION,
     /** Encounter defeated; no movement or attacks even if health is externally restored. */
