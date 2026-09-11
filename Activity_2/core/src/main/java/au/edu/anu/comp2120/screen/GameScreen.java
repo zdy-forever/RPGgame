@@ -1,6 +1,8 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.GameSession;
+import au.edu.anu.comp2120.EncounterFlow;
+import au.edu.anu.comp2120.world.Portal;
 import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.player.PlayerInput;
 import au.edu.anu.comp2120.player.PlayerCommand;
@@ -24,10 +26,12 @@ public final class GameScreen extends ScreenAdapter {
     private final TravelSystem travel;
     /** Graphics-independent debug adapter; all damage goes through the shared combat pipeline. */
     private final CombatDemo combatDemo;
+    /** Stable external acceptance/result/reward boundary; contains no Quest or Inventory logic. */
+    private final EncounterFlow encounterFlow;
     /** Last HP/key feedback applied to the native title, avoiding redundant title updates. */
     private String combatStatus = "";
     /** Brief travel feedback shown in the native window title without a font asset. */
-    private String travelStatus = "Walk into purple portals; U unlocks fast travel (debug)";
+    private String travelStatus = "Awaiting external encounter acceptance; task portals closed";
     /** Adapter for the application's keyboard input. */
     private final PlayerInput input;
     /** Geometry-only view owned by this screen. */
@@ -43,17 +47,28 @@ public final class GameScreen extends ScreenAdapter {
     public GameScreen() {
         session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
-        travel = new TravelSystem(session, TravelCatalog.createPortals(), TravelCatalog.createDestinations());
-        combatDemo = new CombatDemo(session);
+        var questPortals = TravelCatalog.createQuestPortals();
+        travel = new TravelSystem(session, questPortals, TravelCatalog.createDestinations());
+        encounterFlow = new EncounterFlow(session, travel, questPortals.stream().map(Portal::id).toList());
+        combatDemo = new CombatDemo(session, encounterFlow);
         input = new PlayerInput(Gdx.input);
         renderer = new PlaceholderRenderer(GameConfig.CAMERA_VIEW_WIDTH, GameConfig.CAMERA_VIEW_HEIGHT);
         updateMapView();
     }
 
     /**
+     * Gives external Quest/Inventory adapters acceptance, result and one-time reward APIs.
+     * All calls must run on the game-loop thread; no NPC or Quest implementation is provided here.
+     * @return this screen's persistent gameplay integration boundary
+     */
+    public EncounterFlow getEncounterFlow() {
+        return encounterFlow;
+    }
+
+    /**
      * Samples input, updates movement/abilities and combat, then checks arrival portals before drawing.
      * Fast travel consumes commands; portal arrival immediately clears old-map attacks and dash.
-     * Failure recovery consumes the rest of the frame before any Hub movement or portal check.
+     * Success/failure recovery consumes the rest of the frame before any Hub movement or portal check.
      * Frame stalls are capped and all simulation timers pause with this screen.
      *
      * @param delta seconds elapsed since the previous frame
@@ -70,15 +85,15 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
-     * Arbitrates one gameplay frame, giving settled defeat precedence over travel and debug input.
-     * A post-combat failure return skips all remaining portal/input processing in the arrival frame.
+     * Arbitrates one frame, settling player death then Boss victory before travel and debug input.
+     * A post-combat outcome return skips all remaining portal/input processing in the arrival frame.
      * TravelSystem observes the normal session stamp on its next check and arms arrival protection.
      * @param delta validated capped non-negative simulation seconds
      * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
      */
     private void updateGameplay(double delta) {
-        if (combatDemo.returnToHubIfDefeated()) {
-            showDefeatReturn();
+        if (combatDemo.returnToHubIfBattleEnded()) {
+            showBattleReturn();
             return;
         }
         boolean travelConsumed;
@@ -95,7 +110,7 @@ public final class GameScreen extends ScreenAdapter {
                 travelConsumed ? null : input.sampleClassSelection().orElse(null),
                 !travelConsumed && input.sampleElementCycle());
         if (session.getTransitionVersion() != beforeCombat) {
-            showDefeatReturn();
+            showBattleReturn();
             return;
         }
         if (travelConsumed) {
@@ -117,9 +132,12 @@ public final class GameScreen extends ScreenAdapter {
         }
     }
 
-    /** Updates only placeholder feedback after recovery; no Quest state is read or changed. */
-    private void showDefeatReturn() {
-        travelStatus = "Challenge FAILURE; returned to Hub with full HP";
+    /** Updates only placeholder feedback after a completed return; no Quest state is read or changed. */
+    private void showBattleReturn() {
+        travelStatus = "Challenge " + encounterFlow.getLastResult()
+                .filter(result -> result.encounterVersion() == session.getTransitionVersion() - 1)
+                .map(result -> result.outcome().name())
+                .orElse("FAILURE") + "; returned to Hub with full HP";
         updateMapView();
     }
 

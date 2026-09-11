@@ -1,6 +1,8 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.GameSession;
+import au.edu.anu.comp2120.EncounterFlow;
+import au.edu.anu.comp2120.BattleResult;
 import au.edu.anu.comp2120.combat.Attack;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.CombatSystem;
@@ -22,7 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Graphics-free coordinator for player requests, one Boss per battle map and failure recovery.
+ * Graphics-free coordinator for player requests, single-Boss encounters and settled battle returns.
  * Owns encounter placement/cleanup and post-settlement outcomes, not AI or damage rules.
  * Screen input supplies commands; common abilities own execution while rendering reads geometry.
  *
@@ -33,6 +35,8 @@ public final class CombatDemo {
     private final GameSession session;
     /** Reused arena pipeline, cleared on every successful map transition. */
     private final CombatSystem combat;
+    /** Production admission/outcome boundary; null only for isolated unrestricted demonstrations. */
+    private final EncounterFlow encounterFlow;
     /** Shared player ability controller, retaining slot cooldowns across map transitions. */
     private PlayerAbilities abilities;
     /** Player adapter in the current scope, following the existing player's movement. */
@@ -68,7 +72,8 @@ public final class CombatDemo {
     }
 
     /**
-     * Creates and synchronizes the debug arena without loading assets or changing player health.
+     * Creates an isolated unrestricted debug arena without assets or health changes.
+     * Production gameplay must use the constructor accepting EncounterFlow for task admission.
      * @param session existing game session
      * @throws NullPointerException if session is null
      */
@@ -84,8 +89,35 @@ public final class CombatDemo {
      * @throws NullPointerException if either argument is null
      */
     CombatDemo(GameSession session, CombatSystem combat) {
+        this(session, combat, null);
+    }
+
+    /**
+     * Creates production gameplay with task-portal admission and post-settlement return handling.
+     * @param session existing persistent map/player session
+     * @param encounterFlow boundary sharing this session
+     * @throws NullPointerException if either argument is null
+     * @throws IllegalArgumentException if the boundary uses another session
+     */
+    public CombatDemo(GameSession session, EncounterFlow encounterFlow) {
+        this(session, new CombatSystem(), Objects.requireNonNull(encounterFlow, "encounter flow"));
+    }
+
+    /**
+     * Initializes one pipeline with an optional production admission boundary.
+     * @param session existing session
+     * @param combat pipeline to own
+     * @param encounterFlow production boundary, or null for isolated debug fixtures
+     * @throws NullPointerException if session or combat is null
+     * @throws IllegalArgumentException if the boundary belongs to another session
+     */
+    CombatDemo(GameSession session, CombatSystem combat, EncounterFlow encounterFlow) {
         this.session = Objects.requireNonNull(session, "session");
         this.combat = Objects.requireNonNull(combat, "combat");
+        this.encounterFlow = encounterFlow;
+        if (encounterFlow != null && !encounterFlow.belongsTo(session)) {
+            throw new IllegalArgumentException("Combat and encounter flow must share a session");
+        }
         syncMap();
     }
 
@@ -105,7 +137,7 @@ public final class CombatDemo {
     /**
      * Coordinates common player movement/abilities, Boss decisions and one shared combat step.
      * Transitions discard commands and cancel active abilities, preserving slot cooldowns.
-     * Reset consumes commands, restores health/cooldowns and recreates the Boss encounter without old loot.
+     * Debug reset consumes commands and restores health/cooldowns; production battle scopes ignore reset.
      * @param delta finite non-negative seconds with representable player/enemy movement
      * @param command movement and ability requests sampled once by the input adapter
      * @param reset whether the explicit debug reset was requested
@@ -135,6 +167,8 @@ public final class CombatDemo {
      * Adds a debug element cycle to the existing frame arbitration, without bypassing selection guards.
      * Settled battle death wins before reset, class/element selection or ordinary commands.
      * Death detected after combat returns to Hub before Boss reward settlement or further input.
+     * Otherwise an admitted Boss defeat latches its reward and returns SUCCESS before further input.
+     * Production class/element selection is Hub-only, and battle debug reset is ignored.
      * A rejected selection still consumes new commands while existing simulation continues.
      * Class changes preserve the selected light-slot element; F4 assigns one element to all J/K/O slots.
      * @param delta finite non-negative simulation seconds
@@ -152,11 +186,11 @@ public final class CombatDemo {
                 || !Double.isFinite(session.getPlayer().getSpeed() * delta)) {
             throw new IllegalArgumentException("Demo delta must be finite and non-negative");
         }
-        if (returnToHubIfDefeated() || syncMap()) {
+        if (returnToHubIfBattleEnded() || syncMap()) {
             return;
         }
         player.setHurtbox(playerHurtbox());
-        if (reset) {
+        if (reset && (encounterFlow == null || session.getCurrentMap().getType() == MapType.HUB)) {
             combat.clear();
             combat.bindWorld(session.getCurrentMap());
             session.getPlayer().getHealth().restoreFull();
@@ -179,7 +213,7 @@ public final class CombatDemo {
             boss.update(player, delta);
         }
         combat.update(delta);
-        if (returnToHubIfDefeated()) {
+        if (returnToHubIfBattleEnded()) {
             return;
         }
         if (boss != null) {
@@ -206,10 +240,43 @@ public final class CombatDemo {
             throw new IllegalArgumentException("Failure return requires a Hub map");
         }
         Defeat failure = new Defeat(session.getCurrentMap().getId(), session.getTransitionVersion());
-        session.switchMap(MapCatalog.HUB);
+        if (encounterFlow != null && encounterFlow.isBattleActive()) {
+            encounterFlow.complete(BattleResult.Outcome.FAILURE, null);
+        } else {
+            session.switchMap(MapCatalog.HUB);
+        }
         syncMap();
         session.getPlayer().getHealth().restoreFull();
         lastDefeat = failure;
+        return true;
+    }
+
+    /**
+     * Gives settled player death priority, then returns a successful admitted Boss battle to Hub.
+     * Called before travel/input and after the one shared combat settlement, never from damage callbacks.
+     * Material is copied to the result outbox before the old Boss loses registration; its one-time
+     * claim is consumed, then normal scope cleanup cancels all effects and restores the same player.
+     * An invalid return leaves Boss reward ownership intact for a later valid attempt.
+     * @return true when this call completes a success or failure return
+     * @throws IllegalArgumentException if return Hub/spawn or reward data is invalid
+     * @throws IllegalStateException if a defeated Boss has no unclaimed reward
+     */
+    public boolean returnToHubIfBattleEnded() {
+        if (returnToHubIfDefeated()) {
+            return true;
+        }
+        if (encounterFlow == null || !encounterFlow.isBattleActive()
+                || transitionVersion != session.getTransitionVersion() || boss == null
+                || boss.getHealth().isAlive()) {
+            return false;
+        }
+        boss.synchronizeOutcome();
+        MaterialDrop reward = boss.getDrop().orElseThrow(
+                () -> new IllegalStateException("Defeated Boss reward was consumed outside encounter coordination"));
+        encounterFlow.complete(BattleResult.Outcome.SUCCESS, reward);
+        boss.claimDrop();
+        syncMap();
+        session.getPlayer().getHealth().restoreFull();
         return true;
     }
 
@@ -277,7 +344,10 @@ public final class CombatDemo {
     public String getStatus() {
         StringBuilder status = new StringBuilder("HP ")
                 .append(session.getPlayer().getHealth().getCurrentHp()).append(elementLabel(player));
-        if (lastDefeat != null) {
+        if (encounterFlow != null && encounterFlow.getLastResult().isPresent()) {
+            BattleResult result = encounterFlow.getLastResult().orElseThrow();
+            status.append(" | Last task ").append(result.outcome()).append(": ").append(result.encounter().id());
+        } else if (lastDefeat != null) {
             status.append(" | Last challenge FAILURE: ").append(lastDefeat.mapId());
         }
         if (boss != null) {
@@ -290,11 +360,11 @@ public final class CombatDemo {
         return status.append(" | ").append(session.getPlayer().getPlayerClass().getDisplayName())
                 .append(" | Element ").append(session.getPlayer().getClassDefinition().abilities().light().attack().element())
                 .append(" [F4 cycle]")
-                .append(" [F1 Archer/F2 Mage/F3 Katana] | J ").append(abilities.getState(AbilitySlot.LIGHT))
+                .append(" [F1 Archer/F2 Mage/F3 Katana; Hub selection] | J ").append(abilities.getState(AbilitySlot.LIGHT))
                 .append(" K ").append(abilities.getState(AbilitySlot.SPECIAL))
                 .append(" L ").append(abilities.getState(AbilitySlot.DASH))
                 .append(" O ").append(abilities.getState(AbilitySlot.ULTIMATE))
-                .append(" | R reset HP/abilities").toString();
+                .append(" | R reset HP/abilities (Hub in task flow)").toString();
     }
 
     /**
@@ -320,7 +390,8 @@ public final class CombatDemo {
         player = new Combatant(session.getPlayer(), Faction.PLAYER, playerHurtbox());
         combat.register(player);
         if (abilities == null) {
-            abilities = new PlayerAbilities(session.getPlayer(), player, combat);
+            abilities = new PlayerAbilities(session.getPlayer(), player, combat,
+                    session.getPlayer().getClassDefinition().abilities(), encounterFlow != null);
         } else {
             abilities.bindAfterTransition(player);
         }
@@ -330,13 +401,16 @@ public final class CombatDemo {
     }
 
     /**
-     * Creates a fresh debug encounter after scope clear/reset, without changing map definitions.
+     * Creates a fresh encounter after scope clear/reset, without changing map definitions.
+     * Production scopes require exact task portal admission; unrelated travel creates no Boss.
      * Skips blocked or actor-overlapping placements; no invalid Boss is forced into a map.
-     * Unclaimed loot belongs to the previous encounter and is discarded on reset/travel.
+     * Task success loot is transferred to EncounterFlow before this method discards the old Boss.
+     * Unrestricted debug loot remains encounter-scoped and is discarded on reset/travel.
      */
     private void createBoss() {
         boss = null;
-        if (session.getCurrentMap().getType() != MapType.BATTLE) {
+        if (session.getCurrentMap().getType() != MapType.BATTLE
+                || (encounterFlow != null && !encounterFlow.isBattleActive())) {
             return;
         }
         for (CollisionBox placement : GameConfig.BOSS_PLACEMENTS) {

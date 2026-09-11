@@ -6,6 +6,8 @@ import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.world.CollisionBox;
+import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.MapType;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Objects;
@@ -25,6 +27,8 @@ public final class PlayerAbilities {
     private final Player player;
     /** Shared arena pipeline; this controller never directly damages a target. */
     private final CombatSystem combat;
+    /** Production encounter policy; isolated ability demonstrations may select anywhere. */
+    private final boolean hubOnlySelection;
     /** Remaining per-slot seconds, measured from successful triggering. */
     private final double[] cooldowns = new double[AbilitySlot.values().length];
     /** Short projectile launch windows, separate from longer flight lifetimes and slot cooldowns. */
@@ -75,8 +79,25 @@ public final class PlayerAbilities {
      * @throws IllegalArgumentException if source is not this player's registered PLAYER adapter or its world conflicts
      */
     public PlayerAbilities(Player player, Combatant source, CombatSystem combat, AbilityLoadout loadout) {
+        this(player, source, combat, loadout, false);
+    }
+
+    /**
+     * Adds a production selection policy without coupling ability execution to Quest state.
+     * All changes, including an O configuration on the same class, pass through selectClass.
+     * @param player existing shared player
+     * @param source canonical registered adapter
+     * @param combat shared pipeline
+     * @param loadout initial tuning
+     * @param hubOnlySelection whether runtime class/loadout selection requires a Hub map
+     * @throws NullPointerException if required data is null
+     * @throws IllegalArgumentException if source registration or world binding is invalid
+     */
+    public PlayerAbilities(Player player, Combatant source, CombatSystem combat,
+            AbilityLoadout loadout, boolean hubOnlySelection) {
         this.player = Objects.requireNonNull(player, "player");
         this.combat = Objects.requireNonNull(combat, "combat");
+        this.hubOnlySelection = hubOnlySelection;
         Objects.requireNonNull(loadout, "loadout");
         bindAfterTransition(source);
         player.applyClassDefinition(new ClassDefinition(player.getPlayerClass(), loadout));
@@ -85,6 +106,7 @@ public final class PlayerAbilities {
     /**
      * Selects a definition without replacing Player, Health, combat registration or cooldown clocks.
      * Same-definition, dead/stale-source, active-attack and active-dash requests are rejected.
+     * Production controllers additionally require Hub for any class or O/loadout change.
      * Projectile launch windows and any still-flying arrow also prevent class switching.
      * Remaining cooldown seconds, facing, position, movement speed and HP are preserved exactly.
      * This is a debug/code selection foundation, not a class-unlock or selection-UI workflow.
@@ -94,6 +116,10 @@ public final class PlayerAbilities {
      */
     public boolean selectClass(ClassDefinition definition) {
         Objects.requireNonNull(definition, "class definition");
+        if (hubOnlySelection && (!(player.getCollisionArea() instanceof GameMap map)
+                || map.getType() != MapType.HUB)) {
+            return false;
+        }
         if (definition.equals(player.getClassDefinition()) || !available() || dashRemaining > 0
                 || Arrays.stream(launchWindows).anyMatch(remaining -> remaining > 0)
                 || combat.getActiveAttacks().stream().anyMatch(attack -> attack.getSource() == source)) {

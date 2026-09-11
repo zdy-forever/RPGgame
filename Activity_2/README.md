@@ -12,6 +12,28 @@ The shared combat pipeline supports opt-in elemental attachment, two provisional
 and bounded one-generation derived attacks; built-in class attacks remain non-elemental by default.
 It loads no images, fonts, animation, sound, or music assets.
 
+## Current production flow: externally accepted encounters
+
+Task portals now start **closed**. Developer B's adapter calls
+`gameScreen.getEncounterFlow().activate(new ActiveEncounter(id, mapId, spawnId, portalId))`
+on the game-loop thread after acceptance in Hub. No NPC, Quest logic or acceptance UI is
+implemented here, so a fresh launch intentionally cannot start a Boss fight by itself.
+
+- The configured portal admits one fresh Boss; there are no ordinary enemies.
+- Player death: FAILURE, automatic Hub return/full HP, same permission available for retry.
+- Boss death: SUCCESS, automatic Hub return/full HP, task portal closed until a new acceptance.
+- Results are read through `getLastResult()`. Reward data survives cleanup in
+  `getPendingRewards()` and is transferred once by `claimReward(result)`.
+- Player identity/class/O configuration persist. F1/F2/F3/F4 configuration changes are
+  Hub-only in production; battle R reset is disabled.
+- U/1/2/3 remain independent debug fast travel. They do **not** start a task Boss or award
+  a task result. Returning via fast travel abandons that combat scope but retains permission.
+
+See [the integration contract and test report](docs/QUEST_PORTAL_FLOW_REPORT.md).
+Historical feature/demo instructions below that use U/2/3 to spawn a Boss, switch abilities
+during battle, manually return through battle portals, or leave Boss loot on the map apply
+only to the isolated unrestricted `CombatDemo(session)` harness, not the production screen.
+
 ## Attack wall obstruction
 
 All gameplay attacks now respect static walls. Projectiles retain their existing swept
@@ -40,12 +62,12 @@ No death callback switches maps. The remainder of the death frame is consumed; R
 revive a dead player in Battle. Class configuration and remaining slot cooldowns are preserved.
 Re-entering either battle map creates a new Boss at full HP, phase 1 and fresh AI/cooldowns.
 
-Quick check: start the game, select F1/F2/F3, press U then 3, approach the large Boss and
-let it attack without pressing R. At zero HP you should immediately arrive alive in Hub,
-with no old attacks following you. Use the portal again (or debug 3) to verify a fresh Boss.
+Quick check after external acceptance: select F1/F2/F3 in Hub, enter the enabled task portal,
+approach the large Boss and let it attack. At zero HP you should immediately arrive alive in
+Hub, with no old attacks following you. Use the same task portal to verify a fresh Boss.
 TravelSystem's existing arrival guard prevents immediate automatic return through a portal.
 
-Quest/NPC acceptance, quest status and success-return flow are outside this branch.
+Quest/NPC acceptance and quest status remain outside gameplay; success-return is now integrated.
 Failure does not mark a Quest failed/completed or remove it; its external owner can keep it ACTIVE.
 This checkout has no independent O-mode selector: recovery preserves the complete existing
 O configuration, without introducing mode mechanics. See

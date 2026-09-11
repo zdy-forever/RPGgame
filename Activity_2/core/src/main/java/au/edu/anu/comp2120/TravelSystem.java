@@ -2,6 +2,7 @@ package au.edu.anu.comp2120;
 
 import au.edu.anu.comp2120.world.FastTravelDestination;
 import au.edu.anu.comp2120.world.Portal;
+import au.edu.anu.comp2120.world.CollisionBox;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +27,10 @@ public final class TravelSystem {
     private long observedTransition;
     /** Suppresses automatic travel until an update observes the player outside all portal regions. */
     private boolean waitingForExit;
+    /** Portal responsible for the last successful portal arrival, null for other travel. */
+    private String arrivalPortalId;
+    /** Exact arrival scope; an external transition invalidates portal provenance. */
+    private long portalArrivalVersion = Long.MIN_VALUE;
 
     /**
      * Registers definitions and validates references, duplicate IDs, and source trigger geometry.
@@ -90,6 +95,8 @@ public final class TravelSystem {
                 waitingForExit = true;
                 session.switchMap(portal.destinationMapId(), portal.destinationSpawnId());
                 observedTransition = session.getTransitionVersion();
+                arrivalPortalId = portal.id();
+                portalArrivalVersion = observedTransition;
                 return true;
             }
         }
@@ -111,6 +118,7 @@ public final class TravelSystem {
             throw new IllegalStateException("Destination is locked: " + destination.name());
         }
         session.switchMap(destination.mapId(), destination.spawnId());
+        arrivalPortalId = null;
         observedTransition = session.getTransitionVersion();
         waitingForExit = true;
     }
@@ -143,6 +151,61 @@ public final class TravelSystem {
         }
         portals.put(portalId, new Portal(old.id(), old.sourceMapId(), old.trigger(),
                 old.destinationMapId(), old.destinationSpawnId(), enabled));
+    }
+
+    /**
+     * Verifies that a coordinator is using this travel system's actual session.
+     * @param candidate session to compare by identity
+     * @return true for the owning session
+     */
+    public boolean belongsTo(GameSession candidate) {
+        return session == candidate;
+    }
+
+    /**
+     * Reads a registered portal snapshot.
+     * @param portalId registered ID
+     * @return immutable route and enabled state
+     * @throws NullPointerException if the ID is null
+     * @throws IllegalArgumentException if the portal is unknown
+     */
+    public Portal getPortal(String portalId) {
+        Portal portal = portals.get(Objects.requireNonNull(portalId, "portal ID"));
+        if (portal == null) {
+            throw new IllegalArgumentException("Unknown portal: " + portalId);
+        }
+        return portal;
+    }
+
+    /**
+     * Reconfigures a registered route atomically and leaves it disabled until explicitly enabled.
+     * Source geometry and arrival protection are preserved; invalid targets change nothing.
+     * @param portalId registered portal
+     * @param mapId new destination map
+     * @param spawnId new destination spawn
+     * @throws NullPointerException if an ID is null
+     * @throws IllegalArgumentException if a reference or full-body destination is invalid
+     */
+    public void configurePortalDestination(String portalId, String mapId, String spawnId) {
+        Portal old = getPortal(portalId);
+        var map = session.getMap(mapId);
+        var spawn = map.getSpawnPoint(spawnId);
+        var body = session.getPlayer().getBounds();
+        if (!map.isWalkable(new CollisionBox(
+                spawn.x(), spawn.y(), body.width(), body.height()))) {
+            throw new IllegalArgumentException("Portal spawn cannot fit the player");
+        }
+        portals.put(portalId, new Portal(old.id(), old.sourceMapId(), old.trigger(), mapId, spawnId, false));
+    }
+
+    /**
+     * Distinguishes portal admission from fast travel and direct map switching.
+     * @param portalId expected entry portal
+     * @return true only in the exact scope reached through this portal
+     */
+    public boolean arrivedThrough(String portalId) {
+        return portalArrivalVersion == session.getTransitionVersion()
+                && Objects.equals(arrivalPortalId, portalId);
     }
 
     /**
