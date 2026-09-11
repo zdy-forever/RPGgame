@@ -20,6 +20,17 @@ public final class TravelCatalog {
     }
 
     /**
+     * Supplies only closed Hub task portals for production; battle returns are outcome-driven.
+     * The unrestricted demonstration routes remain available to isolated travel tests.
+     * @return immutable task portal definitions, initially disabled
+     */
+    public static List<Portal> createQuestPortals() {
+        return createPortals().stream().filter(portal -> portal.sourceMapId().equals(MapCatalog.HUB))
+                .map(portal -> new Portal(portal.id(), portal.sourceMapId(), portal.trigger(),
+                        portal.destinationMapId(), portal.destinationSpawnId(), false)).toList();
+    }
+
+    /**
      * Defines outbound Hub portals, return portals overlapping Battle entry spawns, and
      * a disabled example. Return portals deliberately exercise the leave-before-retrigger rule.
      *

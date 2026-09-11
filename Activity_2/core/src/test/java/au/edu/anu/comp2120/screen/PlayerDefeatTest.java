@@ -412,7 +412,7 @@ final class PlayerDefeatTest {
     /** Invalid coordination dependencies and failure snapshot IDs are rejected explicitly. */
     @Test
     void validatesFailureSnapshotAndInjectedPipeline() {
-        assertThrows(NullPointerException.class, () -> new CombatDemo(session, null));
+        assertThrows(NullPointerException.class, () -> new CombatDemo(session, (CombatSystem) null));
         assertThrows(NullPointerException.class, () -> new CombatDemo.Defeat(null, 0));
         assertThrows(IllegalArgumentException.class, () -> new CombatDemo.Defeat(" ", 0));
     }

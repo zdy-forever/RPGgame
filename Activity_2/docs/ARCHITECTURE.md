@@ -6,8 +6,50 @@ This document defines the module boundaries for the gameplay loop:
 Hub -> accept quest -> portal -> single-Boss battle -> success/failure -> Hub
 ```
 
-Quest/NPC acceptance and success-return coordination belong to separate work. This branch
-implements battle FAILURE recovery only; it never completes, deletes or fails a Quest.
+Quest/NPC acceptance belongs to Developer B. Gameplay now implements task admission and
+SUCCESS/FAILURE returns without completing, deleting, failing or replacing any Quest.
+
+## Current production encounter boundary
+
+`GameScreen` wires one `EncounterFlow(session, travel, taskPortalIds)` into
+`CombatDemo(session, encounterFlow)`. `GameScreen.getEncounterFlow()` is the adapter entry point.
+The one-argument CombatDemo constructor remains an unrestricted standalone debug/test harness;
+it is not the production Quest route. Detailed historical module descriptions below retain
+that distinction: automatic Boss creation after arbitrary travel applies only to that harness.
+
+- `ActiveEncounter(id, mapId, spawnId, portalId)` is an external acceptance permission,
+  not a Quest. `activate`/`clearActiveEncounter` require a living Hub player. Activation
+  validates a Battle map and full-body spawn before disabling old/enabling new task routes.
+  Encounter IDs identify acceptances, not maps; a completed acceptance ID cannot be replayed.
+- Production `TravelCatalog.createQuestPortals()` supplies only initially closed Hub routes.
+  No ordinary battle return portal is generated. Normal return is driven by settlement.
+- `TravelSystem.arrivedThrough` checks the exact transition stamp and portal ID. Fast travel
+  retains its independent unlock/routing rules but cannot create a task Boss, even on the
+  active task's map. Direct session transitions likewise provide no task admission.
+- `CombatDemo.returnToHubIfBattleEnded` runs before input/travel and after shared combat.
+  Player death wins ties; FAILURE retains permission for retry. SUCCESS synchronizes Boss
+  death, observes its immutable MaterialDrop, completes the return and consumes the old Boss's
+  one-time claim before normal cleanup. No damage callback changes maps.
+- `EncounterFlow.complete` is the **gameplay coordinator** endpoint, not an adapter command
+  to award rewards. It uses GameSession.switchMap; invalid Hub transitions do not latch a
+  result, close permission or consume Boss loot. Normal completion is followed immediately
+  by CombatDemo's existing scope clear/rebind and Health.restoreFull.
+- SUCCESS clears permission/closes task portals. FAILURE leaves the same portal retryable.
+  Both retain Player/Health/abilities/class and exact O tuning. Production loadout selection
+  requires Hub (including same-class O changes); R cannot reset a production Battle encounter.
+- `BattleResult(encounter, encounterVersion, outcome)` is the latest immutable snapshot.
+  Polling does not execute anything. Developer B observes it on the game-loop thread and owns
+  all Quest state changes. Distinct transition stamps distinguish retries of one acceptance.
+- An in-memory `getPendingRewards()` outbox maps success results to immutable MaterialDrops.
+  It survives all subsequent map changes and acceptances. `claimReward(result)` removes and
+  transfers a payload at most once. Developer C's adapter must be ready to own it before
+  claiming; no inventory add/capacity/pickup/save implementation is included.
+- Rewards and completed acceptance IDs live only for this process/session. Pending rewards
+  accumulate intentionally until consumed; persistence and transactional adapter recovery
+  remain Developer B/C integration work. Only the latest BattleResult is retained; poll it
+  in normal game-loop coordination rather than treating it as a durable event history.
+
+See [Quest portal flow report](QUEST_PORTAL_FLOW_REPORT.md) for calls, tests and limitations.
 
 ## 1. Current package structure
 
