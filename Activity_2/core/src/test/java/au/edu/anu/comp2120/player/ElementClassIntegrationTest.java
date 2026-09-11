@@ -103,10 +103,11 @@ final class ElementClassIntegrationTest {
     /** Native-title labels reflect real attachments and reset/travel clear them without modifying class tuning. */
     @Test
     void demoShowsLabelsAndClearsStatusAtScopeBoundaries() {
-        GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.TRAINING, 28, 28, 180);
+        GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.CROSSROADS, 28, 28, 180);
         CombatDemo demo = new CombatDemo(session);
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
         assertTrue(demo.getAbilities().selectClass(elementalLight(PlayerClass.MAGE, ElementType.WATER)));
-        demo.update(0.2, new PlayerCommand(1, 0, true, false, false, false), false);
+        demo.update(0.2, new PlayerCommand(0, 0, true, false, false, false), false);
         assertTrue(demo.getStatus().contains("[WATER]"));
         demo.update(0, false, true);
         assertFalse(demo.getStatus().contains("[WATER]"));

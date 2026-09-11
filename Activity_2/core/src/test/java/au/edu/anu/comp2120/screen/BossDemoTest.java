@@ -13,6 +13,8 @@ import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapCatalog;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Exercises actual map/demo integration, shared player attacks, resets and encounter-scoped loot.
@@ -28,7 +30,7 @@ final class BossDemoTest {
     BossDemoTest() {
     }
 
-    /** Boss appears only in Crossroads, using safe large geometry and the shared actor registry. */
+    /** Each battle map gets one Boss with safe large geometry; Hub has no encounter. */
     @Test
     void encounterUsesExistingMapAndCombatRegistration() {
         Boss boss = demo.getBoss().orElseThrow();
@@ -40,7 +42,9 @@ final class BossDemoTest {
         for (String map : List.of(MapCatalog.HUB, MapCatalog.TRAINING)) {
             session.switchMap(map);
             demo.update(0, false, false);
-            assertTrue(demo.getBoss().isEmpty());
+            assertEquals(map.equals(MapCatalog.HUB), demo.getBoss().isEmpty());
+            assertTrue(demo.getEnemies().isEmpty());
+            assertEquals(map.equals(MapCatalog.HUB) ? 1 : 2, demo.getCombatants().size());
             assertTrue(demo.getDrops().isEmpty());
         }
     }
@@ -110,9 +114,15 @@ final class BossDemoTest {
         assertNotSame(old, demo.getBoss().orElseThrow());
     }
 
-    /** Reset placement avoids a player now standing on the first configured Boss spawn. */
-    @Test
-    void resetUsesSafeFallbackPlacement() {
+    /**
+     * Reset placement avoids the player without dropping the single encounter on either battle map.
+     * @param mapId built-in battle map
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {MapCatalog.TRAINING, MapCatalog.CROSSROADS})
+    void resetUsesSafeFallbackPlacement(String mapId) {
+        session.switchMap(mapId);
+        demo.update(0, PlayerCommand.NONE, false);
         CollisionBox previous = demo.getBoss().orElseThrow().getBounds();
         session.getPlayer().enterArea(session.getCurrentMap(), previous.x(), previous.y());
         demo.update(0, false, true);

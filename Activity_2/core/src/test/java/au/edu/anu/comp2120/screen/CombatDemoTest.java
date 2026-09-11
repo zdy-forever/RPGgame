@@ -8,8 +8,8 @@ import au.edu.anu.comp2120.combat.Attack;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
-import au.edu.anu.comp2120.enemy.EnemyAI;
-import au.edu.anu.comp2120.enemy.EnemyState;
+import au.edu.anu.comp2120.enemy.Boss;
+import au.edu.anu.comp2120.enemy.BossState;
 import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.player.AbilityState;
 import au.edu.anu.comp2120.player.PlayerCommand;
@@ -138,67 +138,72 @@ final class CombatDemoTest {
         assertEquals(spawn, session.getPlayer().getBounds());
     }
 
-    /** The real demo routes all attack slots through combat and prevents enemy damage during no-time resets. */
+    /** Real slots finish a wounded Boss through combat; reset creates a fresh full-health encounter. */
     @Test
     void commonAbilityCommandsReachDemoCombat() {
-        CombatDemo demo = new CombatDemo(session(MapCatalog.TRAINING));
+        GameSession session = session(MapCatalog.CROSSROADS);
+        CombatDemo demo = new CombatDemo(session);
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        enemy(demo).takeDamage(300);
         demo.update(0, new PlayerCommand(0, 0, false, true, false, false), false);
         assertEquals(60, enemy(demo).getHealth().getCurrentHp());
         demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
         assertFalse(enemy(demo).isAlive());
-        assertEquals(EnemyState.DEAD, demo.getEnemies().get(0).getState());
+        assertEquals(BossState.DEAD, demo.getBoss().orElseThrow().getState());
         demo.update(0, PlayerCommand.NONE, true);
-        assertEquals(100, enemy(demo).getHealth().getCurrentHp());
+        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
         for (AbilitySlot slot : AbilitySlot.values()) {
             assertEquals(AbilityState.READY, demo.getAbilities().getState(slot));
         }
     }
 
-    /** Mage bolts hit after travel; autonomous enemy attacks share the pipeline and reset clears both. */
+    /** Mage bolts and autonomous Boss attacks share the pipeline; reset clears both and replaces the Boss. */
     @Test
     void demonstratesBothAttackDirectionsAndExplicitReset() {
-        GameSession session = session(MapCatalog.TRAINING);
+        GameSession session = session(MapCatalog.CROSSROADS);
         CombatDemo demo = new CombatDemo(session);
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
         Enemy enemy = enemy(demo);
         CollisionBox position = session.getPlayer().getBounds();
         demo.update(0, true, false);
-        assertEquals(100, enemy.getHealth().getCurrentHp());
-        assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(1, demo.getActiveAttacks().size());
+        assertEquals(400, enemy.getHealth().getCurrentHp());
+        assertEquals(85, session.getPlayer().getHealth().getCurrentHp());
+        assertEquals(2, demo.getActiveAttacks().size());
         demo.update(0.65, false, false);
-        assertEquals(75, enemy.getHealth().getCurrentHp());
-        assertEquals(80, session.getPlayer().getHealth().getCurrentHp());
+        assertEquals(375, enemy.getHealth().getCurrentHp());
+        assertEquals(85, session.getPlayer().getHealth().getCurrentHp());
         demo.update(0, true, false);
         List<Attack> beforeReset = demo.getActiveAttacks();
         demo.update(0, true, true);
         assertTrue(demo.getActiveAttacks().isEmpty());
         assertTrue(beforeReset.stream().noneMatch(Attack::isActive));
-        assertEquals(100, enemy.getHealth().getCurrentHp());
+        assertEquals(375, enemy.getHealth().getCurrentHp());
+        assertNotSame(enemy, enemy(demo));
+        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
         assertEquals(position, session.getPlayer().getBounds());
-        for (EnemyAI ai : demo.getEnemies()) {
-            assertEquals(EnemyState.IDLE, ai.getState());
-            assertEquals(100, ai.getEnemy().getHealth().getCurrentHp());
-        }
+        assertTrue(demo.getEnemies().isEmpty());
+        assertEquals(BossState.IDLE, demo.getBoss().orElseThrow().getState());
         demo.update(0, true, false);
-        assertEquals(100, enemy.getHealth().getCurrentHp());
+        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
         demo.update(0.2, false, false);
-        assertEquals(75, enemy.getHealth().getCurrentHp());
+        assertEquals(375, enemy(demo).getHealth().getCurrentHp());
     }
 
-    /** A dead player cannot attack until explicitly restored; input requests do not auto-revive. */
+    /** Settled battle death now returns and restores the player automatically, without debug R. */
     @Test
-    void deathPreventsNewAttacksAndResetRevives() {
-        GameSession session = session(MapCatalog.TRAINING);
+    void battleDeathAutomaticallyReturnsToHub() {
+        GameSession session = session(MapCatalog.CROSSROADS);
         CombatDemo demo = new CombatDemo(session);
-        for (int i = 0; i < 100; i++) {
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        for (int i = 0; i < 300 && demo.getLastDefeat().isEmpty(); i++) {
             demo.update(0.1, false, false);
         }
-        assertFalse(session.getPlayer().isAlive());
-        demo.update(0, true, false);
-        assertEquals(100, enemy(demo).getHealth().getCurrentHp());
-        assertTrue(demo.getStatus().contains("HP 0"));
-        demo.update(0, false, true);
+        assertTrue(demo.getLastDefeat().isPresent());
+        assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
+        assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
+        assertTrue(demo.getStatus().contains("FAILURE"));
+        assertTrue(demo.getActiveAttacks().isEmpty());
         assertTrue(session.getPlayer().isAlive());
     }
 
@@ -216,9 +221,9 @@ final class CombatDemoTest {
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
     }
 
-    /** Every built-in spawn supports multiple valid enemies in battle maps; Hub remains non-hostile. */
+    /** Every built-in battle spawn supports exactly one Boss and no mobs; Hub remains non-hostile. */
     @Test
-    void placesEnemiesSafelyForEveryBuiltInSpawn() {
+    void placesSingleBossSafelyForEveryBuiltInSpawn() {
         GameSession session = session(MapCatalog.HUB);
         CombatDemo demo = new CombatDemo(session);
         for (GameMap map : MapCatalog.createMaps()) {
@@ -226,21 +231,15 @@ final class CombatDemoTest {
                 session.switchMap(map.getId(), spawn);
                 demo.update(0, true, false);
                 assertTrue(demo.getActiveAttacks().isEmpty());
-                assertEquals(map.getType() == MapType.HUB ? 1 : 1 + GameConfig.ENEMY_COUNT
-                                + (demo.getBoss().isPresent() ? 1 : 0),
+                assertEquals(map.getType() == MapType.HUB ? 1 : 2,
                         demo.getCombatants().size());
                 for (Combatant actor : demo.getCombatants()) {
                     assertTrue(map.isWalkable(actor.getHurtbox()));
                 }
                 if (map.getType() == MapType.BATTLE) {
-                    List<EnemyAI> enemies = demo.getEnemies();
-                    for (int i = 0; i < enemies.size(); i++) {
-                        assertFalse(enemies.get(i).getBounds().overlaps(session.getPlayer().getBounds()));
-                        for (int j = 0; j < i; j++) {
-                            assertFalse(enemies.get(i).getBounds().overlaps(enemies.get(j).getBounds()));
-                        }
-                    }
+                    assertFalse(demo.getBoss().orElseThrow().getBounds().overlaps(session.getPlayer().getBounds()));
                 }
+                assertTrue(demo.getEnemies().isEmpty());
             }
         }
     }
@@ -256,14 +255,14 @@ final class CombatDemoTest {
         session.getPlayer().takeDamage(25);
         List<Attack> oldAttacks = demo.getActiveAttacks();
         Enemy previousEnemy = enemy(demo);
-        EnemyAI previousAI = demo.getEnemies().get(0);
+        Boss previousAI = demo.getBoss().orElseThrow();
         CollisionBox previousPosition = previousAI.getBounds();
         travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);
         travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY);
         demo.update(0, true, false);
         assertEquals(75, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(100, previousEnemy.getHealth().getCurrentHp());
-        assertEquals(100, enemy(demo).getHealth().getCurrentHp());
+        assertEquals(400, previousEnemy.getHealth().getCurrentHp());
+        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
         assertNotSame(previousEnemy, enemy(demo));
         assertTrue(oldAttacks.stream().noneMatch(Attack::isActive));
         assertTrue(demo.getActiveAttacks().isEmpty());
@@ -271,15 +270,16 @@ final class CombatDemoTest {
         assertEquals(previousPosition, previousAI.getBounds());
     }
 
-    /** A small battle map with no safe candidate produces no enemies rather than an invalid spawn. */
+    /** A custom small battle map without a Boss-sized candidate must not force an invalid spawn. */
     @Test
-    void skipsEnemyPlacementWhenNoCandidateFits() {
+    void skipsBossPlacementWhenNoCandidateFits() {
         GameMap small = new GameMap("small", "Small", MapType.BATTLE, 60, 60, List.of(),
                 Map.of("entry", new SpawnPoint(0, 0)), "entry");
         GameSession session = new GameSession(List.of(small), "small", 28, 28, 180);
         CombatDemo demo = new CombatDemo(session);
         demo.update(1, false, false);
         assertTrue(demo.getEnemies().isEmpty());
+        assertTrue(demo.getBoss().isEmpty());
         assertEquals(1, demo.getCombatants().size());
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
         assertThrows(UnsupportedOperationException.class, () -> demo.getEnemies().clear());
@@ -298,7 +298,7 @@ final class CombatDemoTest {
         session.switchMap(MapCatalog.TRAINING);
         demo.update(0, false, false);
         assertFalse(attack.isActive());
-        assertEquals(100, enemy(demo).getHealth().getCurrentHp());
+        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
     }
 
     /** A portal transition uses the same cleanup path and does not automatically heal the player. */
@@ -317,7 +317,7 @@ final class CombatDemoTest {
         assertEquals(MapCatalog.TRAINING, session.getCurrentMap().getId());
         assertFalse(attack.isActive());
         assertEquals(80, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(100, enemy(demo).getHealth().getCurrentHp());
+        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
     }
 
     /**

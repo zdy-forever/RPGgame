@@ -53,6 +53,7 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Samples input, updates movement/abilities and combat, then checks arrival portals before drawing.
      * Fast travel consumes commands; portal arrival immediately clears old-map attacks and dash.
+     * Failure recovery consumes the rest of the frame before any Hub movement or portal check.
      * Frame stalls are capped and all simulation timers pause with this screen.
      *
      * @param delta seconds elapsed since the previous frame
@@ -60,40 +61,66 @@ public final class GameScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
-            boolean travelConsumed;
-            try {
-                travelConsumed = handleTravelInput();
-            } catch (IllegalArgumentException | IllegalStateException failure) {
-                travelStatus = failure.getMessage();
-                travelConsumed = true;
-            }
-            combatDemo.update(Math.min(delta, GameConfig.MAX_FRAME_DELTA),
-                    travelConsumed ? PlayerCommand.NONE : input.sample(),
-                    !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R),
-                    travelConsumed ? null : input.sampleClassSelection().orElse(null),
-                    !travelConsumed && input.sampleElementCycle());
-            if (travelConsumed) {
-                updateMapView();
-            } else {
-                try {
-                    if (travel.updatePortals()) {
-                        combatDemo.update(0, PlayerCommand.NONE, false);
-                        travelStatus = "Arrived by portal; leave the portal area before re-entry";
-                        updateMapView();
-                    }
-                } catch (IllegalArgumentException | IllegalStateException failure) {
-                    travelStatus = failure.getMessage();
-                    updateMapView();
-                }
-            }
-            if (!combatStatus.equals(combatDemo.getStatus())) {
-                updateMapView();
-            }
+            updateGameplay(Math.min(delta, GameConfig.MAX_FRAME_DELTA));
         }
         skipNextUpdate = false;
         renderer.render(session.getCurrentMap(), session.getPlayer(),
                 travel.getPortals(session.getCurrentMap().getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
+    }
+
+    /**
+     * Arbitrates one gameplay frame, giving settled defeat precedence over travel and debug input.
+     * A post-combat failure return skips all remaining portal/input processing in the arrival frame.
+     * TravelSystem observes the normal session stamp on its next check and arms arrival protection.
+     * @param delta validated capped non-negative simulation seconds
+     * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
+     */
+    private void updateGameplay(double delta) {
+        if (combatDemo.returnToHubIfDefeated()) {
+            showDefeatReturn();
+            return;
+        }
+        boolean travelConsumed;
+        try {
+            travelConsumed = handleTravelInput();
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            travelStatus = failure.getMessage();
+            travelConsumed = true;
+        }
+        long beforeCombat = session.getTransitionVersion();
+        combatDemo.update(delta,
+                travelConsumed ? PlayerCommand.NONE : input.sample(),
+                !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R),
+                travelConsumed ? null : input.sampleClassSelection().orElse(null),
+                !travelConsumed && input.sampleElementCycle());
+        if (session.getTransitionVersion() != beforeCombat) {
+            showDefeatReturn();
+            return;
+        }
+        if (travelConsumed) {
+            updateMapView();
+        } else {
+            try {
+                if (travel.updatePortals()) {
+                    combatDemo.update(0, PlayerCommand.NONE, false);
+                    travelStatus = "Arrived by portal; leave the portal area before re-entry";
+                    updateMapView();
+                }
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                travelStatus = failure.getMessage();
+                updateMapView();
+            }
+        }
+        if (!combatStatus.equals(combatDemo.getStatus())) {
+            updateMapView();
+        }
+    }
+
+    /** Updates only placeholder feedback after recovery; no Quest state is read or changed. */
+    private void showDefeatReturn() {
+        travelStatus = "Challenge FAILURE; returned to Hub with full HP";
+        updateMapView();
     }
 
     /**

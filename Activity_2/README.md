@@ -5,11 +5,32 @@ demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera using geometric placeholders. Player and
 enemy models share validated integer health and one attack pipeline, independent
-of the demonstration view. Battle maps include multiple basic autonomous enemies.
-Crossroads also includes a two-phase placeholder Boss and encounter-scoped material drops.
+of the demonstration view. Each built-in Battle Map contains one two-phase placeholder
+Boss and no ordinary enemies. Player defeat automatically returns to Hub, restores full
+HP and clears the encounter while retaining player identity and selected class/ultimate configuration.
 The shared combat pipeline supports opt-in elemental attachment, two provisional reactions,
 and bounded one-generation derived attacks; built-in class attacks remain non-elemental by default.
 It loads no images, fonts, animation, sound, or music assets.
+
+## Player failure and retry
+
+Battle HP reaching zero means challenge **FAILURE**. After combat settlement, the existing
+coordinator returns the same Player to Hub's default spawn (64,64), clears old attacks,
+projectiles, elemental/derived effects and ability activity, then calls Health.restoreFull().
+No death callback switches maps. The remainder of the death frame is consumed; R cannot
+revive a dead player in Battle. Class configuration and remaining slot cooldowns are preserved.
+Re-entering either battle map creates a new Boss at full HP, phase 1 and fresh AI/cooldowns.
+
+Quick check: start the game, select F1/F2/F3, press U then 3, approach the large Boss and
+let it attack without pressing R. At zero HP you should immediately arrive alive in Hub,
+with no old attacks following you. Use the portal again (or debug 3) to verify a fresh Boss.
+TravelSystem's existing arrival guard prevents immediate automatic return through a portal.
+
+Quest/NPC acceptance, quest status and success-return flow are outside this branch.
+Failure does not mark a Quest failed/completed or remove it; its external owner can keep it ACTIVE.
+This checkout has no independent O-mode selector: recovery preserves the complete existing
+O configuration, without introducing mode mechanics. See
+[the defeat implementation report](docs/PLAYER_DEFEAT_REPORT.md) for tests and limitations.
 
 ## Author
 
@@ -239,8 +260,8 @@ To check manually:
   `IllegalArgumentException` before mutation, even when full or dead. Extreme
   positive amounts cannot overflow the integer HP range.
 - `restoreFull()` explicitly restores full HP and can revive. It does not change
-  position, map, movement speed, or any other entity state. It is a foundation
-  for a later respawn coordinator, not an implemented respawn workflow.
+  position, map, movement speed, or any other entity state. CombatDemo now calls it
+  only after failure return and encounter cleanup; Health still owns no map policy.
 - `Player` and the existing minimal `Enemy` implement `Damageable` by delegation.
   Each owns a separate `Health`, exposed by `getHealth()` for queries and
   validated healing/restoration. Existing constructors remain valid and use
@@ -248,7 +269,7 @@ To check manually:
   `new Player(bounds, speed, area, maxHp)` or `new Enemy(maxHp)`.
 - Movement and map/portal/fast-travel transitions preserve HP. The health model
   does not decide whether dead players may move/travel. The common ability controller
-  now blocks dead-player movement and abilities; debug fast travel remains allowed.
+  blocks dead-player movement and abilities; the screen processes battle failure before debug travel.
   The combat pipeline rejects attacks
   from dead sources; health itself owns no input, AI, effects, or respawn workflow.
 - Use the model on the game-loop thread. It does not depend on LibGDX or load assets.
@@ -358,36 +379,33 @@ Temporary controls (attack values below are the default Mage, not final characte
 | O | Ultimate: 75 damage, 180-unit extension, 0.5 s active, 8 s cooldown |
 | F1 / F2 / F3 | Select Archer / Mage / Katana when no player attack or dash is active |
 | F4 | Cycle outgoing debug element: NONE → WATER → FIRE → LIGHTNING → ICE → WIND → NONE; same safety guard as class selection |
-| R | Restore player/enemy HP, reset AI awareness, and clear attacks/cooldowns; no repositioning |
+| R | Debug restore while alive: reset player HP/abilities and create a fresh Boss; dead Battle players return to Hub instead |
 
-1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. Two red enemies
-   appear near the entry and begin approaching. Placement is checked against map
-   walls, the player, and earlier spawns. Hub has no enemies.
+1. Run `./gradlew lwjgl3:run`, then press U and 3 to enter Crossroads. One large red Boss
+   appears at a validated placement. Training also has one Boss; Hub has no enemies.
 2. The cyan outlines are hurtboxes. The player's is inset from its green body,
    demonstrating independence from visual size. Face an enemy with WASD and press J:
    a small yellow magic bolt travels until impact, 360 units, or 1.5 seconds.
    The first valid enemy it hits loses 25 HP; the bolt then disappears.
-3. Stand still and watch the title change from CHASE to ATTACK. In range each enemy
-   stops and automatically requests a 10-damage attack, with a one-second cooldown
-   and 0.2-second active hitbox. Multiple enemies each have their own cooldown.
-   The former H manual enemy-attack shortcut has been removed.
-4. Press J with at least 0.5 seconds between successful strikes to kill enemies.
-   Dead enemies become grey, report DEAD, and stop moving/attacking. Press R to
-   restore all HP and clear attacks/cooldowns; positions do not reset. A dead player
-   cannot attack, and enemies stop pursuing it. R allows normal decisions to resume.
-5. Run away (player speed 180, enemy speed 80). Beyond the loss radius, enemies
+3. Approach and watch the title change from CHASE to ATTACK. The Boss alternates its
+   configured sweep/slam patterns through the same pipeline; see Boss tuning below.
+4. Press J with at least 0.5 seconds between successful Mage shots. A defeated Boss
+   becomes grey, reports DEAD and produces one material placeholder. If the player
+   dies instead, the encounter is cleared and the player returns to Hub at full HP.
+5. Run away (player speed 180, Boss speed 70). Beyond the loss radius, hostiles
    become IDLE and stop where they are. Re-enter the detection radius to reacquire.
    Use map obstacles to verify that pursuit routes around walls rather than crossing them.
    J bolts stop at walls; K/O remain fixed surrounding rectangle spell prototypes.
 6. Attack then fast-travel or enter a portal. Old yellow rectangles disappear and
    cannot damage actors on the new map. Player HP is preserved; each new battle
-   scope gets fresh enemies. Resize still uses the existing camera.
+   scope gets a fresh Boss. Ordinary travel preserves HP; failure return explicitly restores it.
+   Resize still uses the existing camera.
 
 Class tuning is in `PlayerClasses`; scene/enemy tuning remains in `GameConfig`. Neither combat models nor detection import rendering
 or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
 the native title rather than loading fonts. `CombatDemo` delegates common movement/ability
 execution to `PlayerAbilities`, coordinates placement and reset/transition policy,
-updates every EnemyAI, then advances the shared CombatSystem exactly once.
+updates the Boss, then advances the shared CombatSystem exactly once before processing failure.
 
 Combat limitations: axis-aligned hitboxes, discrete area-attack overlap samples, no global wall
 occlusion/line-of-sight for area attacks, and no armour, knockback, attack wind-up,
@@ -440,7 +458,7 @@ attack hitboxes. Hold keys and then tap rapidly to verify no automatic repeat or
 cooldown bypass. Try WASD+L against a wall and near each map edge, then L without
 WASD to check remembered facing. Press all four keys to check dash priority. Dash
 or attack, travel with 1/2/3, and confirm active effects stop without resetting slot
-cooldowns. Use R to recover after death.
+cooldowns. Battle death now returns to Hub and restores HP automatically.
 
 Ability limitations: Archer, Mage and Katana use the projectile/spell/melee prototypes below.
 No targeting cursor, energy economy, combo buffer,
@@ -640,7 +658,7 @@ in `PlayerClasses`; Archer and Katana configurations are unchanged by this featu
 Manual verification: run `./gradlew lwjgl3:run`, select F2, then U and 2 for Training.
 Use WASD to aim J and verify delayed impact rather than immediate ranged damage.
 Fire toward a wall, spam J/K/O during cooldown, and try K/O with multiple nearby enemies.
-Dash into a wall with L; fire then travel/reset to confirm cleanup. Use R after death.
+Dash into a wall with L; fire then travel/reset to confirm cleanup. Battle death automatically returns to Hub.
 The automated suite exercises model integration; keyboard/visual checks remain manual.
 
 Limitations: straight non-homing bolts; no relative sweep against the target's entire
@@ -701,7 +719,7 @@ Manual verification: run `./gradlew lwjgl3:run`, select F3, then U and 2 for Tra
 Face enemies from each direction with WASD and tap J. Try K at a distance where J
 misses, then face away and confirm J/K do not hit behind. Use O among several enemies;
 each should lose HP only once. Spam inputs during cooldown, dash into a wall with L,
-then attack and travel/reset to check cleanup. Use R after death.
+then attack and travel/reset to check cleanup. Battle death automatically returns to Hub.
 
 Limitations: fixed rectangular slash prototypes, no precise sword arc, combo, charge,
 multi-hit timeline or final skill balance. Like the existing fixed-area attacks,
@@ -717,7 +735,7 @@ not targets' complete movement paths; keyboard/visual verification remains manua
 
 Run `./gradlew lwjgl3:run`, press U then 3 to enter **Crossroads**. The Sentinel is
 a large 64 x 64 red rectangle, normally starting at (360, 100). It uses 400 HP and
-the same player/enemy combat pipeline. Hub and Training keep their existing behavior.
+the same player/enemy combat pipeline. Training also has one Boss; Hub remains peaceful.
 The native window title reports Boss HP, phase, state and any dropped material.
 
 `Boss` composes the existing `Enemy` health owner and `EnemyAI` controller; there is
@@ -743,8 +761,9 @@ The original two-argument EnemyAI update still performs normal enemy attacks.
   pauses navigation/new attacks and cancels existing Boss attacks **without resetting
   source cooldown**. Healing does not revert phase or restart the pause. Large transition
   frames discard leftover movement/attack time instead of issuing catch-up attacks.
-- The arena updates player/enemy/Boss decisions, advances CombatSystem once, then
-  calls `Boss.synchronizeOutcome()` so settled damage changes phase/death/drop state
+- The arena updates player/Boss decisions, advances CombatSystem once, processes any
+  player failure return, then calls `Boss.synchronizeOutcome()` if the encounter is still active.
+  Settled damage changes phase/death/drop state
   before rendering. Lethal damage takes priority over phase change. Each attack uses
   combat-core's per-target hit ledger; no frame-driven repeated damage is introduced.
 - Defeat stops decisions and cancels remaining Boss attacks. Exactly one immutable
@@ -756,8 +775,9 @@ The original two-argument EnemyAI update still performs normal enemy attacks.
   and capacity/acceptance before claiming on the game-loop thread. There is deliberately
   no automatic pickup or fake inventory storage in this branch.
 - Loot is encounter-scoped, not saved: travel/reset discards unclaimed rewards and
-  returning creates a fresh encounter. R restores the existing player/basic enemies
-  but replaces the Boss with a fresh, safely placed instance. It is a debug reset,
+  returning creates a fresh encounter. R restores the living player and replaces the
+  Boss with a fresh, safely placed instance. Dead Battle players return to Hub instead.
+  It is a debug reset,
   not a farming/persistence policy. Restoring a defeated Boss's Health alone does not
   restart its encounter. Detached old-map Boss references cannot claim or generate loot.
 
@@ -854,7 +874,8 @@ configuration. Built-in catalog definitions remain NONE and immutable. Selection
 the existing `PlayerAbilities.selectClass` guard: live attacks/projectiles, launch windows,
 dash and death reject changes. Slot cooldowns, position, facing and HP are never reset.
 Wait for the current attack to end and press again; rejected requests are not queued.
-Frame priority is travel/reset, then F1/F2/F3, then F4, then ordinary ability/movement requests.
+Frame priority is settled Battle defeat, then travel/reset, then F1/F2/F3, then F4,
+then ordinary ability/movement requests.
 Selection attempts consume new commands but do not pause existing AI/combat. Class selection
 preserves the currently selected light-slot element; F4 intentionally tags all three attack slots.
 The selection persists through travel and debug R reset, not application restart.
@@ -910,13 +931,10 @@ the existing frame-sampled attachment timing are intentional foundation semantic
   controller cannot pursue actors in a new arena. DEAD reflects zero Health immediately,
   even after combat settlement in the same frame, and prevents movement/attack requests.
   Ordinary healing cannot revive; explicit debug restoration resets awareness.
-- `GameConfig.BASIC_ENEMY` configures speed 80, detection radius 200, loss radius 260,
-  attack radius 44, damage 10, active time 0.2 seconds, and cooldown 1 second. Speed
-  and all radii must be positive and finite, attack <= detection <= loss, and an
-  autonomous attack must have a positive cooldown. Invalid time/overflowing movement
-  distance is rejected. `ENEMY_COUNT`, `ENEMY_SIZE`, and `ENEMY_SPAWN_OFFSET` configure
-  the temporary battle-map demonstration. Existing built-in battle entries support
-  two enemies; a map with fewer safe placement candidates gets fewer or none.
+- `EnemyConfig` validates positive finite speed/radii, attack <= detection <= loss,
+  and positive autonomous cooldowns. Invalid time/overflowing movement is rejected.
+  Ordinary AI remains available to isolated tests, but the gameplay scene no longer
+  spawns mobs or uses the former ENEMY_COUNT/ENEMY_SIZE/ENEMY_SPAWN_OFFSET settings.
 - `EnemyConfig` additionally configures `pathCellSize` (default 16 world units) and
   `repathSeconds` (default 0.5). The existing five-argument constructor remains valid.
   `AStarPathfinder` builds a bounded four-neighbour navigation grid from full-body
@@ -932,7 +950,7 @@ the existing frame-sampled attachment timing are intentional foundation semantic
   loss, reset, and arena replacement discard route state. Detection/loss radii still
   apply while detouring; A* does not grant unlimited pursuit.
 - Each enemy has independent health, state, geometry, and per-source combat cooldown.
-  The arena owns a normal list of controllers; there is no singleton enemy or ECS.
+  Generic clients can own a normal list of controllers; there is no singleton enemy or ECS.
   Initial spawn candidates do not overlap, but moving entities are not solid to one
   another, so enemies can later overlap. Movement/attack pause with the existing loop.
 

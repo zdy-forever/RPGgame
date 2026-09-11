@@ -3,9 +3,11 @@
 This document defines the module boundaries for the gameplay loop:
 
 ```text
-Hub -> accept quest -> portal -> combat map -> combat -> rewards
-    -> return to hub -> crafting/preparation -> next quest
+Hub -> accept quest -> portal -> single-Boss battle -> success/failure -> Hub
 ```
+
+Quest/NPC acceptance and success-return coordination belong to separate work. This branch
+implements battle FAILURE recovery only; it never completes, deletes or fails a Quest.
 
 ## 1. Current package structure
 
@@ -151,7 +153,7 @@ are documented boundaries but do not have empty packages yet.
 - An active/new dash blocks new attacks. Otherwise O > K > J chooses the first
   ready requested attack; one new ability per step and no queued requests. Slot
   timers advance after input arbitration, matching combat-core's timing convention.
-- CombatDemo coordinates player abilities, then every EnemyAI, then exactly one
+- CombatDemo coordinates player abilities, then the single Boss, then exactly one
   shared combat update. GameScreen handles fast travel before that step and portal
   overlap afterward. Transition cleanup cancels old attacks/dash immediately and
   rebinds the canonical player adapter, preserving slot cooldowns. R resets all
@@ -161,6 +163,42 @@ are documented boundaries but do not have empty packages yet.
 - This foundation exposes common slots, selected class tuning, AttackShape strategies and straight
   projectile delivery, not final class skill designs. Ultimate energy,
   swept portal triggers, combo buffering and global wall occlusion remain future work.
+
+### Player defeat and Hub recovery
+
+- A settled zero-HP player in a BATTLE map means challenge FAILURE. CombatDemo checks
+  before accepting new commands and immediately after the shared CombatSystem update.
+  No Health/Damageable callback switches maps; all hits in that settlement finish first.
+  Player failure is handled before the post-combat Boss reward/phase synchronization.
+- `returnToHubIfDefeated()` uses the existing `GameSession.switchMap(MapCatalog.HUB)`
+  and default Hub spawn. The destination must be HUB type and fit the full player.
+  It then reuses `syncMap`: CombatSystem.clear removes every registration, source
+  cooldown, attachment and active attack, including projectiles and derived attacks;
+  PlayerAbilities.bindAfterTransition clears dash, launch windows and invocation references.
+  The old Boss is detached and its owned Enemy/AI/path/phase/pattern/drop state is no
+  longer referenced or updated by the scene. External stale references cannot act or claim loot.
+- Only after arrival and scope cleanup does `Health.restoreFull()` restore the player.
+  Player, Health, PlayerAbilities and the complete ClassDefinition remain the same instances;
+  remaining slot cooldowns are preserved under the existing transition policy. A fresh
+  canonical Combatant is registered in Hub. The arrival frame has no further movement,
+  ability execution or portal check; normal live input resumes on the next frame.
+- GameScreen also checks settled death before processing travel shortcuts, preventing
+  travel/reset/selection from bypassing failure. TravelSystem needs no new switching API:
+  its existing transition-stamp guard handles the external Hub arrival and portal retry.
+- `getLastDefeat()` exposes an optional immutable `(mapId, encounterVersion)` snapshot.
+  Repeated polling cannot return/heal twice because successful recovery is alive in Hub.
+  It retains only the latest completed failure, not a queue or a mutable Quest status.
+  External Quest ownership remains unchanged; callers may leave their task ACTIVE.
+- Every built-in Battle Map now creates one fresh sentinel and no ordinary mobs. Retry
+  never reuses the old Boss: Health, AI, phase, pattern index, cooldown and pending loot
+  start fresh. Custom maps need a walkable configured Boss placement; no invalid body is forced.
+- This checkout has no independent O-mode enum, selection field or mode-switch input.
+  Recovery preserves the existing ultimate configuration exactly (including custom shape,
+  projectile and element tuning); it does not claim to implement a missing mode selector.
+- Invalid Hub configuration fails explicitly without healing in Battle. Hub death itself
+  is not a battle failure. NPC/Quest logic, success return, loot persistence, death effects
+  and a production respawn UI are outside this branch. R remains an explicit debug reset
+  for living encounters; dead battle players always return instead of resetting in place.
 
 ### Class composition and selection
 
@@ -219,8 +257,8 @@ are documented boundaries but do not have empty packages yet.
   Death is derived from zero HP. Healing does not revive; only explicit
   `restoreFull()` restores a dead entity to full health.
 - Health has no graphics, input, callbacks, or entity-specific rules. PlayerAbilities
-  blocks dead-player movement/abilities; debug travel still permits dead players.
-  Effects and full respawn orchestration are absent. Use mutations on the game-loop thread.
+  blocks dead-player movement/abilities; GameScreen processes battle failure before travel.
+  CombatDemo owns recovery, never Health. Use mutations on the game-loop thread.
 - `Combatant` adapts `Damageable` with a stable faction and mutable reference to
   immutable world hurtbox data. It is not a new entity hierarchy or health model.
   Visual/collision sizes do not determine combat geometry; owners update hurtboxes
@@ -241,9 +279,9 @@ are documented boundaries but do not have empty packages yet.
   survive re-registration, while elemental attachments are removed. Clear cancels all attacks/registrations/cooldowns/attachments without
   changing HP, and invocation identifiers are not reused after clear.
 - `screen/CombatDemo` is an asset-free debug adapter, not part of core combat rules.
-  It places multiple enemies near valid battle-map entries and clears scopes using
+  It places one Boss in each built-in battle map and clears scopes using
   GameSession's transition stamp. J/K/L/O delegate to PlayerAbilities; enemies attack
-  automatically through EnemyAI, replacing the former H shortcut. R explicitly
+  automatically through Boss-composed EnemyAI, replacing the former H shortcut. R explicitly
   restores HP, resets AI awareness, and clears attacks/cooldowns without repositioning.
   GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
   HP, AI and ability states use native window-title text. All AI updates precede exactly one
@@ -413,7 +451,7 @@ are documented boundaries but do not have empty packages yet.
   valid location. getDrop/claimDrop provide a minimal read/one-time-transfer boundary;
   Inventory remains untouched because it has no storage API yet. Future adapters must
   check pickup distance and capacity before claiming, on the simulation thread.
-- CombatDemo owns a single optional sentinel on Crossroads, alongside existing enemies.
+- CombatDemo owns a single sentinel on each built-in battle map, without ordinary enemies.
   Safe placement candidates and provisional pattern tuning are in GameConfig. Map changes
   clear registrations/attacks; reset replaces the Boss rather than reviving the rewarded
   instance. Unclaimed drops are not persisted and old-scope Bosses cannot expose/claim
@@ -466,9 +504,9 @@ are documented boundaries but do not have empty packages yet.
   interval, configurable through EnemyConfig with a backward-compatible constructor.
   WalkableArea exposes outer bounds for finite navigation. Grids over 20,000 nodes
   fail explicitly; grid resolution can miss passages narrower than its sampling.
-- Demo spawn candidates are checked against map geometry/player/earlier enemies;
-  later movement has no dynamic actor collision. New battle scopes create fresh
-  enemies, while player HP is retained. This is not a persistent spawn/save system.
+- EnemyAI remains reusable and tested independently; the gameplay scene only creates
+  Boss-owned navigation. Placement checks use map/player geometry. New battle scopes
+  create a fresh Boss; this is not a persistent spawn/save system.
 - No behaviour trees, patrol/home return, crowd avoidance, or dynamic navigation
   graph updates are implemented. Sealed areas return no route; thin/off-grid
   passages may need finer sampling. Static-map collision occupancy is cached.
