@@ -35,7 +35,8 @@ final class CombatOcclusionTest {
     }
 
     /**
-     * Real Archer/Mage projectiles and all fixed Mage/Katana slots obey the same static world.
+     * Real projectiles, fixed target-centred fields and defensive follow-ups share static blockers.
+     * Mage K now selects an element without dealing damage; fields capture before the target moves across a wall.
      * @param type configured class
      * @param slot offensive slot
      * @param blocked whether a thin full-height wall separates player and Boss
@@ -53,13 +54,24 @@ final class CombatOcclusionTest {
         Combatant source = new Combatant(player, Faction.PLAYER, player.getBounds());
         combat.register(source);
         PlayerAbilities abilities = new PlayerAbilities(player, source, combat);
-        Boss boss = new Boss("boss", "Boss", new CollisionBox(150, 100, 64, 64), map, GameConfig.SENTINEL, combat);
+        boolean field = slot == AbilitySlot.ULTIMATE && type != PlayerClass.KATANA;
+        Boss boss = new Boss("boss", "Boss", new CollisionBox(field ? 60 : 150, 100, 64, 64), map, GameConfig.SENTINEL, combat);
         assertTrue(abilities.update(0, command(slot)).isPresent());
-        List<Attack> attacks = combat.getActiveAttacks();
-        assertFalse(attacks.isEmpty());
-        combat.update(2);
-        assertEquals(blocked, boss.getHealth().getCurrentHp() == 400);
-        assertTrue(attacks.stream().noneMatch(Attack::isActive));
+        if (field) {
+            boss.getCombatant().setHurtbox(new CollisionBox(150, 100, 64, 64));
+        }
+        if (type == PlayerClass.KATANA && slot != AbilitySlot.LIGHT) {
+            boss.update(source, 0);
+        }
+        combat.update(0);
+        abilities.afterCombat();
+        for (int i = 0; i < 60; i++) {
+            abilities.update(0.1, PlayerCommand.NONE);
+            combat.update(0.1);
+            abilities.afterCombat();
+        }
+        boolean nonAttacking = type == PlayerClass.MAGE && slot == AbilitySlot.SPECIAL;
+        assertEquals(blocked || nonAttacking, boss.getHealth().getCurrentHp() == 400);
         assertTrue(combat.getActiveAttacks().isEmpty());
         if (blocked) {
             assertEquals(ElementType.NONE, combat.getElementStatus(boss.getCombatant()).element());
@@ -68,7 +80,7 @@ final class CombatOcclusionTest {
 
     /**
      * A replaceable Archer O fixed-area contract stays at its cast centre and obeys walls.
-     * This does not replace the catalog's existing five-arrow fan or invent a complete Arrow Rain skill.
+     * This retains the configurable geometry contract alongside the real finite Arrow Rain implementation.
      * @param blocked whether effect centre and target are separated
      */
     @ParameterizedTest

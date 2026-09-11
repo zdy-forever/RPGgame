@@ -20,6 +20,7 @@ import au.edu.anu.comp2120.player.ClassDefinition;
 import au.edu.anu.comp2120.player.PlayerClass;
 import au.edu.anu.comp2120.player.PlayerClasses;
 import au.edu.anu.comp2120.player.PlayerCommand;
+import au.edu.anu.comp2120.player.UltimateMode;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapCatalog;
 import au.edu.anu.comp2120.world.Portal;
@@ -32,6 +33,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
@@ -55,6 +57,57 @@ final class QuestPortalFlowTest {
 
     /** Creates an independent production-flow fixture. */
     QuestPortalFlowTest() {
+    }
+
+    /**
+     * Every real class/mode survives task success/failure; debug mode requests in Battle are rejected.
+     * Active buffs, casts and defensive states do not survive encounter cleanup.
+     * @param type selected profession
+     * @param mode remembered ultimate mode
+     * @param success whether the Boss or player is defeated
+     */
+    @ParameterizedTest
+    @CsvSource({"ARCHER,A,true", "ARCHER,A,false", "ARCHER,B,true", "ARCHER,B,false",
+            "MAGE,A,true", "MAGE,A,false", "MAGE,B,true", "MAGE,B,false",
+            "KATANA,A,true", "KATANA,A,false", "KATANA,B,true", "KATANA,B,false"})
+    void finalModesSurviveActualEncounterReturns(PlayerClass type, UltimateMode mode, boolean success) {
+        demo.update(0, PlayerCommand.NONE, false, type);
+        if (mode == UltimateMode.B) {
+            demo.update(0, PlayerCommand.NONE, false, null, false, true);
+        }
+        assertEquals(mode, session.getPlayer().getUltimateMode());
+        var player = session.getPlayer();
+        var selected = player.getClassDefinition();
+        enter(permission("final-mode", MapCatalog.CROSSROADS, "hub-crossroads"));
+        Boss old = boss();
+        demo.update(0, PlayerCommand.NONE, false, null, false, true);
+        assertEquals(mode, player.getUltimateMode());
+        demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
+        String expected = switch (type) {
+            case ARCHER -> mode == UltimateMode.A ? "FIELD" : "BUFF";
+            case MAGE -> mode == UltimateMode.A ? "CAST" : "BUFF";
+            case KATANA -> mode == UltimateMode.A ? "STANCE" : "THRUST";
+        };
+        assertEquals(expected, demo.getAbilities().getSkillStatus());
+        if (success) {
+            old.getHealth().takeDamage(400);
+        } else {
+            player.takeDamage(100);
+        }
+        demo.update(0, false, false);
+        assertHubRecovered();
+        assertSame(player, session.getPlayer());
+        assertSame(selected, player.getClassDefinition());
+        assertEquals(mode, player.getUltimateMode());
+        assertEquals("NONE", demo.getAbilities().getSkillStatus());
+        assertTrue(demo.getCombatants().get(0).isTargetable());
+        assertTrue(demo.getActiveAttacks().isEmpty());
+        if (!success) {
+            enterPortal("hub-crossroads");
+            assertNotSame(old, boss());
+            assertEquals(mode, player.getUltimateMode());
+            assertEquals(type, player.getPlayerClass());
+        }
     }
 
     /** Closed task portals cannot create a battle, including the formerly enabled demo routes. */
@@ -219,6 +272,8 @@ final class QuestPortalFlowTest {
         demo.update(0, false, false);
         BattleResult second = flow.getLastResult().orElseThrow();
         assertEquals(2, flow.getPendingRewards().size());
+        // Deliberately attempt mutation to verify the external reward view rejects it.
+        //noinspection DataFlowIssue
         assertThrows(UnsupportedOperationException.class, () -> flow.getPendingRewards().clear());
         assertNotEquals(flow.claimReward(first).orElseThrow().id(), flow.claimReward(second).orElseThrow().id());
         assertTrue(flow.claimReward(first).isEmpty());

@@ -53,14 +53,15 @@ final class BossDemoTest {
     @Test
     void playerAbilitiesAndPostCombatOutcomeAreIntegrated() {
         Boss boss = demo.getBoss().orElseThrow();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
         demo.update(0, PlayerCommand.NONE, false, PlayerClass.KATANA);
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
         boss.getHealth().takeDamage(180);
         demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
-        assertEquals(135, boss.getHealth().getCurrentHp());
+        demo.update(0, PlayerCommand.NONE, false);
+        assertEquals(120, boss.getHealth().getCurrentHp());
         assertEquals(2, boss.getPhase());
         assertEquals(BossState.PHASE_TRANSITION, boss.getState());
-        boss.getHealth().takeDamage(115);
+        boss.getHealth().takeDamage(100);
         demo.update(0, new PlayerCommand(1, 0, true, false, false, false), false);
         assertEquals(BossState.DEAD, boss.getState());
         assertEquals(1, demo.getDrops().size());

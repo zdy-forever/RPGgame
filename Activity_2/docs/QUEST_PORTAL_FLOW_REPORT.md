@@ -10,7 +10,7 @@ dialogue, UI, Inventory operations, save/load or formal art assets were added.
 
 All calls run on the simulation/game-loop thread, not a worker or damage callback.
 
-```java
+```text
 EncounterFlow flow = gameScreen.getEncounterFlow();
 
 // Developer B calls after an actual acceptance in Hub.
@@ -33,7 +33,7 @@ flow.activate(new ActiveEncounter(
         "acceptance-002", MapCatalog.TRAINING, "entry", "hub-training"));
 ```
 
-The snippets illustrate the endpoints; `result` is a key selected from `unclaimed`.
+These are API call fragments, not a standalone Java compilation unit; `result` is a key selected from `unclaimed`.
 Developer B observes `(encounter.id, encounterVersion, outcome)` to distinguish retries
 and owns Quest completion/replacement. FAILURE does not clear gameplay permission, so the
 external Quest may remain ACTIVE. SUCCESS clears permission; the next acceptance must have
@@ -82,8 +82,8 @@ claim. Repeated failed return attempts keep the same Boss material, without prod
 
 The production PlayerAbilities instance enforces Hub-only runtime class/loadout changes,
 including same-class O configuration changes. Existing class/ultimate objects survive both
-return paths. This checkout still has no separate O-mode enum or selector; no final O skills
-were invented. R is ignored in production Battle scopes and remains a Hub debug reset.
+return paths. The subsequent final-class-skills implementation adds per-class A/B modes,
+Hub-only selection and persistent choices; see FINAL_CLASS_SKILLS_REPORT.md. R is ignored in production Battle scopes and remains a Hub debug reset.
 
 Fast travel remains independent: existing unlocks, validation, map switching and arrival
 guards still work. It does not constitute task portal admission, even for the selected map.
@@ -155,8 +155,8 @@ No manual keyboard combat or visual UI verification is claimed; flow coverage is
   integration. Reward payloads, unlike the latest result snapshot, are retained individually.
 - Custom Battle maps still need a valid existing GameConfig Boss placement candidate. This branch
   validates player entry geometry but does not add a new Boss-spawn configuration system.
-- Final O-mode skills/selector, balance, inventory adapters, Quest state, UI and persistence belong
-  to their respective follow-up branches. No formal art or Git/GitLab operation was used.
+- O modes/skills are now implemented by the subsequent final-class-skills work. Final balance,
+  inventory adapters, Quest state, UI and persistence remain separate work. No formal art or Git/GitLab operation was used.
 
 ## Suggested handoff text
 

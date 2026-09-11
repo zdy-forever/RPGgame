@@ -97,6 +97,7 @@ public final class CombatSystem {
             return false;
         }
         elements.remove(combatant);
+        combatant.clearCapabilities();
         cancelAttacks(combatant);
         return true;
     }
@@ -188,6 +189,32 @@ public final class CombatSystem {
             double range, double directionX, double directionY, WalkableArea area) {
         Objects.requireNonNull(attack, "attack");
         Objects.requireNonNull(flight, "flight");
+        return tryProjectiles(source, java.util.Collections.nCopies(flight.count(), attack), flight,
+                range, directionX, directionY, area);
+    }
+
+    /**
+     * Atomically launches a volley with per-shot damage/element metadata through the same flight pipeline.
+     * Validation/capacity failure cannot create a partial volley; source cooldown is the maximum supplied.
+     * @param source canonical attacker
+     * @param specifications one validated specification per projectile
+     * @param flight shared flight/volley geometry
+     * @param range positive maximum distance
+     * @param directionX facing x component
+     * @param directionY facing y component
+     * @param area current collision world
+     * @return complete immutable volley, or empty for cooldown/death/capacity rejection
+     * @throws NullPointerException if required data is null
+     * @throws IllegalArgumentException if count, geometry, world or source is invalid
+     * @throws IllegalStateException if attack identifiers are exhausted
+     */
+    public List<Attack> tryProjectiles(Combatant source, List<AttackSpec> specifications, ProjectileSpec flight,
+            double range, double directionX, double directionY, WalkableArea area) {
+        Objects.requireNonNull(flight, "flight");
+        List<AttackSpec> specs = List.copyOf(specifications);
+        if (specs.size() != flight.count()) {
+            throw new IllegalArgumentException("Each projectile requires one attack specification");
+        }
         Objects.requireNonNull(area, "area");
         double cooldown = getCooldownRemaining(source);
         double length = Math.hypot(directionX, directionY);
@@ -216,11 +243,11 @@ public final class CombatSystem {
             throw new IllegalStateException("Attack identifier range exhausted");
         }
         List<Attack> volley = new ArrayList<>();
-        for (Projectile shot : shots) {
-            volley.add(new Attack(++lastAttackId, source, attack, origin, shot));
+        for (int i = 0; i < shots.size(); i++) {
+            volley.add(new Attack(++lastAttackId, source, specs.get(i), origin, shots.get(i)));
         }
         attacks.addAll(volley);
-        cooldowns.put(source, attack.cooldownSeconds());
+        cooldowns.put(source, specs.stream().mapToDouble(AttackSpec::cooldownSeconds).max().orElseThrow());
         return List.copyOf(volley);
     }
 
@@ -325,6 +352,7 @@ public final class CombatSystem {
     public void clear() {
         attacks.forEach(Attack::cancel);
         attacks.clear();
+        cooldowns.keySet().forEach(Combatant::clearCapabilities);
         cooldowns.clear();
         elements.clear();
         world = null;
@@ -397,10 +425,15 @@ public final class CombatSystem {
      * @param target valid receiver
      */
     private void deliverDamage(Attack attack, Combatant target) {
+        if (target.intercepts(attack)) {
+            attack.recordHit(target.getEntity());
+            return;
+        }
         ElementType incoming = attack.getSpecification().element();
         ElementRules.Reaction reaction = attack.isDerived() || incoming == ElementType.NONE ? null
                 : elementRules.find(getElementStatus(target).element(), incoming).orElse(null);
         target.getEntity().takeDamage(calculateDamage(attack, reaction));
+        attack.recordLandedHit(target.getEntity());
         attack.recordHit(target.getEntity());
         if (!target.getEntity().isAlive() || reaction != null) {
             elements.remove(target);
@@ -428,6 +461,7 @@ public final class CombatSystem {
     /**
      * Queues one-generation geometry for a confirmed reaction; never recursively delivers damage.
      * Children retain the incoming attacker, have their own ID/ledger, and do not charge cooldown.
+     * Derived ground effects are non-blockable; targetability never grants immunity to them.
      * Their occlusion origin is the newly captured effect centre, not the original attacker's position.
      * Full capacity, exhausted IDs or unrepresentable effect geometry skip only the optional child;
      * the triggering damage/attachment consumption has already settled and is never retried.
@@ -450,7 +484,7 @@ public final class CombatSystem {
             return;
         }
         AttackSpec specification = new AttackSpec("reaction-" + reaction.id(), effect.damage(), effect.activeSeconds(),
-                0, ElementType.NONE);
+                0, ElementType.NONE, false);
         attacks.add(new Attack(++lastAttackId, parent.getSource(), specification, hitbox, null, parent.getId(), hitbox));
     }
 }

@@ -13,6 +13,16 @@ public final class Health implements Damageable {
     private final int maxHp;
     /** Remaining hit points, inclusive of zero and maxHp. */
     private int currentHp;
+    /** Changes only on actual HP loss, so healing cannot conceal damage from cast interruption. */
+    private long damageVersion;
+
+    /**
+     * Observes effective damage without callbacks or class-specific health rules.
+     * @return version to compare for inequality across a protected/casting window
+     */
+    public long getDamageVersion() {
+        return damageVersion;
+    }
 
     /**
      * Creates a living entity at full health.
@@ -57,6 +67,9 @@ public final class Health implements Damageable {
     @Override
     public void takeDamage(int damage) {
         requireNonNegative(damage);
+        if (damage > 0 && currentHp > 0) {
+            damageVersion++;
+        }
         currentHp -= Math.min(damage, currentHp);
     }
 

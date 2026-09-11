@@ -11,9 +11,24 @@ import java.util.Objects;
  * @param activeSeconds positive finite area active duration or projectile launch window in seconds
  * @param cooldownSeconds finite non-negative attacker cooldown from attack creation
  * @param element element applied by valid direct hits; NONE preserves ordinary attack behavior
+ * @param blockable whether generic defensive interception may consume this hit
  * @author Daoyan Zhu (u7782042)
  */
-public record AttackSpec(String type, int damage, double activeSeconds, double cooldownSeconds, ElementType element) {
+public record AttackSpec(String type, int damage, double activeSeconds, double cooldownSeconds,
+        ElementType element, boolean blockable) {
+    /**
+     * Preserves ordinary blockable elemental attacks.
+     * @param type attack label
+     * @param damage non-negative damage
+     * @param activeSeconds positive active window
+     * @param cooldownSeconds non-negative cooldown
+     * @param element elemental metadata
+     * @throws NullPointerException if type or element is null
+     * @throws IllegalArgumentException if tuning is invalid
+     */
+    public AttackSpec(String type, int damage, double activeSeconds, double cooldownSeconds, ElementType element) {
+        this(type, damage, activeSeconds, cooldownSeconds, element, true);
+    }
     /**
      * Preserves existing non-elemental attack configurations.
      * @param type non-blank attack label
@@ -33,6 +48,7 @@ public record AttackSpec(String type, int damage, double activeSeconds, double c
      * @param activeSeconds positive finite area duration or projectile launch window
      * @param cooldownSeconds finite non-negative cooldown
      * @param element required element identity, including NONE
+     * @param blockable whether defensive interception is allowed
      * @throws NullPointerException if type or element is null
      * @throws IllegalArgumentException if the label, damage, or timing is invalid
      */

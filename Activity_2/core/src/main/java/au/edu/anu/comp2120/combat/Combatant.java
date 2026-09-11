@@ -17,6 +17,49 @@ public final class Combatant {
     private final Faction faction;
     /** Current immutable hurt geometry, independent of artwork. */
     private CollisionBox hurtbox;
+    /** Selection eligibility only; existing attack geometry can still damage this receiver. */
+    private boolean targetable = true;
+    /** Optional scope-local defensive response, never a class-specific combat rule. */
+    private HitInterceptor interceptor;
+
+    /**
+     * Queries eligibility for newly targeted AI actions, not immunity to existing hits.
+     * @return whether an AI may acquire this live receiver
+     */
+    public boolean isTargetable() {
+        return targetable && entity.isAlive();
+    }
+
+    /**
+     * Changes selection eligibility without changing health or hit detection.
+     * @param targetable desired target-selection state
+     */
+    public void setTargetable(boolean targetable) {
+        this.targetable = targetable;
+    }
+
+    /**
+     * Installs a scope-local defensive response; null removes it.
+     * @param interceptor response called only for blockable confirmed hits
+     */
+    public void setHitInterceptor(HitInterceptor interceptor) {
+        this.interceptor = interceptor;
+    }
+
+    /**
+     * Consults the optional interceptor for a confirmed hit.
+     * @param attack incoming invocation
+     * @return true if the receiver consumed a blockable hit
+     */
+    boolean intercepts(Attack attack) {
+        return attack.getSpecification().blockable() && interceptor != null && interceptor.blocks(attack);
+    }
+
+    /** Clears transient capabilities when this adapter leaves its scope. */
+    void clearCapabilities() {
+        targetable = true;
+        interceptor = null;
+    }
 
     /**
      * Creates an adapter without changing the receiver's health or position.

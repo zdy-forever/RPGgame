@@ -85,6 +85,10 @@ final class GameplayIntegrationTest {
     @ParameterizedTest
     @EnumSource(PlayerClass.class)
     void eachClassCompletesBattleAndCleansUpItsAttacks(PlayerClass type) {
+        demo.update(0, PlayerCommand.NONE, false, type);
+        if (type == PlayerClass.MAGE) {
+            assertTrue(demo.getAbilities().selectUltimateMode(au.edu.anu.comp2120.player.UltimateMode.B));
+        }
         session.switchMap(MapCatalog.CROSSROADS);
         frame(0, PlayerCommand.NONE);
         demo.update(0, PlayerCommand.NONE, false, type);
@@ -113,6 +117,7 @@ final class GameplayIntegrationTest {
         frame(0, PlayerCommand.NONE);
         demo.update(0, PlayerCommand.NONE, false, PlayerClass.KATANA);
         Boss boss = demo.getBoss().orElseThrow();
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
         fightUntilNoHostiles(200);
         assertTrue(session.getPlayer().isAlive());
         assertEquals(BossState.DEAD, boss.getState());
@@ -148,24 +153,24 @@ final class GameplayIntegrationTest {
         assertEquals(ElementType.WATER, element());
         demo.update(0, new PlayerCommand(1, 0, true, false, false, false), false);
         assertTrue(demo.getStatus().contains("[WATER]"));
-        demo.update(0.16, PlayerCommand.NONE, false);
+        demo.update(0.36, PlayerCommand.NONE, false);
         cycleElement();
         assertEquals(ElementType.FIRE, element());
-        demo.update(0, new PlayerCommand(0, 0, false, true, false, false), false);
-        assertEquals(315, boss.getHealth().getCurrentHp());
-        demo.update(0.26, PlayerCommand.NONE, false);
+        demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
+        assertEquals(330, boss.getHealth().getCurrentHp());
+        demo.update(0.36, PlayerCommand.NONE, false);
         // FIRE -> LIGHTNING -> ICE -> WIND -> NONE -> WATER, without bypassing live-attack guards.
         for (int i = 0; i < 5; i++) {
             cycleElement();
         }
         assertEquals(ElementType.WATER, element());
         demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
-        assertEquals(285, boss.getHealth().getCurrentHp());
-        demo.update(0.16, PlayerCommand.NONE, false);
+        assertEquals(300, boss.getHealth().getCurrentHp());
+        demo.update(0.36, PlayerCommand.NONE, false);
         cycleElement();
         cycleElement();
         assertEquals(ElementType.LIGHTNING, element());
-        demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
+        demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
         List<Attack> children = demo.getActiveAttacks().stream().filter(Attack::isDerived).toList();
         assertFalse(children.isEmpty());
         int hp = boss.getHealth().getCurrentHp();
@@ -181,6 +186,7 @@ final class GameplayIntegrationTest {
     /** F4 preserves state/cooldowns and safely rejects changes during a launch, live projectile or dash. */
     @Test
     void elementAndClassSelectionCannotResetCooldownOrRedirectLiveAttacks() {
+        demo.update(0, PlayerCommand.NONE, false, PlayerClass.ARCHER);
         cycleElement();
         assertEquals(ElementType.WATER, element());
         CollisionBox before = session.getPlayer().getBounds();
@@ -311,7 +317,8 @@ final class GameplayIntegrationTest {
             double dx = enemy.x() + enemy.width() / 2 - (body.x() + body.width() / 2);
             double dy = enemy.y() + enemy.height() / 2 - (body.y() + body.height() / 2);
             frame(0.1, new PlayerCommand(Math.abs(dx) < 8 ? 0 : dx > 0 ? 1 : -1,
-                    Math.abs(dy) < 8 ? 0 : dy > 0 ? 1 : -1, true, true, false, true));
+                    Math.abs(dy) < 8 ? 0 : dy > 0 ? 1 : -1, true,
+                    session.getPlayer().getPlayerClass() == PlayerClass.ARCHER && i % 25 == 0, false, true));
         }
         fail("Combat did not complete within the bounded simulation: " + demo.getStatus());
     }

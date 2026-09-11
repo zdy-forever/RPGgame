@@ -3,6 +3,7 @@ package au.edu.anu.comp2120.player;
 import static org.junit.jupiter.api.Assertions.*;
 
 import au.edu.anu.comp2120.combat.Attack;
+import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
@@ -23,6 +24,20 @@ import org.junit.jupiter.params.provider.EnumSource;
  * @author Daoyan Zhu (u7782042)
  */
 final class KatanaAbilitiesTest {
+    /** Keeps reusable direct-geometry regressions independent of now-defensive K/O gameplay. */
+    private void configureDirectGeometry() {
+        AbilityLoadout slots = player.getClassDefinition().abilities();
+        abilities.selectClass(new ClassDefinition(PlayerClass.KATANA, new AbilityLoadout(slots.light(),
+                new AbilityLoadout.AreaAttack(new AttackSpec("custom-heavy", 45, 0.25, 2), 80, AttackShape.FORWARD),
+                slots.dash(), new AbilityLoadout.AreaAttack(new AttackSpec("custom-area", 85, 0.35, 7), 110))));
+    }
+
+    /** Submits one nearby hostile hit for the existing generic defensive boundary. */
+    private void incoming() {
+        Combatant attacker = combat.getCombatants().stream().filter(a -> a.getFaction() == Faction.ENEMY).findFirst().orElseThrow();
+        combat.tryAttack(attacker, new AttackSpec("incoming", 10, 0.1, 0), source.getHurtbox(), source.getHurtbox()).orElseThrow();
+    }
+
     /** Floating-point tolerance for diagonal geometry and countdowns. */
     private static final double EPSILON = 1e-8;
     /** Collision arena with a thin wall to test the existing swept dash. */
@@ -45,7 +60,7 @@ final class KatanaAbilitiesTest {
     }
 
     /**
-     * Light and heavy slashes use all eight normalized facing directions and reject targets behind.
+     * Light slashes use all eight normalized facing directions and reject targets behind; K is now defensive.
      * @param horizontal horizontal facing intent
      * @param vertical vertical facing intent
      */
@@ -57,14 +72,14 @@ final class KatanaAbilitiesTest {
         double dy = vertical / length;
         Enemy front = target(new CollisionBox(208 + dx * 30, 208 + dy * 30, 4, 4));
         Enemy behind = target(new CollisionBox(208 - dx * 30, 208 - dy * 30, 4, 4));
-        for (AbilitySlot slot : List.of(AbilitySlot.LIGHT, AbilitySlot.SPECIAL)) {
+        for (AbilitySlot slot : List.of(AbilitySlot.LIGHT)) {
             front.getHealth().restoreFull();
             abilities.reset();
             tick(0, new PlayerCommand(horizontal, vertical, false, false, false, false));
             assertEquals(Optional.of(slot), tick(0, command(slot)));
             Attack slash = combat.getActiveAttacks().get(0);
-            double range = slot == AbilitySlot.LIGHT ? 48 : 80;
-            int damage = slot == AbilitySlot.LIGHT ? 30 : 45;
+            double range = 48;
+            int damage = 30;
             CollisionBox box = slash.getHitbox();
             assertEquals(204 + Math.min(0, dx * range), box.x(), EPSILON);
             assertEquals(206 + Math.min(0, dy * range), box.y(), EPSILON);
@@ -80,12 +95,13 @@ final class KatanaAbilitiesTest {
     }
 
     /**
-     * Each configured attack damages interior overlap but not exact edge contact or out-of-range targets.
+     * Custom direct melee geometry damages interior overlap but not exact edge contact or out-of-range targets.
      * @param slot damage-dealing slot
      */
     @ParameterizedTest
     @EnumSource(value = AbilitySlot.class, names = {"LIGHT", "SPECIAL", "ULTIMATE"})
     void rangeBoundaryRequiresInteriorOverlap(AbilitySlot slot) {
+        configureDirectGeometry();
         double range = tuning(slot).range();
         Enemy inside = target(new CollisionBox(216 + range - 0.01, 206, 4, 4));
         Enemy edge = target(new CollisionBox(216 + range, 206, 4, 4));
@@ -114,12 +130,13 @@ final class KatanaAbilitiesTest {
     }
 
     /**
-     * A cast settles each target once, including late entrants, and never repeats on re-entry.
+     * A custom direct melee cast settles each target once, including late entrants, and never repeats on re-entry.
      * @param slot tested melee invocation
      */
     @ParameterizedTest
     @EnumSource(value = AbilitySlot.class, names = {"LIGHT", "SPECIAL", "ULTIMATE"})
     void activeWindowHitsLateEntrantsOnlyOnceThenCleansUp(AbilitySlot slot) {
+        configureDirectGeometry();
         Enemy first = target(new CollisionBox(230, 206, 4, 4));
         Enemy late = new Enemy(1000);
         Combatant lateActor = new Combatant(late, Faction.ENEMY, new CollisionBox(600, 500, 4, 4));
@@ -150,27 +167,26 @@ final class KatanaAbilitiesTest {
         assertEquals(1000, afterExpiry.getHealth().getCurrentHp());
     }
 
-    /** K is a stronger, longer forward slash, not a surrounding attack or implicit movement skill. */
+    /** K blocks one incoming hit and then counter-dashes; it no longer submits an immediate heavy slash. */
     @Test
-    void specialIsReplaceableForwardPowerSlash() {
+    void specialInterceptsThenCounterDashes() {
         Enemy near = target(new CollisionBox(240, 206, 4, 4));
         Enemy farther = target(new CollisionBox(280, 206, 4, 4));
         Enemy behind = target(new CollisionBox(180, 206, 4, 4));
-        CollisionBox position = player.getBounds();
         tick(0, command(AbilitySlot.LIGHT));
         assertEquals(970, near.getHealth().getCurrentHp());
-        assertEquals(1000, farther.getHealth().getCurrentHp());
-        tick(0, command(AbilitySlot.SPECIAL));
-        Attack heavy = combat.getActiveAttacks().get(1);
-        assertEquals("katana-special", heavy.getSpecification().type());
-        assertEquals(0.25, heavy.getRemainingSeconds());
-        assertEquals(new CollisionBox(204, 206, 92, 8), heavy.getHitbox());
-        assertEquals(925, near.getHealth().getCurrentHp());
-        assertEquals(955, farther.getHealth().getCurrentHp());
+        abilities.update(0, command(AbilitySlot.SPECIAL));
+        incoming();
+        combat.update(0);
+        abilities.afterCombat();
+        assertEquals(100, player.getHealth().getCurrentHp());
+        assertEquals("COUNTER_DASH", abilities.getSkillStatus());
+        tick(SkillTuning.COUNTER_SECONDS, PlayerCommand.NONE);
+        assertTrue(near.getHealth().getCurrentHp() < 970);
+        assertTrue(farther.getHealth().getCurrentHp() < 1000);
         assertEquals(1000, behind.getHealth().getCurrentHp());
-        assertEquals(position, player.getBounds());
-        assertEquals(2, abilities.getCooldownRemaining(AbilitySlot.SPECIAL));
-        assertEquals(0.35, abilities.getCooldownRemaining(AbilitySlot.LIGHT));
+        assertTrue(map.isWalkable(player.getBounds()));
+        assertTrue(abilities.getCooldownRemaining(AbilitySlot.SPECIAL) > 0);
     }
 
     /** A new swing after cooldown gets its own hit ledger, so the same enemy can be hit again. */
@@ -193,28 +209,31 @@ final class KatanaAbilitiesTest {
         assertEquals(PlayerClass.KATANA, player.getPlayerClass());
     }
 
-    /** O creates exactly one surrounding invocation, not a frame-driven multi-hit loop. */
+    /** O stance creates one powerful surrounding counter only after interception, not every frame. */
     @Test
-    void ultimateIsSingleAreaSlashWithLethalHealthIntegration() {
+    void ultimateStanceCounterHasLethalHealthIntegration() {
         Enemy left = target(new CollisionBox(150, 206, 4, 4));
         Enemy right = target(new CollisionBox(270, 206, 4, 4));
         Enemy above = target(new CollisionBox(206, 270, 4, 4));
         Enemy below = new Enemy(80);
         combat.register(new Combatant(below, Faction.ENEMY, new CollisionBox(206, 150, 4, 4)));
-        tick(0, command(AbilitySlot.ULTIMATE));
-        assertEquals(1, combat.getActiveAttacks().size());
-        Attack ultimate = combat.getActiveAttacks().get(0);
-        assertEquals("katana-ultimate", ultimate.getSpecification().type());
-        assertEquals(new CollisionBox(94, 96, 232, 228), ultimate.getHitbox());
-        assertEquals(0.35, ultimate.getRemainingSeconds());
+        abilities.update(0, command(AbilitySlot.ULTIMATE));
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        incoming();
+        combat.update(0);
+        abilities.afterCombat();
+        Attack counter = combat.getActiveAttacks().stream().filter(a -> a.getSource() == source).findFirst().orElseThrow();
+        assertEquals("katana-stance", counter.getSpecification().type());
+        assertEquals(new CollisionBox(64, 66, 292, 288), counter.getHitbox());
         assertEquals(7, abilities.getCooldownRemaining(AbilitySlot.ULTIMATE));
         tick(0.1, command(AbilitySlot.ULTIMATE));
-        assertEquals(1, combat.getActiveAttacks().size());
         for (Enemy enemy : List.of(left, right, above)) {
-            assertEquals(915, enemy.getHealth().getCurrentHp());
+            assertEquals(900, enemy.getHealth().getCurrentHp());
         }
         assertEquals(0, below.getHealth().getCurrentHp());
         assertFalse(below.isAlive());
+        tick(0, command(AbilitySlot.ULTIMATE));
+        assertEquals(900, left.getHealth().getCurrentHp());
     }
 
     /**
@@ -224,7 +243,12 @@ final class KatanaAbilitiesTest {
     @ParameterizedTest
     @EnumSource(AbilitySlot.class)
     void cooldownLifecycleRecoversWithoutSpamBypass(AbilitySlot slot) {
-        double active = slot == AbilitySlot.DASH ? 0.16 : tuning(slot).attack().activeSeconds();
+        double active = switch (slot) {
+            case DASH -> 0.16;
+            case SPECIAL -> SkillTuning.PARRY_SECONDS;
+            case ULTIMATE -> SkillTuning.STANCE_SECONDS;
+            case LIGHT -> tuning(slot).attack().activeSeconds();
+        };
         assertEquals(Optional.of(slot), tick(0, command(slot)));
         double cooldown = abilities.getCooldownRemaining(slot);
         assertEquals(AbilityState.ACTIVE, abilities.getState(slot));
@@ -233,6 +257,9 @@ final class KatanaAbilitiesTest {
         }
         assertEquals(cooldown, abilities.getCooldownRemaining(slot));
         tick(active, PlayerCommand.NONE);
+        if (slot == AbilitySlot.SPECIAL) {
+            tick(SkillTuning.RECOVERY_SECONDS, PlayerCommand.NONE);
+        }
         assertEquals(AbilityState.COOLDOWN, abilities.getState(slot));
         assertTrue(tick(0, command(slot)).isEmpty());
         tick(cooldown, PlayerCommand.NONE);
@@ -325,10 +352,14 @@ final class KatanaAbilitiesTest {
         assertTrue(combat.getActiveAttacks().isEmpty());
         assertTrue(tick(0.16, all).isEmpty());
         assertEquals(Optional.of(AbilitySlot.ULTIMATE), tick(0, all));
-        assertEquals(Optional.of(AbilitySlot.SPECIAL), tick(0, all));
-        assertEquals(Optional.of(AbilitySlot.LIGHT), tick(0, all));
         assertTrue(tick(0, all).isEmpty());
-        assertEquals(3, combat.getActiveAttacks().stream().map(Attack::getId).distinct().count());
+        tick(SkillTuning.STANCE_SECONDS, PlayerCommand.NONE);
+        assertEquals(Optional.of(AbilitySlot.SPECIAL), tick(0, command(AbilitySlot.SPECIAL)));
+        assertTrue(tick(0, command(AbilitySlot.LIGHT)).isEmpty());
+        tick(SkillTuning.PARRY_SECONDS, PlayerCommand.NONE);
+        tick(SkillTuning.RECOVERY_SECONDS, PlayerCommand.NONE);
+        assertEquals(Optional.of(AbilitySlot.LIGHT), tick(0, command(AbilitySlot.LIGHT)));
+        assertEquals(1, combat.getActiveAttacks().stream().filter(a -> a.getSource() == source).count());
         tick(7, PlayerCommand.NONE);
         assertTrue(combat.getActiveAttacks().isEmpty());
     }
@@ -353,6 +384,7 @@ final class KatanaAbilitiesTest {
     private Optional<AbilitySlot> tick(double delta, PlayerCommand command) {
         Optional<AbilitySlot> result = abilities.update(delta, command);
         combat.update(delta);
+        abilities.afterCombat();
         return result;
     }
 

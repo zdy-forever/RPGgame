@@ -16,6 +16,7 @@ import au.edu.anu.comp2120.player.PlayerCommand;
 import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.player.PlayerClass;
 import au.edu.anu.comp2120.player.PlayerClasses;
+import au.edu.anu.comp2120.player.UltimateMode;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapType;
 import au.edu.anu.comp2120.world.MapCatalog;
@@ -180,6 +181,23 @@ public final class CombatDemo {
      * @throws IllegalArgumentException if delta or the failure-return Hub/spawn is invalid
      */
     public void update(double delta, PlayerCommand command, boolean reset, PlayerClass classSelection, boolean cycleElement) {
+        update(delta, command, reset, classSelection, cycleElement, false);
+    }
+
+    /**
+     * Adds the minimal F5 mode-selection request to existing frame arbitration.
+     * O mode selection is always Hub-only; rejected requests consume new input without changing the mode.
+     * @param delta finite non-negative seconds
+     * @param command movement/ability requests
+     * @param reset debug reset request
+     * @param classSelection optional requested class
+     * @param cycleElement debug elemental tag request
+     * @param cycleUltimateMode requested A/B toggle
+     * @throws NullPointerException if command is null
+     * @throws IllegalArgumentException if time or a required map transition is invalid
+     */
+    public void update(double delta, PlayerCommand command, boolean reset, PlayerClass classSelection,
+            boolean cycleElement, boolean cycleUltimateMode) {
         Objects.requireNonNull(command, "command");
         if (!Double.isFinite(delta) || delta < 0
                 || !Double.isFinite(GameConfig.SENTINEL.navigation().speed() * delta)
@@ -199,7 +217,9 @@ public final class CombatDemo {
             createBoss();
             return;
         }
-        if (classSelection != null) {
+        if (cycleUltimateMode) {
+            abilities.selectUltimateMode(session.getPlayer().getUltimateMode() == UltimateMode.A ? UltimateMode.B : UltimateMode.A);
+        } else if (classSelection != null) {
             abilities.selectClass(PlayerClasses.get(classSelection)
                     .withElement(session.getPlayer().getClassDefinition().abilities().light().attack().element()));
         } else if (cycleElement) {
@@ -208,11 +228,12 @@ public final class CombatDemo {
             abilities.selectClass(session.getPlayer().getClassDefinition()
                     .withElement(elements[(current.ordinal() + 1) % elements.length]));
         }
-        abilities.update(delta, classSelection != null || cycleElement ? PlayerCommand.NONE : command);
+        abilities.update(delta, classSelection != null || cycleElement || cycleUltimateMode ? PlayerCommand.NONE : command);
         if (boss != null) {
             boss.update(player, delta);
         }
         combat.update(delta);
+        abilities.afterCombat();
         if (returnToHubIfBattleEnded()) {
             return;
         }
@@ -359,6 +380,9 @@ public final class CombatDemo {
         }
         return status.append(" | ").append(session.getPlayer().getPlayerClass().getDisplayName())
                 .append(" | Element ").append(session.getPlayer().getClassDefinition().abilities().light().attack().element())
+                .append(" | Mage element ").append(session.getPlayer().getMageElement())
+                .append(" | O mode ").append(session.getPlayer().getUltimateMode()).append(" [F5 Hub]")
+                .append(" | Skill ").append(abilities.getSkillStatus())
                 .append(" [F4 cycle]")
                 .append(" [F1 Archer/F2 Mage/F3 Katana; Hub selection] | J ").append(abilities.getState(AbilitySlot.LIGHT))
                 .append(" K ").append(abilities.getState(AbilitySlot.SPECIAL))
