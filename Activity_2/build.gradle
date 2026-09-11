@@ -32,4 +32,21 @@ subprojects {
             exceptionFormat = 'full'
         }
     }
+
+    // Audit production/test documentation, including private members, without external temporary scripts.
+    tasks.register('javadocAudit', Javadoc) {
+        dependsOn tasks.named('testClasses')
+        source = sourceSets.main.allJava + sourceSets.test.allJava
+        classpath = sourceSets.test.compileClasspath + sourceSets.main.output
+        destinationDir = layout.buildDirectory.dir('docs/javadoc-audit').get().asFile
+        options.memberLevel = JavadocMemberLevel.PRIVATE
+        options.addBooleanOption('Xdoclint:all', true)
+        options.addBooleanOption('Werror', true)
+    }
+}
+
+tasks.register('javadocAudit') {
+    group = 'verification'
+    description = 'Strict JavaDoc audit of all Java modules, including tests and private members.'
+    dependsOn subprojects.collect { it.tasks.named('javadocAudit') }
 }

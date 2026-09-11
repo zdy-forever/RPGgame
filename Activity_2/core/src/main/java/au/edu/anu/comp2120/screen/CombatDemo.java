@@ -95,6 +95,23 @@ public final class CombatDemo {
      * @throws IllegalArgumentException if delta is invalid, before state changes
      */
     public void update(double delta, PlayerCommand command, boolean reset, PlayerClass classSelection) {
+        update(delta, command, reset, classSelection, false);
+    }
+
+    /**
+     * Adds a debug element cycle to the existing frame arbitration, without bypassing selection guards.
+     * Travel/reset wins first, class selection next, then element selection, then ordinary commands.
+     * A rejected selection still consumes new commands while existing simulation continues.
+     * Class changes preserve the selected light-slot element; F4 assigns one element to all J/K/O slots.
+     * @param delta finite non-negative simulation seconds
+     * @param command normal movement/ability intent
+     * @param reset explicit debug reset request
+     * @param classSelection requested class, or null
+     * @param cycleElement whether F4 requested the next debug element
+     * @throws NullPointerException if command is null
+     * @throws IllegalArgumentException if delta is invalid before any mutation
+     */
+    public void update(double delta, PlayerCommand command, boolean reset, PlayerClass classSelection, boolean cycleElement) {
         Objects.requireNonNull(command, "command");
         if (!Double.isFinite(delta) || delta < 0 || !Double.isFinite(GameConfig.BASIC_ENEMY.speed() * delta)
                 || !Double.isFinite(GameConfig.SENTINEL.navigation().speed() * delta)
@@ -119,9 +136,15 @@ public final class CombatDemo {
             return;
         }
         if (classSelection != null) {
-            abilities.selectClass(PlayerClasses.get(classSelection));
+            abilities.selectClass(PlayerClasses.get(classSelection)
+                    .withElement(session.getPlayer().getClassDefinition().abilities().light().attack().element()));
+        } else if (cycleElement) {
+            ElementType current = session.getPlayer().getClassDefinition().abilities().light().attack().element();
+            ElementType[] elements = ElementType.values();
+            abilities.selectClass(session.getPlayer().getClassDefinition()
+                    .withElement(elements[(current.ordinal() + 1) % elements.length]));
         }
-        abilities.update(delta, classSelection != null ? PlayerCommand.NONE : command);
+        abilities.update(delta, classSelection != null || cycleElement ? PlayerCommand.NONE : command);
         for (EnemyAI ai : enemies) {
             ai.update(player, delta);
         }
@@ -203,6 +226,8 @@ public final class CombatDemo {
                     .append(" x").append(drop.quantity()));
         }
         return status.append(" | ").append(session.getPlayer().getPlayerClass().getDisplayName())
+                .append(" | Element ").append(session.getPlayer().getClassDefinition().abilities().light().attack().element())
+                .append(" [F4 cycle]")
                 .append(" [F1 Archer/F2 Mage/F3 Katana] | J ").append(abilities.getState(AbilitySlot.LIGHT))
                 .append(" K ").append(abilities.getState(AbilitySlot.SPECIAL))
                 .append(" L ").append(abilities.getState(AbilitySlot.DASH))

@@ -7,6 +7,7 @@ import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
+import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.enemy.Enemy;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
@@ -28,6 +29,40 @@ final class PlayerClassTest {
 
     /** Creates the class-system test fixture. */
     PlayerClassTest() {
+    }
+
+    /**
+     * Debug tagging preserves every delivery parameter and never mutates shared catalog definitions.
+     * @param type built-in class whose three offensive slots are copied
+     */
+    @ParameterizedTest
+    @EnumSource(PlayerClass.class)
+    void elementCopiesPreserveCompleteClassTuning(PlayerClass type) {
+        ClassDefinition original = PlayerClasses.get(type);
+        assertThrows(NullPointerException.class, () -> original.withElement(null));
+        for (ElementType element : ElementType.values()) {
+            ClassDefinition tagged = original.withElement(element);
+            assertEquals(type, tagged.type());
+            assertSame(original.abilities().dash(), tagged.abilities().dash());
+            var before = List.of(original.abilities().light(), original.abilities().special(),
+                    original.abilities().ultimate());
+            var after = List.of(tagged.abilities().light(), tagged.abilities().special(),
+                    tagged.abilities().ultimate());
+            for (int i = 0; i < before.size(); i++) {
+                var source = before.get(i);
+                var copy = after.get(i);
+                assertEquals(element, copy.attack().element());
+                assertEquals(ElementType.NONE, source.attack().element());
+                assertEquals(source.attack().type(), copy.attack().type());
+                assertEquals(source.attack().damage(), copy.attack().damage());
+                assertEquals(source.attack().activeSeconds(), copy.attack().activeSeconds());
+                assertEquals(source.attack().cooldownSeconds(), copy.attack().cooldownSeconds());
+                assertEquals(source.range(), copy.range());
+                assertSame(source.shape(), copy.shape());
+                assertSame(source.projectile(), copy.projectile());
+            }
+            assertEquals(original, tagged.withElement(ElementType.NONE));
+        }
     }
 
     /** Built-in identities have stable unique IDs and complete independent class definitions. */

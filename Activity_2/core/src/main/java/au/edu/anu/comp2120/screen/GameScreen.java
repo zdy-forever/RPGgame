@@ -70,7 +70,8 @@ public final class GameScreen extends ScreenAdapter {
             combatDemo.update(Math.min(delta, GameConfig.MAX_FRAME_DELTA),
                     travelConsumed ? PlayerCommand.NONE : input.sample(),
                     !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R),
-                    travelConsumed ? null : input.sampleClassSelection().orElse(null));
+                    travelConsumed ? null : input.sampleClassSelection().orElse(null),
+                    !travelConsumed && input.sampleElementCycle());
             if (travelConsumed) {
                 updateMapView();
             } else {

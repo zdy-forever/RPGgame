@@ -60,10 +60,13 @@ the macOS first-thread JVM option when required.
 ./gradlew clean build
 ./gradlew test
 ./gradlew core:javadoc
+./gradlew javadocAudit
 ```
 
 Build output is written under each module's `build/` directory and is ignored by
-Git.
+Git. `javadocAudit` checks production and test Java in both modules, including private
+members, with full doclint and warnings treated as errors. See
+[the integration report](docs/INTEGRATION_REPORT.md) for baseline coverage and remaining limitations.
 
 ## Map and movement demonstration
 
@@ -354,6 +357,7 @@ Temporary controls (attack values below are the default Mage, not final characte
 | L | Dash: 600 units/s for 0.2 s (120 units unobstructed), 1 s cooldown |
 | O | Ultimate: 75 damage, 180-unit extension, 0.5 s active, 8 s cooldown |
 | F1 / F2 / F3 | Select Archer / Mage / Katana when no player attack or dash is active |
+| F4 | Cycle outgoing debug element: NONE → WATER → FIRE → LIGHTNING → ICE → WIND → NONE; same safety guard as class selection |
 | R | Restore player/enemy HP, reset AI awareness, and clear attacks/cooldowns; no repositioning |
 
 1. Run `./gradlew lwjgl3:run`, then press U and 2 to enter Training. Two red enemies
@@ -842,12 +846,31 @@ new AttackSpec("mage-light", 25, 0.25, 0.5, ElementType.WATER)
 Keep the slot's existing range/shape/ProjectileSpec when replacing its AttackSpec.
 PlayerAbilities preserves that tag when submitting attacks with zero source-level cooldown.
 EnemyConfig and BossConfig.Pattern already accept AttackSpec, so they need no separate
-elemental controller. No hard-coded profession-to-element mapping or new input key is added.
+elemental controller. No hard-coded profession-to-element mapping is introduced.
+
+For placeholder acceptance, F4 (Fn+F4 if necessary) cycles one outgoing element on J/K/O.
+It uses `ClassDefinition.withElement` to preserve damage, range, shape, projectile and dash
+configuration. Built-in catalog definitions remain NONE and immutable. Selection goes through
+the existing `PlayerAbilities.selectClass` guard: live attacks/projectiles, launch windows,
+dash and death reject changes. Slot cooldowns, position, facing and HP are never reset.
+Wait for the current attack to end and press again; rejected requests are not queued.
+Frame priority is travel/reset, then F1/F2/F3, then F4, then ordinary ability/movement requests.
+Selection attempts consume new commands but do not pause existing AI/combat. Class selection
+preserves the currently selected light-slot element; F4 intentionally tags all three attack slots.
+The selection persists through travel and debug R reset, not application restart.
 
 CombatDemo displays attached names such as `[WATER]` in the native window title for
-player, enemies and Boss; derived attacks use existing yellow hitbox rectangles. Default
-loadouts therefore do not show reactions until explicitly configured. Automated class/demo
-tests exercise opt-in configuration and verify labels, reset and map cleanup without graphics.
+player, enemies and Boss; the outgoing selection is shown as `Element WATER [F4 cycle]`.
+Derived attacks use existing yellow hitbox rectangles. Default loadouts remain non-elemental
+until explicitly configured or cycled. Automated class/demo tests exercise input arbitration,
+reactions, reset and map cleanup without graphics.
+
+Manual reaction check: enter Crossroads with U then 3, select Katana with F3, approach the
+Boss facing it, press F4 once for WATER and hit J. After the swing ends, press F4 for FIRE
+and hit K within the three-second attachment window. Water/fire adds 10 damage. After
+all player hitboxes end, cycle back to WATER and apply J; then select LIGHTNING (two F4
+presses from WATER) and use a ready attack. The reaction creates a short-lived yellow
+area attack on the following simulation update. Press R to reset the encounter if needed.
 
 Still undecided: every reaction other than the two prototypes above, including water/ice,
 fire/ice, fire/lightning and all wind combinations; final direction-dependent multipliers,

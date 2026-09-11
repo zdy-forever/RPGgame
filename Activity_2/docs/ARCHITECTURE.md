@@ -195,6 +195,12 @@ are documented boundaries but do not have empty packages yet.
   priority and key-edge semantics. CombatDemo consumes same-frame new movement and
   abilities on selection attempts but still advances existing activity/AI/combat.
   Travel and R reset have precedence. Class persists across both map changes and R.
+- F4 is another independent key-edge request, handled after class selection. It cycles
+  NONE/WATER/FIRE/LIGHTNING/ICE/WIND through `ClassDefinition.withElement`, retaining
+  all slot geometry/projectile/dash tuning. It uses the same guarded selection path and
+  preserves cooldowns/HP/position. Rejected attempts consume new commands without queuing.
+  F1/F2/F3 preserve the selected light-slot tag on the new class's J/K/O; F4 deliberately
+  gives all three attack slots one debug element. Catalog definitions are not mutated.
 - Rendering continues to consume generic attack rectangles, without class-specific
   assets or renderer branches. The native title displays the selected identity.
 
@@ -282,6 +288,11 @@ are documented boundaries but do not have empty packages yet.
   derived Attack rectangles. No color-based logic, art, new input system or speculative
   element UI is introduced. Tests cover the full pair matrix, status timing, deduplication,
   bounded children, all three player classes, ordinary enemy attacks and Boss outcomes.
+- The outgoing element is visible in the native title and can be cycled with the existing
+  PlayerInput adapter's F4 debug request. No new reaction rule or profession assignment is
+  needed for the playable acceptance path. GameplayIntegrationTest combines real maps,
+  movement, portals, camera math, class abilities, enemy/Boss combat and reaction cleanup;
+  it does not instantiate a graphics context or pretend to validate OS keyboard delivery.
 
 ### Archer and shared projectile delivery
 

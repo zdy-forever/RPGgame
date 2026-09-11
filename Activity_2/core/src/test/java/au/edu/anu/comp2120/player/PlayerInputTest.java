@@ -1,6 +1,8 @@
 package au.edu.anu.comp2120.player;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.TestMaps;
@@ -20,6 +22,28 @@ import org.junit.jupiter.api.Test;
 final class PlayerInputTest {
     /** Creates a keyboard adapter test fixture. */
     PlayerInputTest() {
+    }
+
+    /** F4 is an independent key-edge request; holding it cannot repeatedly cycle elements. */
+    @Test
+    void elementCycleUsesKeyEdgesWithoutChangingOtherMappings() {
+        Set<Integer> held = new HashSet<>(Set.of(Input.Keys.F4, Input.Keys.W));
+        Set<Integer> pressed = new HashSet<>();
+        Input keyboard = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),
+                new Class<?>[] {Input.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "isKeyPressed" -> held.contains((Integer) args[0]);
+                    case "isKeyJustPressed" -> pressed.contains((Integer) args[0]);
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        PlayerInput input = new PlayerInput(keyboard);
+        assertFalse(input.sampleElementCycle());
+        pressed.addAll(Set.of(Input.Keys.F4, Input.Keys.J, Input.Keys.F2));
+        assertTrue(input.sampleElementCycle());
+        assertEquals(new PlayerCommand(0, 1, true, false, false, false), input.sample());
+        assertEquals(Optional.of(PlayerClass.MAGE), input.sampleClassSelection());
+        pressed.clear();
+        assertFalse(input.sampleElementCycle());
+        assertEquals(new PlayerCommand(0, 1, false, false, false, false), input.sample());
     }
 
     /** F1/F2/F3 select classes on key edges with fixed priority and do not alter ability mapping. */
