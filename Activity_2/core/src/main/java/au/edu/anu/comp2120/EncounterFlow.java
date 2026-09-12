@@ -122,10 +122,11 @@ public final class EncounterFlow {
     }
 
     /**
-     * Finishes an admitted scope through GameSession and latches its result/reward before cleanup.
+     * Stages a success payload before GameSession switches maps, then publishes the completed result.
      * The combat coordinator supplies already-settled data, then clears actors and restores HP.
      * Failure retains admission; success closes it and stores one reward until claimed.
-     * Invalid Hub transitions leave admission, result and reward ownership unchanged.
+     * Invalid Hub transitions remove the staged payload, leaving admission, result and Boss reward
+     * ownership unchanged. Calls are single-threaded, with no adapter callbacks during transition.
      * @param outcome settled outcome, with failure taking priority on simultaneous player/Boss death
      * @param reward success payload observed from Boss, null for failure
      * @return immutable result, also retained for polling
@@ -138,17 +139,26 @@ public final class EncounterFlow {
         if (!isBattleActive()) {
             throw new IllegalStateException("No admitted battle to complete");
         }
-        if ((outcome == BattleResult.Outcome.SUCCESS) != (reward != null)
-                || (reward != null && !reward.mapId().equals(active.mapId()))) {
+        boolean validReward = outcome == BattleResult.Outcome.SUCCESS
+                ? reward != null && reward.mapId().equals(active.mapId())
+                : reward == null;
+        if (!validReward) {
             throw new IllegalArgumentException("Success requires its Boss material; failure has no reward");
         }
         if (session.getMap(MapCatalog.HUB).getType() != MapType.HUB) {
             throw new IllegalArgumentException("Battle return requires a Hub map");
         }
         BattleResult result = new BattleResult(active, session.getTransitionVersion(), outcome);
-        session.switchMap(MapCatalog.HUB);
         if (outcome == BattleResult.Outcome.SUCCESS) {
             pendingRewards.put(result, reward);
+        }
+        try {
+            session.switchMap(MapCatalog.HUB);
+        } catch (IllegalArgumentException invalidReturn) {
+            pendingRewards.remove(result);
+            throw invalidReturn;
+        }
+        if (outcome == BattleResult.Outcome.SUCCESS) {
             completedIds.add(active.id());
             closePortals();
             active = null;

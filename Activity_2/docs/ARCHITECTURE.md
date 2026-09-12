@@ -14,8 +14,9 @@ SUCCESS/FAILURE returns without completing, deleting, failing or replacing any Q
 `GameScreen` wires one `EncounterFlow(session, travel, taskPortalIds)` into
 `CombatDemo(session, encounterFlow)`. `GameScreen.getEncounterFlow()` is the adapter entry point.
 The one-argument CombatDemo constructor remains an unrestricted standalone debug/test harness;
-it is not the production Quest route. Detailed historical module descriptions below retain
-that distinction: automatic Boss creation after arbitrary travel applies only to that harness.
+it is not the production Quest route. Automatic Boss creation after arbitrary travel applies
+only to that harness. The production route creates exactly one Boss and no ordinary mobs for
+each admitted built-in Battle map/spawn; generic Enemy/EnemyAI remain reusable components.
 
 - `ActiveEncounter(id, mapId, spawnId, portalId)` is an external acceptance permission,
   not a Quest. `activate`/`clearActiveEncounter` require a living Hub player. Activation
@@ -31,11 +32,14 @@ that distinction: automatic Boss creation after arbitrary travel applies only to
   death, observes its immutable MaterialDrop, completes the return and consumes the old Boss's
   one-time claim before normal cleanup. No damage callback changes maps.
 - `EncounterFlow.complete` is the **gameplay coordinator** endpoint, not an adapter command
-  to award rewards. It uses GameSession.switchMap; invalid Hub transitions do not latch a
-  result, close permission or consume Boss loot. Normal completion is followed immediately
-  by CombatDemo's existing scope clear/rebind and Health.restoreFull.
+  to award rewards. SUCCESS stages its immutable payload in the outbox before calling the
+  existing GameSession.switchMap, then closes permission and publishes the result. An invalid
+  Hub transition removes the staged payload without publishing a result, closing permission
+  or consuming Boss loot. Normal completion is followed immediately by CombatDemo's existing
+  scope clear/rebind and Health.restoreFull. All steps run on the game-loop thread; there are
+  no external adapter callbacks inside transition or damage delivery.
 - SUCCESS clears permission/closes task portals. FAILURE leaves the same portal retryable.
-  Both retain Player/Health/abilities/class and exact O tuning. Production loadout selection
+  Both retain Player/Health/abilities/class, per-class O choices and Mage's selected element. Production loadout selection
   requires Hub (including same-class O changes); R cannot reset a production Battle encounter.
 - `BattleResult(encounter, encounterVersion, outcome)` is the latest immutable snapshot.
   Polling does not execute anything. Developer B observes it on the game-loop thread and owns
@@ -51,6 +55,25 @@ that distinction: automatic Boss creation after arbitrary travel applies only to
 
 See [Quest portal flow report](QUEST_PORTAL_FLOW_REPORT.md) for calls, tests and limitations.
 
+### Core integration baseline
+
+The headless integration suite uses the production EncounterFlow/CombatDemo wiring, real
+TravelSystem and shared CombatSystem. It covers admission at all four built-in Battle spawns,
+exact Player/Boss membership, actual ability-driven victories, failure/retry/replacement,
+reward-once delivery and Hub-only selection. No Quest implementation or automatic acceptance
+is included: a fresh GameScreen intentionally starts with closed task portals until Developer
+B supplies permission through the public boundary.
+
+Cross-scope tests leave 15 concrete skill phases through FAILURE, SUCCESS and normal fast
+travel, while reaction fields/statuses and active attacks exist. Retained old references are
+checked after return, then retry must create a fresh full-HP, phase-one, idle Boss. Ordinary
+fast travel is not a task outcome: abandoning a living encounter clears its runtime scope
+without inventing SUCCESS/FAILURE, restoring HP or consuming its permission.
+
+These are JUnit integration fixtures, not the separate gameplay smoke-tester feature. Rendering
+still uses only placeholder geometry/native debug text. Domain tests require no art files or
+graphics context; desktop startup/resize remain separate visual checks.
+
 ## 1. Current package structure
 
 ```text
@@ -58,19 +81,28 @@ core/src/main/java/au/edu/anu/comp2120/
 ├── MainGame.java
 ├── GameSession.java
 ├── TravelSystem.java
+├── ActiveEncounter.java
+├── BattleResult.java
+├── EncounterFlow.java
 ├── combat/
 │   ├── Attack.java
 │   ├── AttackSpec.java
 │   ├── Combatant.java
 │   ├── CombatSystem.java
+│   ├── CombatStatus.java
 │   ├── Damageable.java
+│   ├── DamageType.java
 │   ├── ElementType.java
 │   ├── ElementStatus.java
 │   ├── ElementRules.java
+│   ├── ElementField.java
 │   ├── Faction.java
 │   ├── Health.java
+│   ├── HitInterceptor.java
 │   ├── Projectile.java
-│   └── ProjectileSpec.java
+│   ├── ProjectileSpec.java
+│   ├── ReactionTimer.java
+│   └── ReactionTuning.java
 ├── enemy/
 │   ├── Boss.java
 │   ├── BossConfig.java
@@ -89,12 +121,16 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── AbilityState.java
 │   ├── AttackShape.java
 │   ├── ClassDefinition.java
+│   ├── ClassSkills.java
 │   ├── Player.java
 │   ├── PlayerAbilities.java
 │   ├── PlayerClass.java
 │   ├── PlayerClasses.java
 │   ├── PlayerCommand.java
-│   └── PlayerInput.java
+│   ├── PlayerInput.java
+│   ├── SkillKind.java
+│   ├── SkillTuning.java
+│   └── UltimateMode.java
 ├── screen/
 │   ├── CameraFollow.java
 │   ├── CombatDemo.java
@@ -163,9 +199,10 @@ are documented boundaries but do not have empty packages yet.
 
 ### Player
 
-- Currently owns health, position, collision dimensions, speed, normalized
-  eight-direction movement and the selected immutable ClassDefinition. Final class
-  skills and inventory/equipment remain future work.
+- Owns health, position, collision dimensions, speed, normalized eight-direction movement,
+  the selected immutable ClassDefinition, per-class UltimateMode choices and Mage element.
+  First-version class skills execute through PlayerAbilities/ClassSkills, not Player subclasses.
+  Inventory/equipment remain outside this module.
 - Does not load maps, store dialogue, implement AI, or calculate shared damage.
 - Depends on world contracts and the shared combat health model; inventory remains future work.
 - Public surface: constructor, `updateMovement`, read-only position/geometry/speed,
@@ -180,9 +217,10 @@ are documented boundaries but do not have empty packages yet.
 - PlayerInput samples held WASD plus edge-triggered J/K/L/O into PlayerCommand;
   it never selects class-specific damage rules. PlayerAbilities is the single
   controller per player, using injected immutable AbilityLoadout tuning.
-- J/K/O submit rectangular area attacks or configured projectile volleys through the same canonical
+- Attack-producing J/K/O executions submit rectangular areas or projectile volleys through the same canonical
   Combatant and CombatSystem pipeline. Independent slot cooldowns are owned by
-  PlayerAbilities, so these invocations use zero source-level cooldown. Enemy
+  PlayerAbilities, so these invocations use zero source-level cooldown. Mage K is element selection,
+  and buff/parry/cast entry points may create no immediate attack. Enemy
   source cooldowns and all shared damage/lifetime/hit filtering remain unchanged.
 - READY/ACTIVE/COOLDOWN are observational states; update returns an accepted slot
   as the triggered event. Dead or unregistered owners report UNAVAILABLE and cannot
@@ -195,28 +233,32 @@ are documented boundaries but do not have empty packages yet.
 - An active/new dash blocks new attacks. Otherwise O > K > J chooses the first
   ready requested attack; one new ability per step and no queued requests. Slot
   timers advance after input arbitration, matching combat-core's timing convention.
-- CombatDemo coordinates player abilities, then the single Boss, then exactly one
-  shared combat update. GameScreen handles fast travel before that step and portal
-  overlap afterward. Transition cleanup cancels old attacks/dash immediately and
-  rebinds the canonical player adapter, preserving slot cooldowns. R resets all
-  arena actors and ability timers explicitly. Pause freezes simulation.
+- CombatDemo coordinates player abilities, the single Boss, exactly one shared combat update,
+  PlayerAbilities.afterCombat and settled outcomes. GameScreen checks outcomes before fast
+  travel, and checks portal overlap only if coordination did not already change maps.
+  Transition cleanup cancels attacks/dash/skills and rebinds the player adapter, preserving
+  slot cooldowns. R is Hub-only in production; unrestricted fixtures retain explicit arena
+  reset. Pause freezes simulation.
 - Rendering reads existing attack rectangles; native window-title text shows slot
   lifecycle. No ability/controller/model loads art or depends on graphics APIs.
-- This foundation exposes common slots, selected class tuning, AttackShape strategies and straight
-  projectile delivery, not final class skill designs. Ultimate energy,
-  swept portal triggers and combo buffering remain future work; shared wall occlusion is implemented below.
+- All agreed first-version skills are implemented on these common slots, AttackShape strategies,
+  projectiles and finite ClassSkills states, as detailed below. Balance remains provisional.
+  Ultimate energy, swept portal triggers and combo buffering are not part of this baseline.
 
-### Player defeat and Hub recovery
+### Player defeat, success and Hub recovery
 
 - A settled zero-HP player in a BATTLE map means challenge FAILURE. CombatDemo checks
   before accepting new commands and immediately after the shared CombatSystem update.
   No Health/Damageable callback switches maps; all hits in that settlement finish first.
   Player failure is handled before the post-combat Boss reward/phase synchronization.
-- `returnToHubIfDefeated()` uses the existing `GameSession.switchMap(MapCatalog.HUB)`
-  and default Hub spawn. The destination must be HUB type and fit the full player.
+- `returnToHubIfBattleEnded()` coordinates both outcomes, using EncounterFlow.complete for
+  admitted task battles. The narrower returnToHubIfDefeated API remains available to existing
+  callers. All returns use GameSession.switchMap(MapCatalog.HUB) and its default spawn;
+  the destination must be HUB type and fit the full player.
   It then reuses `syncMap`: CombatSystem.clear removes every registration, source
-  cooldown, attachment and active attack, including projectiles and derived attacks;
-  PlayerAbilities.bindAfterTransition clears dash, launch windows and invocation references.
+  cooldown, attachment/status, ElementField and active attack, including projectiles and derived
+  attacks. PlayerAbilities.bindAfterTransition clears dash, launch windows, invocation references,
+  rain/circle schedules, casting/buff/parry/counter states, and old defensive/targetability capabilities.
   The old Boss is detached and its owned Enemy/AI/path/phase/pattern/drop state is no
   longer referenced or updated by the scene. External stale references cannot act or claim loot.
 - Only after arrival and scope cleanup does `Health.restoreFull()` restore the player.
@@ -231,16 +273,17 @@ are documented boundaries but do not have empty packages yet.
   Repeated polling cannot return/heal twice because successful recovery is alive in Hub.
   It retains only the latest completed failure, not a queue or a mutable Quest status.
   External Quest ownership remains unchanged; callers may leave their task ACTIVE.
-- Every built-in Battle Map now creates one fresh sentinel and no ordinary mobs. Retry
+- Every admitted built-in Battle Map creates one fresh sentinel and no ordinary mobs. Retry
   never reuses the old Boss: Health, AI, phase, pattern index, cooldown and pending loot
   start fresh. Custom maps need a walkable configured Boss placement; no invalid body is forced.
 - Player stores one UltimateMode per PlayerClass. PlayerAbilities.selectUltimateMode and F5
   require Hub; recovery preserves these choices and Mage element while cancelling active skills.
   ClassDefinition supplies both ultimate definitions without duplicating Player or combat.
-- Invalid Hub configuration fails explicitly without healing in Battle. Hub death itself
-  is not a battle failure. NPC/Quest logic, success return, loot persistence, death effects
-  and a production respawn UI are outside this branch. R remains an explicit debug reset
-  for living encounters; dead battle players always return instead of resetting in place.
+- Invalid Hub configuration fails explicitly without healing in Battle or losing Boss loot.
+  Hub death itself is not a battle failure. SUCCESS retains its one-time material payload
+  before scope removal, closes task admission and also restores the same player in Hub.
+  Quest state, durable loot persistence, death effects and respawn UI remain external work.
+  Production R cannot reset a battle; dead battle players return instead of reviving in place.
 
 ### Class composition and selection
 
@@ -287,8 +330,9 @@ are documented boundaries but do not have empty packages yet.
 
 ### Combat
 
-- Owns shared hit-point validation, attack lifetimes, cooldowns, hit detection,
-  raw-damage calculation, and delivery. Advanced modifiers remain future work.
+- Owns shared hit-point validation, lifetimes, cooldowns, hit detection/occlusion, generic
+  hit interception, ordered reaction calculation, physical vulnerability and final delivery.
+  Equipment/armour integration and broader balance modifiers remain separate future work.
 - Does not handle input, rendering, movement collision, loot storage, or AI.
 - Depends on stable combat contracts rather than concrete entity types.
 - Public surface: `Damageable.takeDamage(int)` and `Damageable.isAlive()`.
@@ -306,31 +350,36 @@ are documented boundaries but do not have empty packages yet.
   immutable world hurtbox data. It is not a new entity hierarchy or health model.
   Visual/collision sizes do not determine combat geometry; owners update hurtboxes
   after movement. Player and Enemy retain their existing health implementations.
-- `AttackSpec` is reusable type/damage/duration/cooldown/element data; its legacy constructor uses NONE. `Attack` is one
+- `AttackSpec` is reusable type/damage/duration/cooldown/element/category/blockability data;
+  its legacy constructor uses NONE and physical damage. `Attack` is one
   system-created invocation: unique scope-local ID, source, fixed or projectile hitbox, active
   time, and lifetime receiver-identity ledger. Only the system mutates invocations.
 - `CombatSystem` registers one adapter per receiver and owns per-source cooldowns.
   It filters self, same faction, dead, and already-hit targets before positive-area
-  overlap, calculates base damage plus any reaction bonus centrally, then calls `Damageable.takeDamage`.
+  overlap and world occlusion, applies generic interception, calculates ordered reaction
+  amplification and physical vulnerability centrally, then calls `Damageable.takeDamage`.
   Border contact alone is a miss. It never dispatches on Player/Enemy/Boss classes.
 - Update samples at the start of each step then ages attacks/cooldowns. Expired
-  invocations cannot settle later; large steps sample once rather than doing swept
-  detection. Attack order then registration order determines settlement; dead sources
+  invocations cannot settle later. Fixed areas sample current geometry; projectiles use
+  swept wall/target detection. Finite periodic effects catch up bounded scheduled ticks,
+  not historical target motion. Attack order then registration order determines settlement; dead sources
   cannot retaliate later in the step. Invalid time is rejected before any mutation.
 - Register/attack requests reject nulls and invalid membership. Duplicate receiver
   aliases are rejected. Unregister cancels that source's attacks; target hit ledgers
-  survive re-registration, while elemental attachments are removed. Clear cancels all attacks/registrations/cooldowns/attachments without
+  survive re-registration, while attachments/statuses and source-owned periodic effects are removed.
+  Clear cancels all attacks/fields/registrations/cooldowns/attachments/statuses without
   changing HP, and invocation identifiers are not reused after clear.
-- `screen/CombatDemo` is an asset-free debug adapter, not part of core combat rules.
-  It places one Boss in each built-in battle map and clears scopes using
-  GameSession's transition stamp. J/K/L/O delegate to PlayerAbilities; enemies attack
-  automatically through Boss-composed EnemyAI, replacing the former H shortcut. R explicitly
-  restores HP, resets AI awareness, and clears attacks/cooldowns without repositioning.
+- `screen/CombatDemo` is the asset-free encounter coordinator despite its historical name,
+  not the damage engine. Its production constructor requires EncounterFlow permission;
+  its standalone constructor retains unrestricted test/debug admission. It places one Boss
+  in each admitted built-in battle map and clears scopes using GameSession's transition
+  stamp. J/K/L/O delegate to PlayerAbilities; Boss attacks use its composed EnemyAI and patterns.
+  R restores HP and resets state only where the constructor's selection/reset policy allows it.
   GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
   HP, AI and ability states use native window-title text. All AI updates precede exactly one
   shared combat update per simulation step.
-- No armour, final class skills, combos, or
-  damage effects are implemented. Future class/AI code supplies attack tuning and
+- No equipment armour, animation-driven combos or visual damage effects are implemented.
+  First-version skills and reactions already use this pipeline. Future class/AI code supplies tuning and
   geometry to this pipeline instead of applying Health damage separately. Receivers
   must not re-enter the pipeline during damage delivery; simulation is single-threaded.
 
@@ -360,10 +409,10 @@ are documented boundaries but do not have empty packages yet.
   their existing collision provider. Rebinding the same instance is harmless; a different
   map requires clear first. Clear removes the world along with all old combat state.
   Standalone map-free combat calculations remain supported; gameplay adapters must bind a world.
-- This checkout has no concrete Arrow Rain or ElementField implementation. Fixed-area contract
-  tests exercise configurable Archer O and an elemental field-style invocation without adding
-  final skill mechanics or replacing Archer's fan. Future fields/rain use fixed centre origins;
-  aiming range and cast-placement validation remain the ability owner's responsibility.
+- Archer Arrow Rain, Mage's fixed circle, reaction areas and ElementField ticks all use this
+  fixed-centre gate. Katana melee/counters use their declared attack origins; Archer/Mage
+  projectiles retain the original sweep and wall-wins-tie rule. Integration retains both
+  unobstructed-hit and wall-miss tests. Geometry is not clipped to partial visibility.
 
 ### Ordered elemental reactions and one-generation delivery
 
@@ -449,7 +498,7 @@ files, validation and limitations.
   before damage/elements. Blocked hits consume the ordinary hit ledger but not landedHits.
   Interceptors only latch state. Attack.hasLandedHit distinguishes accepted thrust contact
   from blocked contact. No class identity checks exist in CombatSystem.
-- Game-loop order is PlayerAbilities.update, CombatSystem.update, PlayerAbilities.afterCombat,
+- Game-loop order is PlayerAbilities.update, Boss.update, CombatSystem.update, PlayerAbilities.afterCombat,
   then encounter outcome coordination. afterCombat handles deferred counters and cast interruption.
   Health exposes a monotonically changing effective-damage stamp, with no class-specific code;
   damage followed by healing still interrupts a cast, while zero/dead-target damage does not.
@@ -486,7 +535,7 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
   distance. Boss advances the cycle only after CombatSystem accepts a cast.
 - Phase 1 changes to phase 2 at the inclusive HP threshold, never reverses on healing,
   and pauses new movement/attacks once. CombatSystem.cancelAttacks cancels this source's
-  fixed/projectile invocations without resetting registrations or cooldowns. It is also
+  fixed/projectile invocations and source-owned periodic effects without resetting registrations or cooldowns. It is also
   reused by unregister; other sources and damage ledgers remain unchanged.
 - Boss.update runs before the arena's single combat update; synchronizeOutcome runs
   afterwards to process settled HP. Outcome handling is never called inside a damage
@@ -494,13 +543,17 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 - MaterialDrop is immutable data in `inventory`: unique reward ID, material type,
   quantity, map ID and collision rectangle. Boss creates it once on defeat at its last
   valid location. getDrop/claimDrop provide a minimal read/one-time-transfer boundary;
-  Inventory remains untouched because it has no storage API yet. Future adapters must
-  check pickup distance and capacity before claiming, on the simulation thread.
-- CombatDemo owns a single sentinel on each built-in battle map, without ordinary enemies.
+  In formal task flow CombatDemo transfers this payload into EncounterFlow's outbox before
+  scope cleanup. External adapters use getPendingRewards/claimReward, not the detached Boss's
+  claimDrop. Inventory remains untouched; its adapter must be ready to accept the payload
+  before the one-time claim on the simulation thread. No pickup-distance UI is required here.
+- Production CombatDemo owns a single sentinel on each admitted built-in battle map, without ordinary enemies.
   Safe placement candidates and provisional pattern tuning are in GameConfig. Map changes
   clear registrations/attacks; reset replaces the Boss rather than reviving the rewarded
-  instance. Unclaimed drops are not persisted and old-scope Bosses cannot expose/claim
-  rewards after detachment. Multiple Boss instances can share the same combat system.
+  instance. Formal SUCCESS rewards survive later travel/encounters in the in-memory outbox;
+  they are not save-persisted. Unrestricted demo loot remains scope-local. Old Bosses cannot
+  expose/claim rewards after detachment. Generic Boss supports shared-engine use without
+  changing production's one-Boss membership rule.
 - PlaceholderRenderer draws the existing large enemy hurtbox and gold MaterialDrop
   rectangles. The native title displays phase/HP/state/material text, with no asset load.
   There is no Boss UI, cutscene, animation, pickup UI or inventory rewrite.
@@ -644,14 +697,17 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 GameScreen -> feature modules (coordination only)
 GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
 PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
-CombatDemo -> GameSession, PlayerAbilities, EnemyAI/EnemyConfig, Enemy, CombatSystem, Combatant
+CombatDemo -> GameSession, EncounterFlow, PlayerAbilities, Boss/BossConfig, CombatSystem, Combatant
+EncounterFlow -> GameSession, TravelSystem, ActiveEncounter, BattleResult, immutable MaterialDrop
 PlayerInput -> PlayerCommand, LibGDX Input (mapping only)
-PlayerAbilities -> Player, ClassDefinition, AbilityLoadout/Slot/State, AttackShape, PlayerCommand, CombatSystem, Combatant, AttackSpec
+PlayerAbilities -> Player, ClassSkills, ClassDefinition, AbilityLoadout/Slot/State, AttackShape, PlayerCommand, CombatSystem, Combatant, AttackSpec
+ClassSkills -> Player, CombatSystem, Combatant capabilities, finite skill tuning (no damage engine)
 PlayerClasses -> ClassDefinition, PlayerClass, AbilityLoadout, AttackShape, AttackSpec (immutable Java data)
 AttackShape -> CollisionBox (pure geometry strategy)
 EnemyAI    -> Enemy, EnemyState, EnemyConfig, WalkableArea, AStarPathfinder, CombatSystem, Combatant
 AStarPathfinder -> WalkableArea, CollisionBox (no entity, input, or graphics dependencies)
 CombatSystem -> Combatant, Attack, AttackSpec, Projectile/ProjectileSpec, Damageable, CollisionBox/CollisionSweep, WalkableArea
+CombatSystem -> ElementRules, CombatStatus, ElementField, ReactionTimer, DamageType (shared settlement)
 Projectile -> CollisionBox, WalkableArea (no input, rendering or damage application)
 CameraFollow -> CollisionBox (pure mathematics)
 TravelSystem -> GameSession, Portal/FastTravelDestination data
@@ -689,6 +745,20 @@ type-specific branches. This prevents circular dependencies.
   expose travel behaviour without UI or graphics dependencies.
 - `CameraFollow.viewFor(subjectBounds, mapBounds, viewWidth, viewHeight)` returns
   the visible world rectangle without reading input or mutating gameplay state.
+- `GameScreen.getEncounterFlow()` exposes the boundary for an external Quest adapter.
+  `EncounterFlow.activate(ActiveEncounter)` accepts/replaces permission in Hub;
+  `clearActiveEncounter()` removes it without modifying any Quest state.
+  `getActiveEncounter()` and `isBattleActive()` expose permission/current admission.
+- `EncounterFlow.getLastResult()` is observational. FAILURE leaves the permission retryable;
+  SUCCESS clears it. `getPendingRewards()` retains unclaimed success payloads across maps;
+  `claimReward(BattleResult)` transfers each once. External adapters must not call complete
+  to manufacture a result or mutate gameplay while damage is being delivered.
+- `PlayerAbilities.selectClass(ClassDefinition)` and `selectUltimateMode(UltimateMode)`
+  are the production Hub-only selection boundary. Player getters expose persistent choices;
+  update/afterCombat execute and settle skill state without graphics or UI ownership.
+- `CombatSystem.getElementStatus(Combatant)`, `getElementFields()` and Combatant.getStatus()
+  expose attachment/field/control observations. HitInterceptor and targetability are generic
+  capabilities; elemental and physical damage still enter the same shared engine.
 
 PlayerClass is now a stable enum, and AttackShape is a small geometry Strategy.
 ClassDefinition/AbilityLoadout composition supplies class differences without
@@ -722,6 +792,11 @@ Priority 0 is the minimum playable loop, Priority 1 completes the planned game,
 and Priority 2 is optional polish if time remains.
 
 ### Developer A — Daoyan Zhu (`u7782042`)
+
+The table below is the original branch-planning breakdown, not a list of missing features.
+The current placeholder baseline includes these core systems, finalized first-version skills
+and reactions, wall occlusion, death recovery and the task-portal/reward boundary described above.
+This integration stage adds regression coverage and hardens lifecycle contracts, not new gameplay.
 
 | Priority | Feature | Suggested branch |
 | --- | --- | --- |
@@ -798,8 +873,9 @@ commit message.
   those features are implemented.
 - Agree on quest objective/reward data and the Inventory reward API before
   creating the `quest` package.
-- Agree on final class targeting, projectile/weapon execution and balance before
-  expanding the current geometry-only strategy beyond placeholder attacks.
+- First-version class behaviours and reaction rules are now fixed and implemented. Agree on
+  balance refinements and future art/presentation mapping separately; those must preserve the
+  shared damage, world-collision, Hub-only selection and one-generation reaction contracts.
 - Agree on the first save-file version and snapshot fields before implementing
   save/load; do not serialize complete LibGDX objects directly.
 - Decide which P2 features will be dropped if the P0/P1 schedule slips.
