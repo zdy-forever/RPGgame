@@ -7,6 +7,7 @@ The runnable LibGDX game skeleton is located in [`Activity_2`](Activity_2/README
 ## Author
 
 - Daoyan Zhu (`u7782042`)
+- Jiaqi Chen (`u7851266`)
 
 ## Quick start
 

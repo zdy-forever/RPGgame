@@ -193,11 +193,12 @@ public final class GameScreen extends ScreenAdapter {
 
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
+        renderer.setDebugCoords(true);
         GameMap map = session.getCurrentMap();
         combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.graphics.setTitle("COMP2120 | " + map.getName() + " [" + map.getId()
-                + "] | " + combatStatus + " | " + travelStatus);
+        var p = session.getPlayer();
+        Gdx.graphics.setTitle(map.getName() + " | " + combatStatus + " | " + travelStatus);
     }
 
     /**

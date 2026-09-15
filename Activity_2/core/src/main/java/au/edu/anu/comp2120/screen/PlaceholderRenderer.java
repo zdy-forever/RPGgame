@@ -12,7 +12,12 @@ import au.edu.anu.comp2120.world.MapType;
 import au.edu.anu.comp2120.world.SpawnPoint;
 import au.edu.anu.comp2120.world.Portal;
 import java.util.List;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -33,7 +38,12 @@ public final class PlaceholderRenderer implements Disposable {
     private final ShapeRenderer shapes;
     /** Fixed-size world view; window resizing adds letterboxing instead of changing its extent. */
     private final FitViewport viewport;
-
+    /** LibGDX built-in debug font; requires no external art files. */
+    private final BitmapFont debugFont;
+    /** Screen-space batch used only for the optional debug HUD text. */
+    private final SpriteBatch debugBatch;
+    /** Whether the live coordinate overlay is drawn. */
+    private boolean debugCoords;
     /**
      * Creates drawing resources after LibGDX has initialized its graphics context.
      *
@@ -48,8 +58,20 @@ public final class PlaceholderRenderer implements Disposable {
         }
         viewport = new FitViewport(worldWidth, worldHeight);
         shapes = new ShapeRenderer();
-    }
 
+        // ↓↓↓ 加这三行 ↓↓↓
+        debugFont = new BitmapFont();
+        debugBatch = new SpriteBatch();
+        debugCoords = false;
+    }
+    /**
+     * Enables or disables the live player-coordinate overlay in the top-left corner.
+     *
+     * @param enabled true to draw the debug HUD
+     */
+    public void setDebugCoords(boolean enabled) {
+        this.debugCoords = enabled;
+    }
     /**
      * Follows the player's centre with map clamping, then draws the placeholder scene.
      * Position is recalculated from current data every frame, including the first frame after travel.
@@ -132,6 +154,18 @@ public final class PlaceholderRenderer implements Disposable {
             }
         }
         shapes.end();
+        if (debugCoords) {
+            int screenW = Gdx.graphics.getWidth();
+            int screenH = Gdx.graphics.getHeight();
+            debugBatch.setProjectionMatrix(
+                    new Matrix4().setToOrtho2D(0, 0, screenW, screenH));
+            debugBatch.begin();
+            debugFont.setColor(0.20f, 0.95f, 0.55f, 1);
+            debugFont.draw(debugBatch,
+                    "Player x=" + (int) player.getX() + "  y=" + (int) player.getY(),
+                    10, screenH - 10);
+            debugBatch.end();
+        }
     }
 
     /**
@@ -160,5 +194,8 @@ public final class PlaceholderRenderer implements Disposable {
     @Override
     public void dispose() {
         shapes.dispose();
+        debugFont.dispose();
+        debugBatch.dispose();
     }
+
 }
