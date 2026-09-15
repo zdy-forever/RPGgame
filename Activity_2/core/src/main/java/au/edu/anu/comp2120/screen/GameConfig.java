@@ -3,6 +3,7 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.enemy.EnemyConfig;
 import au.edu.anu.comp2120.enemy.BossConfig;
+import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.player.AttackShape;
 import au.edu.anu.comp2120.world.CollisionBox;
 import java.util.List;
@@ -14,6 +15,7 @@ import au.edu.anu.comp2120.player.PlayerClasses;
  * World units are independent of window pixels; x points right and y points up.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class GameConfig {
     /** Fixed camera view width in world units, independent of map and window sizes. */
@@ -45,6 +47,12 @@ public final class GameConfig {
             List.of(new BossConfig.Pattern(new AttackSpec("boss-heavy-sweep", 20, 0.2, 0.8), 120, AttackShape.FORWARD),
                     new BossConfig.Pattern(new AttackSpec("boss-heavy-slam", 30, 0.3, 1.1), 160, AttackShape.AREA)),
             "sentinel-core", 1);
+    public static final NPC WEAPON_MERCHANT = new NPC(
+            "weapon_merchant", "Weapon Merchant",
+            320.0, 180.0, 24.0, 24.0,
+            "Take this Lightning Staff! It will serve you well.",
+            "weapon_lightning_staff"
+    );
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

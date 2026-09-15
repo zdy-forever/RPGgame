@@ -1,5 +1,6 @@
 package au.edu.anu.comp2120.screen;
 
+import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.combat.Attack;
@@ -21,6 +22,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
  * Replacing this renderer does not change movement, collision, or combat rules.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class PlaceholderRenderer implements Disposable {
     /** Radius of temporary spawn markers in world units. */
@@ -52,15 +54,15 @@ public final class PlaceholderRenderer implements Disposable {
      * Follows the player's centre with map clamping, then draws the placeholder scene.
      * Position is recalculated from current data every frame, including the first frame after travel.
      *
-     * @param map collision world to display
-     * @param player player to display
-     * @param portals immutable portal snapshots; only current-map entries are drawn
+     * @param map        collision world to display
+     * @param player     player to display
+     * @param portals    immutable portal snapshots; only current-map entries are drawn
      * @param combatants current-scope actors for enemy rectangles and hurtbox outlines
-     * @param attacks active current-scope invocations for temporary hitbox outlines
-     * @param drops current-map unclaimed material rectangles, independent of inventory icons
+     * @param attacks    active current-scope invocations for temporary hitbox outlines
+     * @param drops      current-map unclaimed material rectangles, independent of inventory icons
      */
-    public void render(GameMap map, Player player, List<Portal> portals,
-            List<Combatant> combatants, List<Attack> attacks, List<MaterialDrop> drops) {
+    public void render(GameMap map, Player player, NPC npc, List<Portal> portals,
+                       List<Combatant> combatants, List<Attack> attacks, List<MaterialDrop> drops) {
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
                 viewport.getWorldWidth(), viewport.getWorldHeight());
@@ -96,6 +98,11 @@ public final class PlaceholderRenderer implements Disposable {
         }
         shapes.setColor(0.20f, 0.85f, 0.60f, 1);
         draw(player.getBounds());
+        // Draw NPC (yellow square)
+        if (npc != null) {
+            shapes.setColor(1f, 1f, 0f, 1);
+            draw(new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight()));
+        }
         for (Combatant actor : combatants) {
             if (actor.getFaction() == Faction.ENEMY) {
                 if (actor.getEntity().isAlive()) {

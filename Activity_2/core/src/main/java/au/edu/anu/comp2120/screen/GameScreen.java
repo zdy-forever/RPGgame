@@ -2,13 +2,11 @@ package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.EncounterFlow;
-import au.edu.anu.comp2120.world.Portal;
+import au.edu.anu.comp2120.npc.NPC;
+import au.edu.anu.comp2120.world.*;
 import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.player.PlayerInput;
 import au.edu.anu.comp2120.player.PlayerCommand;
-import au.edu.anu.comp2120.world.GameMap;
-import au.edu.anu.comp2120.world.MapCatalog;
-import au.edu.anu.comp2120.world.TravelCatalog;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
@@ -17,6 +15,7 @@ import com.badlogic.gdx.ScreenAdapter;
  * Coordinates the map session, movement input, combat debug adapter, and geometry-only presentation.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class GameScreen extends ScreenAdapter {
 
@@ -81,8 +80,10 @@ public final class GameScreen extends ScreenAdapter {
             updateGameplay(Math.min(delta, GameConfig.MAX_FRAME_DELTA));
         }
         skipNextUpdate = false;
-        renderer.render(session.getCurrentMap(), session.getPlayer(),
-                travel.getPortals(session.getCurrentMap().getId()),
+        GameMap currentMap = session.getCurrentMap();
+        renderer.render(currentMap, session.getPlayer(),
+                currentMap.getType() == MapType.HUB ? GameConfig.WEAPON_MERCHANT : null,
+                travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
     }
 
@@ -106,6 +107,23 @@ public final class GameScreen extends ScreenAdapter {
             travelConsumed = true;
         }
         long beforeCombat = session.getTransitionVersion();
+        if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            var player = session.getPlayer();
+            NPC merchant = GameConfig.WEAPON_MERCHANT;
+            if (merchant.isAdjacent((float)player.getX(), (float)player.getY(), 50f)) {
+                if (!merchant.hasInteracted()) {
+                    merchant.setInteracted();
+                    travelStatus = "Merchant: \"" + merchant.getDialogueText() + "\" [Got Lightning Staff!]";
+                    // 直接接入 Inventory (假设 session 有 getInventory 或 player 有)
+                    // session.getInventory().addItem(merchant.getRewardItemId());
+                    // 或接入 MaterialDrop 逻辑:
+                    // encounterFlow.addReward(new MaterialDrop(...));
+                } else {
+                    travelStatus = "Merchant: \"Come back later, adventurer.\"";
+                }
+                updateMapView();
+            }
+        }
         combatDemo.update(delta,
                 travelConsumed ? PlayerCommand.NONE : input.sample(),
                 !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R),
