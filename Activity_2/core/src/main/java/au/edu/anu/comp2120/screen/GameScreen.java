@@ -10,7 +10,11 @@ import au.edu.anu.comp2120.player.PlayerCommand;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
-
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.utils.Align;
 /**
  * Coordinates the map session, movement input, combat debug adapter, and geometry-only presentation.
  *
@@ -39,7 +43,18 @@ public final class GameScreen extends ScreenAdapter {
     private boolean paused;
     /** Discards the first frame's time after startup or resume. */
     private boolean skipNextUpdate = true;
-
+    /** Whether an in-screen dialogue is open; freezes movement while true. */
+    private boolean dialogueOpen;
+    /** Index of the current dialogue line. */
+    private int dialogueLine;
+    /** NPC currently talking. */
+    private NPC activeNpc;
+    /** Own screen-space batch used only for the dialogue box. */
+    private final SpriteBatch dialogueBatch;
+    /** Own built-in font for dialogue text; no art files required. */
+    private final BitmapFont dialogueFont;
+    /** Own shape renderer for the dialogue box background and border. */
+    private final ShapeRenderer dialogueShapes;
     /**
      * Creates the demo models and drawing resources after graphics initialization.
      */
@@ -53,6 +68,9 @@ public final class GameScreen extends ScreenAdapter {
         input = new PlayerInput(Gdx.input);
         renderer = new PlaceholderRenderer(GameConfig.CAMERA_VIEW_WIDTH, GameConfig.CAMERA_VIEW_HEIGHT);
         updateMapView();
+        dialogueBatch = new SpriteBatch();
+        dialogueFont = new BitmapFont();
+        dialogueShapes = new ShapeRenderer();
     }
 
     /**
@@ -85,6 +103,9 @@ public final class GameScreen extends ScreenAdapter {
                 currentMap.getType() == MapType.HUB ? GameConfig.WEAPON_MERCHANT : null,
                 travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
+        drawDialogue();
+        drawCoordinates();
+
     }
 
     /**
@@ -108,33 +129,35 @@ public final class GameScreen extends ScreenAdapter {
         }
         long beforeCombat = session.getTransitionVersion();
         if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            var player = session.getPlayer();
-            NPC merchant = GameConfig.WEAPON_MERCHANT;
-            if (merchant.isAdjacent((float)player.getX(), (float)player.getY(), 50f)) {
-                if (!merchant.hasInteracted()) {
-                    merchant.setInteracted();
-                    travelStatus = "Merchant: \"" + merchant.getDialogueText() + "\" [Got Lightning Staff!]";
-                    // 直接接入 Inventory (假设 session 有 getInventory 或 player 有)
-                    // session.getInventory().addItem(merchant.getRewardItemId());
-                    // 或接入 MaterialDrop 逻辑:
-                    // encounterFlow.addReward(new MaterialDrop(...));
-                } else {
-                    travelStatus = "Merchant: \"Come back later, adventurer.\"";
+            if (dialogueOpen) {
+                advanceDialogue();
+            } else {
+                var player = session.getPlayer();
+                NPC merchant = GameConfig.WEAPON_MERCHANT;
+                if (merchant.isAdjacent(player.getX(), player.getY(), 70.0)) {
+                    if (!merchant.hasInteracted()) {
+                        dialogueOpen = true;
+                        dialogueLine = 0;
+                        activeNpc = merchant;
+                    } else {
+                        travelStatus = "Merchant: \"Come back later, adventurer.\"";
+                        updateMapView();
+                    }
                 }
-                updateMapView();
             }
         }
+        boolean frozen = travelConsumed || dialogueOpen;
         combatDemo.update(delta,
-                travelConsumed ? PlayerCommand.NONE : input.sample(),
-                !travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.R),
-                travelConsumed ? null : input.sampleClassSelection().orElse(null),
-                !travelConsumed && input.sampleElementCycle(),
-                !travelConsumed && input.sampleUltimateModeCycle());
+                frozen ? PlayerCommand.NONE : input.sample(),
+                !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
+                frozen ? null : input.sampleClassSelection().orElse(null),
+                !frozen && input.sampleElementCycle(),
+                !frozen && input.sampleUltimateModeCycle());
         if (session.getTransitionVersion() != beforeCombat) {
             showBattleReturn();
             return;
         }
-        if (travelConsumed) {
+        if (frozen) {
             updateMapView();
         } else {
             try {
@@ -162,6 +185,79 @@ public final class GameScreen extends ScreenAdapter {
         updateMapView();
     }
 
+
+    /** Advances the dialogue, or closes it and grants the reward on the final line. */
+    private void advanceDialogue() {
+        dialogueLine++;
+        if (activeNpc == null || dialogueLine >= activeNpc.getLines().size()) {
+            dialogueOpen = false;
+            if (activeNpc != null && !activeNpc.hasInteracted()) {
+                activeNpc.setInteracted();
+                travelStatus = "Received: " + activeNpc.getRewardItemId();
+                updateMapView();
+            }
+            activeNpc = null;
+        }
+    }
+    /**
+     * Draws the live player coordinate in the top-left corner.
+     * Uses this screen's own font and batch, so no renderer change is needed.
+     */
+    private void drawCoordinates() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.20f, 0.95f, 0.55f, 1);
+        dialogueFont.draw(dialogueBatch,
+                "Player x=" + (int) session.getPlayer().getX()
+                        + "  y=" + (int) session.getPlayer().getY(),
+                12f * scale, h - 12f * scale);
+        dialogueBatch.end();
+    }
+    private void drawDialogue() {
+        if (!dialogueOpen || activeNpc == null) {
+            return;
+        }
+        var lines = activeNpc.getLines();
+        if (dialogueLine >= lines.size()) {
+            return;
+        }
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float boxW = w * 0.7f;
+        float boxH = h * 0.22f;
+        float x = (w - boxW) / 2f;
+        float y = 18f;
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        dialogueFont.getData().setScale(scale);
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.05f, 0.06f, 0.09f, 0.92f);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.95f, 0.85f, 0.35f, 1);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+
+        float pad = 14f * scale;
+        boolean last = dialogueLine >= lines.size() - 1;
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(1f, 0.90f, 0.40f, 1);
+        dialogueFont.draw(dialogueBatch, activeNpc.getName(), x + pad, y + boxH - pad);
+        dialogueFont.setColor(1f, 1f, 1f, 1);
+        dialogueFont.draw(dialogueBatch, lines.get(dialogueLine),
+                x + pad, y + boxH - pad - 26f * scale, boxW - 2 * pad, Align.left, true);
+        dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
+        dialogueFont.draw(dialogueBatch,
+                last ? "[E] Take reward & close" : "[E] Next", x + pad, y + pad + 4f);
+        dialogueBatch.end();
+    }
     /**
      * Handles fast-travel shortcuts and an explicit temporary debug unlock key.
      *
@@ -193,11 +289,9 @@ public final class GameScreen extends ScreenAdapter {
 
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
-        renderer.setDebugCoords(true);
         GameMap map = session.getCurrentMap();
         combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        var p = session.getPlayer();
         Gdx.graphics.setTitle(map.getName() + " | " + combatStatus + " | " + travelStatus);
     }
 
@@ -231,5 +325,8 @@ public final class GameScreen extends ScreenAdapter {
     @Override
     public void dispose() {
         renderer.dispose();
+        dialogueBatch.dispose();
+        dialogueFont.dispose();
+        dialogueShapes.dispose();
     }
 }

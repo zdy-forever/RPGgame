@@ -18,6 +18,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -44,6 +45,18 @@ public final class PlaceholderRenderer implements Disposable {
     private final SpriteBatch debugBatch;
     /** Whether the live coordinate overlay is drawn. */
     private boolean debugCoords;
+    /** Reference window height used to auto-scale the debug HUD text. */
+    private static final float HUD_BASE_HEIGHT = 720f;
+    /** Smallest allowed HUD scale, so text stays readable on tiny windows. */
+    private static final float HUD_MIN_SCALE = 1f;
+    /** Extra size multiplier on top of the auto scale; raise this for bigger text. */
+    private static final float HUD_FONT_SCALE = 1.4f;
+    /** Speaker name shown in the dialogue box. */
+    private String dialogueSpeaker = "";
+    /** Current dialogue line shown in the box. */
+    private String dialogueText = "";
+    /** Prompt text shown at the bottom-left of the box. */
+    private String dialogueHint = "";
     /**
      * Creates drawing resources after LibGDX has initialized its graphics context.
      *
@@ -59,8 +72,10 @@ public final class PlaceholderRenderer implements Disposable {
         viewport = new FitViewport(worldWidth, worldHeight);
         shapes = new ShapeRenderer();
 
-        // ↓↓↓ 加这三行 ↓↓↓
         debugFont = new BitmapFont();
+        debugFont.getRegion().getTexture().setFilter(
+                com.badlogic.gdx.graphics.Texture.TextureFilter.Linear,
+                com.badlogic.gdx.graphics.Texture.TextureFilter.Linear);
         debugBatch = new SpriteBatch();
         debugCoords = false;
     }
@@ -71,6 +86,23 @@ public final class PlaceholderRenderer implements Disposable {
      */
     public void setDebugCoords(boolean enabled) {
         this.debugCoords = enabled;
+    }
+    /**
+     * Shows an in-screen dialogue box at the bottom.
+     *
+     * @param speaker NPC name drawn in the heading colour
+     * @param text    current dialogue line
+     * @param hint    prompt such as "[E] Next"
+     */
+    public void setDialogue(String speaker, String text, String hint) {
+        this.dialogueSpeaker = speaker == null ? "" : speaker;
+        this.dialogueText = text == null ? "" : text;
+        this.dialogueHint = hint == null ? "" : hint;
+    }
+
+    /** Hides the dialogue box. */
+    public void clearDialogue() {
+        dialogueText = "";
     }
     /**
      * Follows the player's centre with map clamping, then draws the placeholder scene.
@@ -157,17 +189,52 @@ public final class PlaceholderRenderer implements Disposable {
         if (debugCoords) {
             int screenW = Gdx.graphics.getWidth();
             int screenH = Gdx.graphics.getHeight();
-            debugBatch.setProjectionMatrix(
-                    new Matrix4().setToOrtho2D(0, 0, screenW, screenH));
+            float scale = Math.max(HUD_MIN_SCALE, screenH / HUD_BASE_HEIGHT) * HUD_FONT_SCALE;
+            debugFont.getData().setScale(scale);
+            debugBatch.getProjectionMatrix().setToOrtho2D(0, 0, screenW, screenH);
             debugBatch.begin();
             debugFont.setColor(0.20f, 0.95f, 0.55f, 1);
             debugFont.draw(debugBatch,
                     "Player x=" + (int) player.getX() + "  y=" + (int) player.getY(),
-                    10, screenH - 10);
+                    12f * scale, screenH - 12f * scale);
             debugBatch.end();
+            drawDialogue();
         }
     }
-
+    /** Draws the dialogue box in screen space above the world. */
+    private void drawDialogue() {
+        if (dialogueText.isEmpty()) {
+            return;
+        }
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float boxW = w * 0.7f;
+        float boxH = h * 0.22f;
+        float x = (w - boxW) / 2f;
+        float y = 18f;
+        shapes.getProjectionMatrix().setToOrtho2D(0, 0, w, h);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0.05f, 0.06f, 0.09f, 0.92f);
+        shapes.rect(x, y, boxW, boxH);
+        shapes.end();
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(0.95f, 0.85f, 0.35f, 1);
+        shapes.rect(x, y, boxW, boxH);
+        shapes.end();
+        float scale = Math.max(HUD_MIN_SCALE, h / HUD_BASE_HEIGHT) * HUD_FONT_SCALE;
+        debugFont.getData().setScale(scale);
+        debugBatch.getProjectionMatrix().setToOrtho2D(0, 0, w, h);
+        debugBatch.begin();
+        float pad = 14f * scale;
+        debugFont.setColor(1f, 0.90f, 0.40f, 1);
+        debugFont.draw(debugBatch, dialogueSpeaker, x + pad, y + boxH - pad);
+        debugFont.setColor(1f, 1f, 1f, 1);
+        debugFont.draw(debugBatch, dialogueText, x + pad, y + boxH - pad - 26f * scale,
+                boxW - 2 * pad, Align.left, true);
+        debugFont.setColor(0.60f, 0.90f, 1f, 1);
+        debugFont.draw(debugBatch, dialogueHint, x + pad, y + pad + 4f);
+        debugBatch.end();
+    }
     /**
      * Resizes the screen viewport without recentering the camera or changing its world extent.
      * Zero/negative window dimensions (for example during minimization) preserve the last view.

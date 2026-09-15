@@ -49,7 +49,7 @@ public final class GameConfig {
             "sentinel-core", 1);
     public static final NPC WEAPON_MERCHANT = new NPC(
             "weapon_merchant", "Weapon Merchant",
-            320.0, 180.0, 24.0, 24.0,
+            320.0, 250.0, 24.0, 24.0,
             "Take this Lightning Staff! It will serve you well.",
             "weapon_lightning_staff"
     );
