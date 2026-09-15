@@ -49,6 +49,8 @@ public final class GameScreen extends ScreenAdapter {
     private int dialogueLine;
     /** NPC currently talking. */
     private NPC activeNpc;
+    /** Maximum HP used to scale the placeholder health bar. */
+    private static final int MAX_HP = 100;
     /** Own screen-space batch used only for the dialogue box. */
     private final SpriteBatch dialogueBatch;
     /** Own built-in font for dialogue text; no art files required. */
@@ -205,18 +207,62 @@ public final class GameScreen extends ScreenAdapter {
      * Draws the player's HP at the top-left corner, above the coordinate line.
      * Uses this screen's own font and batch, so no renderer change is needed.
      */
+    /**
+     * Draws the player's health bar (red background, green fill) at the top-left corner,
+     * with the numeric value underneath. Uses this screen's own resources.
+     */
+    /**
+     * Draws the player's health bar (red background, green fill) at the top-left corner,
+     * with the numeric value centred inside the bar. Uses this screen's own resources.
+     */
     private void drawHealth() {
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
         float scale = Math.max(1f, h / 720f) * 1.4f;
+        float x = 12f * scale;
+        float barW = 180f * scale;
+        float barH = 18f * scale;
+        float barY = h - 10f * scale - barH;
+        float ratio = currentHp() / (float) MAX_HP;
+
         dialogueFont.getData().setScale(scale);
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.75f, 0.15f, 0.15f, 1);
+        dialogueShapes.rect(x, barY, barW, barH);
+        dialogueShapes.setColor(0.20f, 0.85f, 0.35f, 1);
+        dialogueShapes.rect(x, barY, barW * ratio, barH);
+        dialogueShapes.end();
+
+        float baseline = barY + barH / 2f + dialogueFont.getCapHeight() / 2f;
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
-        dialogueFont.setColor(0.95f, 0.30f, 0.30f, 1);
-        dialogueFont.draw(dialogueBatch, currentHpText(), 12f * scale, h - 12f * scale);
+        dialogueFont.setColor(0.1f, 0.1f, 0.1f, 1);
+        dialogueFont.draw(dialogueBatch, currentHpText() + " / " + MAX_HP,
+                x, baseline, barW, Align.center, false);
         dialogueBatch.end();
     }
-
+    /**
+     * Parses the current HP number from the combat status text.
+     *
+     * @return the parsed HP clamped to 0..MAX_HP, or MAX_HP when unreadable
+     */
+    private int currentHp() {
+        String segment = currentHpText();
+        StringBuilder digits = new StringBuilder();
+        for (int i = 0; i < segment.length(); i++) {
+            char c = segment.charAt(i);
+            if (Character.isDigit(c)) {
+                digits.append(c);
+            } else if (digits.length() > 0) {
+                break;
+            }
+        }
+        if (digits.length() == 0) {
+            return MAX_HP;
+        }
+        return Math.max(0, Math.min(Integer.parseInt(digits.toString()), MAX_HP));
+    }
     /**
      * Extracts the HP segment from the combat status, for example "HP 100".
      *
@@ -242,7 +288,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch,
                 "Player x=" + (int) session.getPlayer().getX()
                         + "  y=" + (int) session.getPlayer().getY(),
-                12f * scale, h - 34f * scale);
+                12f * scale, h - 40f * scale);
         dialogueBatch.end();
     }
     private void drawDialogue() {
