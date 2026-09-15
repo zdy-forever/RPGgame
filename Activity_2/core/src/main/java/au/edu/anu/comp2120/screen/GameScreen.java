@@ -105,6 +105,8 @@ public final class GameScreen extends ScreenAdapter {
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
         drawDialogue();
         drawCoordinates();
+        drawHealth();
+
 
     }
 
@@ -200,6 +202,32 @@ public final class GameScreen extends ScreenAdapter {
         }
     }
     /**
+     * Draws the player's HP at the top-left corner, above the coordinate line.
+     * Uses this screen's own font and batch, so no renderer change is needed.
+     */
+    private void drawHealth() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.95f, 0.30f, 0.30f, 1);
+        dialogueFont.draw(dialogueBatch, currentHpText(), 12f * scale, h - 12f * scale);
+        dialogueBatch.end();
+    }
+
+    /**
+     * Extracts the HP segment from the combat status, for example "HP 100".
+     *
+     * @return the leading status segment before the first separator
+     */
+    private String currentHpText() {
+        String status = combatDemo.getStatus();
+        int bar = status.indexOf('|');
+        return (bar > 0 ? status.substring(0, bar) : status).trim();
+    }
+    /**
      * Draws the live player coordinate in the top-left corner.
      * Uses this screen's own font and batch, so no renderer change is needed.
      */
@@ -214,7 +242,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch,
                 "Player x=" + (int) session.getPlayer().getX()
                         + "  y=" + (int) session.getPlayer().getY(),
-                12f * scale, h - 12f * scale);
+                12f * scale, h - 34f * scale);
         dialogueBatch.end();
     }
     private void drawDialogue() {
