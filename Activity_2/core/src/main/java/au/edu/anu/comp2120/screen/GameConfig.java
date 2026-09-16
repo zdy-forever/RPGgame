@@ -69,4 +69,27 @@ public final class GameConfig {
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }
+    /** Healing spring that restores HP each time its dialogue finishes. */
+    public static final NPC HEALING_SPRING = new NPC(
+            "healing_spring", "Healing Spring",
+            150.0, 150.0, 28.0, 28.0,
+            List.of(
+                    "Clear water bubbles up from the stone.",
+                    "You drink deeply and feel restored."),
+            null
+    );
+
+    /** Notice board listing the controls; readable any number of times. */
+    public static final NPC NOTICE_BOARD = new NPC(
+            "notice_board", "Notice Board",
+            250.0, 220.0, 24.0, 32.0,
+            List.of(
+                    "=== HUB NOTICE BOARD ===",
+                    "WASD - move        E - talk / interact",
+                    "B - inventory      U then 1/2/3 - fast travel",
+                    "Right-click a weapon in the bag to equip it.",
+                    "Step into a portal to begin a challenge."),
+            null
+    );
+
 }

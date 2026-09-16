@@ -51,6 +51,25 @@ public final class PlaceholderRenderer implements Disposable {
     private static final float HUD_MIN_SCALE = 1f;
     /** Extra size multiplier on top of the auto scale; raise this for bigger text. */
     private static final float HUD_FONT_SCALE = 1.4f;
+    /** Half-size of each decorative fence post in world units. */
+    private static final float FENCE_POST = 4f;
+    /** Spacing between decorative fence posts in world units. */
+    private static final float FENCE_SPACING = 44f;
+    /** Inset of the decorative fence from the map border in world units. */
+    private static final float FENCE_INSET = 14f;
+    /** Y of the decorative main road in world units. */
+    private static final float ROAD_Y = 180f;
+    /** Height of the decorative main road in world units. */
+    private static final float ROAD_HEIGHT = 34f;
+    /** Decorative hut footprints as x, y, width, height in world units. */
+    private static final float[][] HUTS = {
+            {430f, 250f, 70f, 50f}, {530f, 250f, 70f, 50f}, {430f, 120f, 70f, 50f}
+    };
+    /** Decorative tree trunk base positions as x, y in world units. */
+    private static final float[][] TREES = {
+            {90f, 250f}, {120f, 95f}, {270f, 320f}, {390f, 95f},
+            {640f, 300f}, {700f, 120f}, {830f, 250f}, {890f, 95f}
+    };
     /** Speaker name shown in the dialogue box. */
     private String dialogueSpeaker = "";
     /** Current dialogue line shown in the box. */
@@ -131,6 +150,7 @@ public final class PlaceholderRenderer implements Disposable {
             shapes.setColor(0.24f, 0.11f, 0.10f, 1);
         }
         draw(map.getBounds());
+        drawDecorations(map);
         shapes.setColor(0.55f, 0.58f, 0.65f, 1);
         for (CollisionBox obstacle : map.getObstacles()) {
             draw(obstacle);
@@ -252,7 +272,72 @@ public final class PlaceholderRenderer implements Disposable {
             viewport.update(width, height, false);
         }
     }
+    /**
+     * Draws static Hub scenery (road, fence, huts, trees, spring pool) beneath all actors.
+     * Decorations are geometry only and never affect movement, collision or combat.
+     *
+     * @param map current map; only HUB maps receive scenery
+     */
+    private void drawDecorations(GameMap map) {
+        if (map.getType() != MapType.HUB) {
+            return;
+        }
+        CollisionBox bounds = map.getBounds();
+        drawRoad(bounds);
+        drawFence(bounds);
+        for (float[] hut : HUTS) {
+            drawHut(hut[0], hut[1], hut[2], hut[3]);
+        }
+        for (float[] tree : TREES) {
+            drawTree(tree[0], tree[1]);
+        }
+        shapes.setColor(0.13f, 0.42f, 0.68f, 1);
+        draw(new CollisionBox(136f, 140f, 44f, 28f));
+    }
 
+    /** Draws the main road and the branch leading to the weapon merchant. */
+    private void drawRoad(CollisionBox bounds) {
+        shapes.setColor(0.22f, 0.26f, 0.30f, 1);
+        draw(new CollisionBox(bounds.x(), ROAD_Y, bounds.width(), ROAD_HEIGHT));
+        draw(new CollisionBox(302f, ROAD_Y, 26f, 80f));
+    }
+
+    /** Draws a ring of fence posts just inside the map border. */
+    private void drawFence(CollisionBox bounds) {
+        float left = (float) bounds.x() + FENCE_INSET;
+        float bottom = (float) bounds.y() + FENCE_INSET;
+        float right = (float) (bounds.x() + bounds.width()) - FENCE_INSET;
+        float top = (float) (bounds.y() + bounds.height()) - FENCE_INSET;
+        shapes.setColor(0.36f, 0.28f, 0.20f, 1);
+        for (float x = left; x <= right; x += FENCE_SPACING) {
+            draw(new CollisionBox(x, bottom, FENCE_POST, FENCE_POST * 3));
+            draw(new CollisionBox(x, top - FENCE_POST * 3, FENCE_POST, FENCE_POST * 3));
+        }
+        for (float y = bottom; y <= top; y += FENCE_SPACING) {
+            draw(new CollisionBox(left, y, FENCE_POST, FENCE_POST * 3));
+            draw(new CollisionBox(right - FENCE_POST, y, FENCE_POST, FENCE_POST * 3));
+        }
+    }
+
+    /** Draws one hut with a pointed roof and a lit window. */
+    private void drawHut(float x, float y, float w, float h) {
+        shapes.setColor(0.30f, 0.26f, 0.22f, 1);
+        draw(new CollisionBox(x, y, w, h));
+        shapes.setColor(0.45f, 0.20f, 0.18f, 1);
+        shapes.triangle(x - 6f, y + h, x + w + 6f, y + h, x + w / 2f, y + h + 22f);
+        shapes.setColor(0.95f, 0.80f, 0.35f, 1);
+        draw(new CollisionBox(x + w * 0.35f, y + h * 0.25f, w * 0.3f, h * 0.3f));
+    }
+
+    /** Draws one tree with a trunk and a canopy block. */
+    private void drawTree(float x, float y) {
+        shapes.setColor(0.32f, 0.22f, 0.14f, 1);
+        draw(new CollisionBox(x + 4f, y, 6f, 18f));
+        shapes.setColor(0.16f, 0.42f, 0.22f, 1);
+        draw(new CollisionBox(x, y + 18f, 14f, 12f));
+        shapes.setColor(0.20f, 0.50f, 0.26f, 1);
+        draw(new CollisionBox(x + 2f, y + 26f, 10f, 8f));
+    }
     /**
      * Converts model coordinates only at the rendering boundary.
      *
