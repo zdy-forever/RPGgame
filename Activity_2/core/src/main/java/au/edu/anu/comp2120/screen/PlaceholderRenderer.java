@@ -50,7 +50,14 @@ public final class PlaceholderRenderer implements Disposable {
     /** Smallest allowed HUD scale, so text stays readable on tiny windows. */
     private static final float HUD_MIN_SCALE = 1f;
     /** Extra size multiplier on top of the auto scale; raise this for bigger text. */
-    private static final float HUD_FONT_SCALE = 1.4f;
+    private static final float HUD_FONT_SCALE = 1.4f;/** Width of the world-space name tag box in world units. */
+    private static final float NAME_TAG_WIDTH = 140f;
+    /** Gap between a subject's top edge and its name tag in world units. */
+    private static final float NAME_OFFSET = 6f;
+    /** Font scale for world-space name tags; small because it is measured in world units. */
+    private static final float NAME_SCALE = 0.45f;
+    /** Display name shown above the player. */
+    private static final String PLAYER_NAME = "Adventurer";
     /** Half-size of each decorative fence post in world units. */
     private static final float FENCE_POST = 4f;
     /** Spacing between decorative fence posts in world units. */
@@ -211,6 +218,7 @@ public final class PlaceholderRenderer implements Disposable {
             }
         }
         shapes.end();
+        drawNames(player, npcs);
         if (debugCoords) {
             int screenW = Gdx.graphics.getWidth();
             int screenH = Gdx.graphics.getHeight();
@@ -294,7 +302,47 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.setColor(0.13f, 0.42f, 0.68f, 1);
         draw(new CollisionBox(136f, 140f, 44f, 28f));
     }
+    /**
+     * Draws small name tags above the player and every listed NPC in world space.
+     * Uses the camera projection so tags follow their subjects on screen.
+     *
+     * @param player player to label
+     * @param npcs   NPCs to label; null or empty labels only the player
+     */
+    private void drawNames(Player player, List<NPC> npcs) {
+        debugFont.getData().setScale(NAME_SCALE);
+        debugBatch.setProjectionMatrix(viewport.getCamera().combined);
+        debugBatch.begin();
+        if (npcs != null) {
+            for (NPC npc : npcs) {
+                debugFont.setColor(1f, 0.90f, 0.40f, 1);
+                drawNameTag(npc.getName(), npc.getX(),
+                        npc.getY() + npc.getHeight(), npc.getWidth());
+            }
+        }
+        debugFont.setColor(0.60f, 0.95f, 1f, 1);
+        CollisionBox body = player.getBounds();
+        drawNameTag(PLAYER_NAME, body.x(), body.y() + body.height(), body.width());
+        debugBatch.end();
+    }
 
+    /**
+     * Draws one centred name tag above a world rectangle.
+     *
+     * @param text  label to show
+     * @param x     left edge of the subject in world units
+     * @param top   top edge of the subject in world units
+     * @param width subject width, used to centre the label
+     */
+    private void drawNameTag(String text, double x, double top, double width) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        debugFont.draw(debugBatch, text,
+                (float) (x + width / 2 - NAME_TAG_WIDTH / 2),
+                (float) top + NAME_OFFSET,
+                NAME_TAG_WIDTH, Align.center, false);
+    }
     /** Draws the main road and the branch leading to the weapon merchant. */
     private void drawRoad(CollisionBox bounds) {
         shapes.setColor(0.22f, 0.26f, 0.30f, 1);
