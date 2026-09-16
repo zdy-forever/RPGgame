@@ -18,6 +18,7 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Align;
 import au.edu.anu.comp2120.inventory.Inventory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -139,6 +140,7 @@ public final class GameScreen extends ScreenAdapter {
         drawHealth();
         drawInventory();
         drawWeaponSlot();
+        drawInteractionPrompt();
 
 
     }
@@ -178,13 +180,10 @@ public final class GameScreen extends ScreenAdapter {
                 advanceDialogue();
             } else {
                 NPC near = nearestNpc(session.getPlayer());
-                if (near != null && !near.hasInteracted()) {
+                if (near != null) {
                     dialogueOpen = true;
                     dialogueLine = 0;
                     activeNpc = near;
-                } else if (near != null) {
-                    travelStatus = near.getName() + ": \"We have nothing more to discuss.\"";
-                    updateMapView();
                 }
             }
         }
@@ -231,7 +230,7 @@ public final class GameScreen extends ScreenAdapter {
     /** Advances the dialogue, or closes it and grants the reward on the final line. */
     private void advanceDialogue() {
         dialogueLine++;
-        if (activeNpc == null || dialogueLine >= activeNpc.getLines().size()) {
+        if (activeNpc == null || dialogueLine >= dialogueLines().size()) {
             dialogueOpen = false;
             if (activeNpc != null && !activeNpc.hasInteracted()) {
                 activeNpc.setInteracted();
@@ -242,8 +241,10 @@ public final class GameScreen extends ScreenAdapter {
                 } else {
                     travelStatus = "Talked to: " + activeNpc.getName();
                 }
-                updateMapView();
+            } else if (activeNpc != null) {
+                travelStatus = "Talked to: " + activeNpc.getName();
             }
+            updateMapView();
             activeNpc = null;
         }
     }
@@ -358,11 +359,49 @@ public final class GameScreen extends ScreenAdapter {
                 12f * scale, h - 40f * scale);
         dialogueBatch.end();
     }
+    /**
+     * Draws an "[E] Talk" hint above the dialogue box while an NPC is within range.
+     * Hidden while a dialogue or the inventory panel is open.
+     */
+    private void drawInteractionPrompt() {
+        if (dialogueOpen || inventoryOpen) {
+            return;
+        }
+        NPC near = nearestNpc(session.getPlayer());
+        if (near == null) {
+            return;
+        }
+        String hint = "[E] Talk to " + near.getName();
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(1f, 0.85f, 0.30f, 1);
+        dialogueFont.draw(dialogueBatch, hint, 0, 120f * scale, w, Align.center, false);
+        dialogueBatch.end();
+    }
+    /**
+     * Returns the script to show for the active NPC, appending a short
+     * reminder when its one-time reward has already been collected.
+     *
+     * @return the visible dialogue lines, never null
+     */
+    private List<String> dialogueLines() {
+        List<String> base = activeNpc.getLines();
+        if (!activeNpc.hasInteracted() || activeNpc.getRewardItemId() == null) {
+            return base;
+        }
+        List<String> withNotice = new ArrayList<>(base);
+        withNotice.add("You already took the " + prettyName(activeNpc.getRewardItemId()) + ".");
+        return withNotice;
+    }
     private void drawDialogue() {
         if (!dialogueOpen || activeNpc == null) {
             return;
         }
-        var lines = activeNpc.getLines();
+        var lines = dialogueLines();
         if (dialogueLine >= lines.size()) {
             return;
         }
@@ -396,7 +435,8 @@ public final class GameScreen extends ScreenAdapter {
                 x + pad, y + boxH - pad - 26f * scale, boxW - 2 * pad, Align.left, true);
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
         dialogueFont.draw(dialogueBatch,
-                last ? "[E] Take reward & close" : "[E] Next", x + pad, y + pad + 4f);
+                last ? (activeNpc.hasInteracted() ? "[E] Close" : "[E] Take reward")
+                        : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
     }
     /** Draws the persistent weapon slot in the top-right corner. */
