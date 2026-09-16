@@ -6,7 +6,7 @@ import java.util.List;
  * Non-player character with a position, one or more dialogue lines and a one-time item reward.
  * World coordinates use a bottom-left origin; x points right and y points up.
  *
- * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class NPC {
 

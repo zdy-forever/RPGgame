@@ -15,6 +15,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Align;
+import au.edu.anu.comp2120.inventory.Inventory;
 /**
  * Coordinates the map session, movement input, combat debug adapter, and geometry-only presentation.
  *
@@ -57,6 +58,10 @@ public final class GameScreen extends ScreenAdapter {
     private final BitmapFont dialogueFont;
     /** Own shape renderer for the dialogue box background and border. */
     private final ShapeRenderer dialogueShapes;
+    /** Player item storage owned by this screen; survives map changes. */
+    private final Inventory inventory;
+    /** Whether the inventory panel is open; freezes movement while true. */
+    private boolean inventoryOpen;
     /**
      * Creates the demo models and drawing resources after graphics initialization.
      */
@@ -73,6 +78,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch = new SpriteBatch();
         dialogueFont = new BitmapFont();
         dialogueShapes = new ShapeRenderer();
+        inventory = new Inventory();
     }
 
     /**
@@ -108,6 +114,7 @@ public final class GameScreen extends ScreenAdapter {
         drawDialogue();
         drawCoordinates();
         drawHealth();
+        drawInventory();
 
 
     }
@@ -132,6 +139,13 @@ public final class GameScreen extends ScreenAdapter {
             travelConsumed = true;
         }
         long beforeCombat = session.getTransitionVersion();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
+            inventoryOpen = !inventoryOpen;
+            if (inventoryOpen) {
+                dialogueOpen = false;
+                activeNpc = null;
+            }
+        }
         if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             if (dialogueOpen) {
                 advanceDialogue();
@@ -150,7 +164,7 @@ public final class GameScreen extends ScreenAdapter {
                 }
             }
         }
-        boolean frozen = travelConsumed || dialogueOpen;
+        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen;
         combatDemo.update(delta,
                 frozen ? PlayerCommand.NONE : input.sample(),
                 !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
@@ -197,6 +211,7 @@ public final class GameScreen extends ScreenAdapter {
             dialogueOpen = false;
             if (activeNpc != null && !activeNpc.hasInteracted()) {
                 activeNpc.setInteracted();
+                inventory.addItem(activeNpc.getRewardItemId(), 1);
                 travelStatus = "Received: " + activeNpc.getRewardItemId();
                 updateMapView();
             }
@@ -331,6 +346,61 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch,
                 last ? "[E] Take reward & close" : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
+    }
+    /** Draws the inventory panel in the centre of the screen while it is open. */
+    private void drawInventory() {
+        if (!inventoryOpen) {
+            return;
+        }
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float boxW = Math.min(w * 0.5f, 420f * scale);
+        float boxH = h * 0.5f;
+        float x = (w - boxW) / 2f;
+        float y = (h - boxH) / 2f;
+        float pad = 16f * scale;
+        float lineH = 26f * scale;
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.04f, 0.05f, 0.08f, 0.94f);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.55f, 0.85f, 1f, 1);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
+        dialogueFont.draw(dialogueBatch, "INVENTORY", x, y + boxH - pad);
+        dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
+        float cursor = y + boxH - pad - lineH * 1.6f;
+        if (inventory.isEmpty()) {
+            dialogueFont.draw(dialogueBatch, "(empty)", x + pad, cursor);
+        } else {
+            for (Inventory.ItemStack stack : inventory.entries()) {
+                dialogueFont.draw(dialogueBatch,
+                        prettyName(stack.materialId()) + "  x" + stack.quantity(),
+                        x + pad, cursor);
+                cursor -= lineH;
+            }
+        }
+        dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
+        dialogueFont.draw(dialogueBatch, "[B] Close", x + pad, y + pad + 4f);
+        dialogueBatch.end();
+    }
+
+    /** Turns a raw material id such as weapon_lightning_staff into a readable name. */
+    private String prettyName(String materialId) {
+        String cleaned = materialId.replace("weapon_", "").replace('_', ' ').trim();
+        if (cleaned.isEmpty()) {
+            return materialId;
+        }
+        return Character.toUpperCase(cleaned.charAt(0)) + cleaned.substring(1);
     }
     /**
      * Handles fast-travel shortcuts and an explicit temporary debug unlock key.
