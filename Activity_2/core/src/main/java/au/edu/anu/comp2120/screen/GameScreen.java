@@ -3,6 +3,7 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
+import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.world.*;
 import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.player.PlayerInput;
@@ -16,6 +17,9 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Align;
 import au.edu.anu.comp2120.inventory.Inventory;
+
+import java.util.List;
+
 /**
  * Coordinates the map session, movement input, combat debug adapter, and geometry-only presentation.
  *
@@ -127,7 +131,7 @@ public final class GameScreen extends ScreenAdapter {
         skipNextUpdate = false;
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
-                currentMap.getType() == MapType.HUB ? GameConfig.WEAPON_MERCHANT : null,
+                currentMap.getType() == MapType.HUB ? GameConfig.HUB_NPCS : List.of(),
                 travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
         drawDialogue();
@@ -173,17 +177,14 @@ public final class GameScreen extends ScreenAdapter {
             if (dialogueOpen) {
                 advanceDialogue();
             } else {
-                var player = session.getPlayer();
-                NPC merchant = GameConfig.WEAPON_MERCHANT;
-                if (merchant.isAdjacent(player.getX(), player.getY(), 70.0)) {
-                    if (!merchant.hasInteracted()) {
-                        dialogueOpen = true;
-                        dialogueLine = 0;
-                        activeNpc = merchant;
-                    } else {
-                        travelStatus = "Merchant: \"Come back later, adventurer.\"";
-                        updateMapView();
-                    }
+                NPC near = nearestNpc(session.getPlayer());
+                if (near != null && !near.hasInteracted()) {
+                    dialogueOpen = true;
+                    dialogueLine = 0;
+                    activeNpc = near;
+                } else if (near != null) {
+                    travelStatus = near.getName() + ": \"We have nothing more to discuss.\"";
+                    updateMapView();
                 }
             }
         }
@@ -234,12 +235,40 @@ public final class GameScreen extends ScreenAdapter {
             dialogueOpen = false;
             if (activeNpc != null && !activeNpc.hasInteracted()) {
                 activeNpc.setInteracted();
-                inventory.addItem(activeNpc.getRewardItemId(), 1);
-                travelStatus = "Received: " + activeNpc.getRewardItemId();
+                String reward = activeNpc.getRewardItemId();
+                if (reward != null && !reward.isBlank()) {
+                    inventory.addItem(reward, 1);
+                    travelStatus = "Received: " + reward;
+                } else {
+                    travelStatus = "Talked to: " + activeNpc.getName();
+                }
                 updateMapView();
             }
             activeNpc = null;
         }
+    }
+    /**
+     * Finds the closest NPC within interaction range on the Hub map.
+     *
+     * @param player the player used as the search origin
+     * @return the nearest NPC in range, or null when none is close enough
+     */
+    private NPC nearestNpc(Player player) {
+        if (session.getCurrentMap().getType() != MapType.HUB) {
+            return null;
+        }
+        NPC best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (NPC npc : GameConfig.HUB_NPCS) {
+            double dx = player.getX() - npc.getX();
+            double dy = player.getY() - npc.getY();
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance <= 70.0 && distance < bestDistance) {
+                best = npc;
+                bestDistance = distance;
+            }
+        }
+        return best;
     }
     /**
      * Draws the player's HP at the top-left corner, above the coordinate line.

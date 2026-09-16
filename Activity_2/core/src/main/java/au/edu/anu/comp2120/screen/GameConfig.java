@@ -53,6 +53,19 @@ public final class GameConfig {
             "Take this Lightning Staff! It will serve you well.",
             "weapon_lightning_staff"
     );
+    /** Tutorial NPC placed near the Hub spawn; gives advice but no item. */
+    public static final NPC GUIDE = new NPC(
+            "guide", "Old Sage",
+            200.0, 200.0, 24.0, 24.0,
+            List.of(
+                    "Welcome, adventurer. This is the Hub.",
+                    "Press WASD to move, and talk to the merchant for a weapon.",
+                    "Step into a portal to reach the training grounds."),
+            null
+    );
+
+    /** Every NPC present on the Hub map. */
+    public static final List<NPC> HUB_NPCS = List.of(WEAPON_MERCHANT, GUIDE);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

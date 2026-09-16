@@ -115,7 +115,7 @@ public final class PlaceholderRenderer implements Disposable {
      * @param attacks    active current-scope invocations for temporary hitbox outlines
      * @param drops      current-map unclaimed material rectangles, independent of inventory icons
      */
-    public void render(GameMap map, Player player, NPC npc, List<Portal> portals,
+    public void render(GameMap map, Player player, List<NPC> npcs, List<Portal> portals,
                        List<Combatant> combatants, List<Attack> attacks, List<MaterialDrop> drops) {
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
@@ -153,9 +153,14 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.setColor(0.20f, 0.85f, 0.60f, 1);
         draw(player.getBounds());
         // Draw NPC (yellow square)
-        if (npc != null) {
-            shapes.setColor(1f, 1f, 0f, 1);
-            draw(new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight()));
+        if (npcs != null) {
+            for (NPC npc : npcs) {
+                boolean grantsReward = npc.getRewardItemId() != null;
+                shapes.setColor(grantsReward ? 1f : 0.30f,
+                        grantsReward ? 1f : 0.90f,
+                        grantsReward ? 0f : 0.95f, 1);
+                draw(new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight()));
+            }
         }
         for (Combatant actor : combatants) {
             if (actor.getFaction() == Faction.ENEMY) {
