@@ -62,6 +62,25 @@ public final class GameScreen extends ScreenAdapter {
     private final Inventory inventory;
     /** Whether the inventory panel is open; freezes movement while true. */
     private boolean inventoryOpen;
+    /** Material id of the currently equipped weapon, empty when none is equipped. */
+    private String equippedWeapon = "";
+    /** Prefix marking a material id as an equippable weapon. */
+    private static final String WEAPON_PREFIX = "weapon_";
+
+    /**
+     * Screen-space geometry of the inventory panel.
+     *
+     * @param x      left edge in screen units
+     * @param y      bottom edge in screen units
+     * @param boxW   panel width
+     * @param boxH   panel height
+     * @param pad    inner padding
+     * @param lineH  height of one item row
+     * @param scale  font scale factor
+     */
+    private record PanelLayout(float x, float y, float boxW, float boxH,
+                               float pad, float lineH, float scale) {
+    }
     /**
      * Creates the demo models and drawing resources after graphics initialization.
      */
@@ -115,6 +134,7 @@ public final class GameScreen extends ScreenAdapter {
         drawCoordinates();
         drawHealth();
         drawInventory();
+        drawWeaponSlot();
 
 
     }
@@ -145,6 +165,9 @@ public final class GameScreen extends ScreenAdapter {
                 dialogueOpen = false;
                 activeNpc = null;
             }
+        }
+        if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
+            handleInventoryRightClick();
         }
         if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             if (dialogueOpen) {
@@ -347,6 +370,42 @@ public final class GameScreen extends ScreenAdapter {
                 last ? "[E] Take reward & close" : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
     }
+    /** Draws the persistent weapon slot in the top-right corner. */
+    private void drawWeaponSlot() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float boxW = 200f * scale;
+        float boxH = 58f * scale;
+        float x = w - boxW - 12f * scale;
+        float y = h - boxH - 10f * scale;
+        float pad = 12f * scale;
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.05f, 0.06f, 0.10f, 0.88f);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.95f, 0.80f, 0.35f, 1);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.95f, 0.80f, 0.35f, 1);
+        dialogueFont.draw(dialogueBatch, "WEAPON", x + pad, y + boxH - pad);
+        if (equippedWeapon.isEmpty()) {
+            dialogueFont.setColor(0.55f, 0.58f, 0.65f, 1);
+            dialogueFont.draw(dialogueBatch, "(none)", x + pad, y + pad + 6f);
+        } else {
+            dialogueFont.setColor(0.40f, 1f, 0.55f, 1);
+            dialogueFont.draw(dialogueBatch, prettyName(equippedWeapon),
+                    x + pad, y + pad + 6f);
+        }
+        dialogueBatch.end();
+    }
     /** Draws the inventory panel in the centre of the screen while it is open. */
     private void drawInventory() {
         if (!inventoryOpen) {
@@ -354,43 +413,46 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
-        float boxW = Math.min(w * 0.5f, 420f * scale);
-        float boxH = h * 0.5f;
-        float x = (w - boxW) / 2f;
-        float y = (h - boxH) / 2f;
-        float pad = 16f * scale;
-        float lineH = 26f * scale;
+        PanelLayout p = inventoryLayout();
 
         dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
         dialogueShapes.setColor(0.04f, 0.05f, 0.08f, 0.94f);
-        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.rect(p.x, p.y, p.boxW, p.boxH);
         dialogueShapes.end();
         dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
         dialogueShapes.setColor(0.55f, 0.85f, 1f, 1);
-        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.rect(p.x, p.y, p.boxW, p.boxH);
         dialogueShapes.end();
 
-        dialogueFont.getData().setScale(scale);
+        dialogueFont.getData().setScale(p.scale);
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
-        dialogueFont.draw(dialogueBatch, "INVENTORY", x, y + boxH - pad);
-        dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
-        float cursor = y + boxH - pad - lineH * 1.6f;
+        dialogueFont.draw(dialogueBatch, "INVENTORY", p.x, p.y + p.boxH - p.pad);
+        float cursor = p.y + p.boxH - p.pad - p.lineH * 1.6f;
         if (inventory.isEmpty()) {
-            dialogueFont.draw(dialogueBatch, "(empty)", x + pad, cursor);
+            dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
+            dialogueFont.draw(dialogueBatch, "(empty)", p.x + p.pad, cursor);
         } else {
             for (Inventory.ItemStack stack : inventory.entries()) {
-                dialogueFont.draw(dialogueBatch,
-                        prettyName(stack.materialId()) + "  x" + stack.quantity(),
-                        x + pad, cursor);
-                cursor -= lineH;
+                boolean equipped = stack.materialId().equals(equippedWeapon);
+                if (equipped) {
+                    dialogueFont.setColor(0.40f, 1f, 0.55f, 1);
+                } else if (isWeapon(stack.materialId())) {
+                    dialogueFont.setColor(0.95f, 0.90f, 0.55f, 1);
+                } else {
+                    dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
+                }
+                String label = prettyName(stack.materialId()) + "  x" + stack.quantity()
+                        + (equipped ? "  [Equipped]" : "");
+                dialogueFont.draw(dialogueBatch, label, p.x + p.pad, cursor);
+                cursor -= p.lineH;
             }
         }
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, "[B] Close", x + pad, y + pad + 4f);
+        dialogueFont.draw(dialogueBatch, "[B] Close   [Right-click] Equip/Unequip",
+                p.x + p.pad, p.y + p.pad + 4f);
         dialogueBatch.end();
     }
 
@@ -401,6 +463,64 @@ public final class GameScreen extends ScreenAdapter {
             return materialId;
         }
         return Character.toUpperCase(cleaned.charAt(0)) + cleaned.substring(1);
+    }
+    /**
+     * Recomputes the inventory panel geometry from the current window size.
+     * Shared by drawing and hit testing so both stay in sync.
+     *
+     * @return the current panel layout
+     */
+    private PanelLayout inventoryLayout() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float boxW = Math.min(w * 0.5f, 420f * scale);
+        float boxH = h * 0.5f;
+        return new PanelLayout((w - boxW) / 2f, (h - boxH) / 2f,
+                boxW, boxH, 16f * scale, 26f * scale, scale);
+    }
+
+    /**
+     * Reports whether a material id represents an equippable weapon.
+     *
+     * @param materialId material type to test
+     * @return true when the id carries the weapon prefix
+     */
+    private static boolean isWeapon(String materialId) {
+        return materialId != null && materialId.startsWith(WEAPON_PREFIX);
+    }
+
+    /**
+     * Equips or unequips the weapon row under the mouse cursor.
+     * Screen y is flipped because input reports a top-left origin.
+     */
+    private void handleInventoryRightClick() {
+        int h = Gdx.graphics.getHeight();
+        float mouseX = Gdx.input.getX();
+        float mouseY = h - Gdx.input.getY();
+        PanelLayout p = inventoryLayout();
+        float firstLine = p.y + p.boxH - p.pad - p.lineH * 1.6f;
+        var entries = inventory.entries();
+        for (int i = 0; i < entries.size(); i++) {
+            float baseline = firstLine - i * p.lineH;
+            boolean insideRow = mouseX >= p.x && mouseX <= p.x + p.boxW
+                    && mouseY <= baseline && mouseY >= baseline - p.lineH;
+            if (!insideRow) {
+                continue;
+            }
+            String id = entries.get(i).materialId();
+            if (!isWeapon(id)) {
+                travelStatus = prettyName(id) + " cannot be equipped";
+            } else if (id.equals(equippedWeapon)) {
+                equippedWeapon = "";
+                travelStatus = "Unequipped: " + prettyName(id);
+            } else {
+                equippedWeapon = id;
+                travelStatus = "Equipped: " + prettyName(id);
+            }
+            updateMapView();
+            return;
+        }
     }
     /**
      * Handles fast-travel shortcuts and an explicit temporary debug unlock key.
