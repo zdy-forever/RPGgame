@@ -67,6 +67,8 @@ public final class GameScreen extends ScreenAdapter {
     private final Inventory inventory;
     /** Whether the inventory panel is open; freezes movement while true. */
     private boolean inventoryOpen;
+    /** Whether the enlarged map panel is open; freezes movement while true. */
+    private boolean bigMap;
     /** Material id of the currently equipped weapon, empty when none is equipped. */
     private String equippedWeapon = "";
     /** Prefix marking a material id as an equippable weapon. */
@@ -141,6 +143,7 @@ public final class GameScreen extends ScreenAdapter {
         drawInventory();
         drawWeaponSlot();
         drawInteractionPrompt();
+        drawMinimap();
 
 
     }
@@ -172,6 +175,9 @@ public final class GameScreen extends ScreenAdapter {
                 activeNpc = null;
             }
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
+            bigMap = !bigMap;
+        }
         if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
             handleInventoryRightClick();
         }
@@ -187,7 +193,7 @@ public final class GameScreen extends ScreenAdapter {
                 }
             }
         }
-        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen;
+        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen || bigMap;
         combatDemo.update(delta,
                 frozen ? PlayerCommand.NONE : input.sample(),
                 !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
@@ -524,7 +530,83 @@ public final class GameScreen extends ScreenAdapter {
                 p.x + p.pad, p.y + p.pad + 4f);
         dialogueBatch.end();
     }
+    /**
+     * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
+     * Screen-space only; world geometry is scaled to fit the panel.
+     */
+    private void drawMinimap() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float ui = Math.max(1f, h / 720f) * 1.4f;
+        GameMap map = session.getCurrentMap();
+        CollisionBox bounds = map.getBounds();
 
+        float boxW = bigMap ? Math.min(w * 0.8f, 900f * ui) : 200f * ui;
+        float boxH = bigMap ? Math.min(h * 0.8f, 600f * ui) : 140f * ui;
+        float x = bigMap ? (w - boxW) / 2f : w - boxW - 12f * ui;
+        float y = bigMap ? (h - boxH) / 2f : 12f * ui;
+        float pad = 7f * ui;
+        float s = Math.min((boxW - pad * 2) / (float) bounds.width(),
+                (boxH - pad * 2) / (float) bounds.height());
+        float ox = x + pad + ((boxW - pad * 2) - (float) bounds.width() * s) / 2f;
+        float oy = y + pad + ((boxH - pad * 2) - (float) bounds.height() * s) / 2f;
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.03f, 0.04f, 0.06f, bigMap ? 0.97f : 0.82f);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        boolean hub = map.getType() == MapType.HUB;
+        dialogueShapes.setColor(hub ? 0.08f : 0.24f, hub ? 0.18f : 0.11f,
+                hub ? 0.22f : 0.10f, 1);
+        dialogueShapes.rect(ox, oy, (float) bounds.width() * s, (float) bounds.height() * s);
+
+        dialogueShapes.setColor(0.55f, 0.58f, 0.65f, 1);
+        for (CollisionBox obstacle : map.getObstacles()) {
+            dialogueShapes.rect(ox + (float) (obstacle.x() - bounds.x()) * s,
+                    oy + (float) (obstacle.y() - bounds.y()) * s,
+                    (float) obstacle.width() * s, (float) obstacle.height() * s);
+        }
+        for (Portal portal : travel.getPortals(map.getId())) {
+            dialogueShapes.setColor(portal.enabled() ? 0.65f : 0.28f,
+                    0.25f, portal.enabled() ? 0.85f : 0.32f, 1);
+            CollisionBox trigger = portal.trigger();
+            dialogueShapes.rect(ox + (float) (trigger.x() - bounds.x()) * s,
+                    oy + (float) (trigger.y() - bounds.y()) * s,
+                    Math.max((float) trigger.width() * s, 3f),
+                    Math.max((float) trigger.height() * s, 3f));
+        }
+        if (hub) {
+            for (NPC npc : GameConfig.HUB_NPCS) {
+                dialogueShapes.setColor(1f, 0.85f, 0.20f, 1);
+                dialogueShapes.rect(ox + (float) (npc.getX() - bounds.x()) * s,
+                        oy + (float) (npc.getY() - bounds.y()) * s,
+                        Math.max((float) npc.getWidth() * s, 3f),
+                        Math.max((float) npc.getHeight() * s, 3f));
+            }
+        }
+        CollisionBox body = session.getPlayer().getBounds();
+        dialogueShapes.setColor(0.20f, 0.95f, 0.45f, 1);
+        dialogueShapes.rect(ox + (float) (body.x() - bounds.x()) * s,
+                oy + (float) (body.y() - bounds.y()) * s,
+                Math.max((float) body.width() * s, 4f),
+                Math.max((float) body.height() * s, 4f));
+        dialogueShapes.end();
+
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.55f, 0.85f, 1f, 1);
+        dialogueShapes.rect(x, y, boxW, boxH);
+        dialogueShapes.end();
+
+        dialogueFont.getData().setScale(ui);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
+        dialogueFont.draw(dialogueBatch, map.getName(), x + pad, y + boxH - pad);
+        dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
+        dialogueFont.draw(dialogueBatch, bigMap ? "[M] Close" : "[M] Expand",
+                x + pad, y + pad + 2f);
+        dialogueBatch.end();
+    }
     /** Turns a raw material id such as weapon_lightning_staff into a readable name. */
     private String prettyName(String materialId) {
         String cleaned = materialId.replace("weapon_", "").replace('_', ' ').trim();

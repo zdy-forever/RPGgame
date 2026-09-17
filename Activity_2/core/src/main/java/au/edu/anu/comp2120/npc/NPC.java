@@ -12,7 +12,7 @@ public final class NPC {
 
     /** Unique identifier, stable across the process. */
     private final String id;
-    /** Display name shown as the dialogue speaker. */
+    /** Display name shown as the dialogue speaker. */                           
     private final String name;
     /** Lower-left x in world units. */
     private final double x;
