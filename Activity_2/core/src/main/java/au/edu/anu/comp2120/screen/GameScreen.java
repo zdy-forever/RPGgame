@@ -377,7 +377,9 @@ public final class GameScreen extends ScreenAdapter {
         if (near == null) {
             return;
         }
-        String hint = "[E] Talk to " + near.getName();
+        String hint = "notice_board".equals(near.getId())
+                ? "[E] Read " + near.getName()
+                : "[E] Talk to " + near.getName();
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
         float scale = Math.max(1f, h / 720f) * 1.4f;
@@ -440,9 +442,11 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch, lines.get(dialogueLine),
                 x + pad, y + boxH - pad - 26f * scale, boxW - 2 * pad, Align.left, true);
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
+        String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted()
+                ? "[E] Close"
+                : "[E] Take reward";
         dialogueFont.draw(dialogueBatch,
-                last ? (activeNpc.hasInteracted() ? "[E] Close" : "[E] Take reward")
-                        : "[E] Next", x + pad, y + pad + 4f);
+                last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
     }
     /** Draws the persistent weapon slot in the top-right corner. */

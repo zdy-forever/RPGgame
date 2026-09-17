@@ -182,10 +182,14 @@ public final class PlaceholderRenderer implements Disposable {
         // Draw NPC (yellow square)
         if (npcs != null) {
             for (NPC npc : npcs) {
-                boolean grantsReward = npc.getRewardItemId() != null;
-                shapes.setColor(grantsReward ? 1f : 0.30f,
-                        grantsReward ? 1f : 0.90f,
-                        grantsReward ? 0f : 0.95f, 1);
+                if ("notice_board".equals(npc.getId())) {
+                    shapes.setColor(1f, 1f, 1f, 1);
+                } else {
+                    boolean grantsReward = npc.getRewardItemId() != null;
+                    shapes.setColor(grantsReward ? 1f : 0.30f,
+                            grantsReward ? 1f : 0.90f,
+                            grantsReward ? 0f : 0.95f, 1);
+                }
                 draw(new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight()));
             }
         }
