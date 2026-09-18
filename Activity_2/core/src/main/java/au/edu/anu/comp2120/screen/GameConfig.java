@@ -75,9 +75,16 @@ public final class GameConfig {
                     "Step into a portal to begin a challenge."),
             null
     );
+    /** Storage chest that accepts and returns whatever the player carries. */
+    public static final NPC STORAGE_CHEST = new NPC(
+            "storage_chest", "Storage Chest",
+            450.0, 150.0, 30.0, 24.0,
+            List.of("A sturdy chest. It holds whatever you leave here."),
+            null
+    );
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
-            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD);
+            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

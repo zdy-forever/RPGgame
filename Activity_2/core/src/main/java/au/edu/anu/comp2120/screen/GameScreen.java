@@ -69,6 +69,10 @@ public final class GameScreen extends ScreenAdapter {
     private boolean inventoryOpen;
     /** Whether the enlarged map panel is open; freezes movement while true. */
     private boolean bigMap;
+    /** Shared chest storage, separate from the player inventory. */
+    private final Inventory chestStorage;
+    /** Whether the chest transfer panel is open; freezes movement while true. */
+    private boolean chestOpen;
     /** Material id of the currently equipped weapon, empty when none is equipped. */
     private String equippedWeapon = "";
     /** Prefix marking a material id as an equippable weapon. */
@@ -105,6 +109,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont = new BitmapFont();
         dialogueShapes = new ShapeRenderer();
         inventory = new Inventory();
+        chestStorage = new Inventory();
     }
 
     /**
@@ -144,6 +149,7 @@ public final class GameScreen extends ScreenAdapter {
         drawWeaponSlot();
         drawInteractionPrompt();
         drawMinimap();
+        drawChest();
 
 
     }
@@ -172,6 +178,7 @@ public final class GameScreen extends ScreenAdapter {
             inventoryOpen = !inventoryOpen;
             if (inventoryOpen) {
                 dialogueOpen = false;
+                chestOpen = false;
                 activeNpc = null;
             }
         }
@@ -181,19 +188,31 @@ public final class GameScreen extends ScreenAdapter {
         if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
             handleInventoryRightClick();
         }
+        if (chestOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
+            handleChestRightClick();
+        }
         if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            if (dialogueOpen) {
+            if (chestOpen) {
+                chestOpen = false;
+            } else if (dialogueOpen) {
                 advanceDialogue();
             } else {
                 NPC near = nearestNpc(session.getPlayer());
-                if (near != null) {
+                if (near == null) {
+                    travelStatus = "";
+                } else if (GameConfig.STORAGE_CHEST.getId().equals(near.getId())) {
+                    chestOpen = true;
+                    dialogueOpen = false;
+                    inventoryOpen = false;
+                    activeNpc = null;
+                } else {
                     dialogueOpen = true;
                     dialogueLine = 0;
                     activeNpc = near;
                 }
             }
         }
-        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen || bigMap;
+        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen || bigMap || chestOpen;
         combatDemo.update(delta,
                 frozen ? PlayerCommand.NONE : input.sample(),
                 !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
@@ -370,16 +389,19 @@ public final class GameScreen extends ScreenAdapter {
      * Hidden while a dialogue or the inventory panel is open.
      */
     private void drawInteractionPrompt() {
-        if (dialogueOpen || inventoryOpen) {
+        if (dialogueOpen || inventoryOpen || chestOpen || bigMap) {
             return;
         }
         NPC near = nearestNpc(session.getPlayer());
         if (near == null) {
             return;
         }
-        String hint = "notice_board".equals(near.getId())
-                ? "[E] Read " + near.getName()
-                : "[E] Talk to " + near.getName();
+        String hint = switch (near.getId()) {
+            case "notice_board" -> "[E] Read " + near.getName();
+            case "healing_spring" -> "[E] Drink from " + near.getName();
+            case "storage_chest" -> "[E] Open " + near.getName();
+            default -> "[E] Talk to " + near.getName();
+        };
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
         float scale = Math.max(1f, h / 720f) * 1.4f;
@@ -609,6 +631,151 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
         dialogueFont.draw(dialogueBatch, bigMap ? "[M] Close" : "[M] Expand",
                 x + pad, y + pad + 2f);
+        dialogueBatch.end();
+    }
+    /**
+     * Screen-space geometry of the chest transfer panel.
+     *
+     * @param x      left edge
+     * @param y      bottom edge
+     * @param boxW   panel width
+     * @param boxH   panel height
+     * @param pad    inner padding
+     * @param lineH  height of one item row
+     * @param scale  font scale factor
+     * @param colW   width of one of the two columns
+     */
+    private record ChestLayout(float x, float y, float boxW, float boxH,
+                               float pad, float lineH, float scale, float colW) {
+    }
+
+    /** Recomputes the chest panel geometry from the current window size. */
+    private ChestLayout chestLayout() {
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float boxW = Math.min(w * 0.75f, 760f * scale);
+        float boxH = h * 0.6f;
+        float pad = 16f * scale;
+        float lineH = 26f * scale;
+        return new ChestLayout((w - boxW) / 2f, (h - boxH) / 2f,
+                boxW, boxH, pad, lineH, scale, (boxW - pad * 3) / 2f);
+    }
+
+    /**
+     * Finds which item row sits under the cursor within one column.
+     *
+     * @return zero-based row index, or -1 when no row is hit
+     */
+    private static int hitRow(float mouseX, float mouseY, float colX, float colW,
+                              float firstLine, float lineH, int count) {
+        for (int i = 0; i < count; i++) {
+            float baseline = firstLine - i * lineH;
+            if (mouseX >= colX && mouseX <= colX + colW
+                    && mouseY <= baseline && mouseY >= baseline - lineH) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Moves one stack between the inventory and the chest, unequipping weapons on deposit. */
+    private void handleChestRightClick() {
+        int h = Gdx.graphics.getHeight();
+        float mouseX = Gdx.input.getX();
+        float mouseY = h - Gdx.input.getY();
+        ChestLayout p = chestLayout();
+        float firstLine = p.y + p.boxH - p.pad - p.lineH * 1.6f;
+
+        var bag = inventory.entries();
+        int row = hitRow(mouseX, mouseY, p.x + p.pad, p.colW, firstLine, p.lineH, bag.size());
+        if (row >= 0) {
+            Inventory.ItemStack stack = bag.get(row);
+            int moved = inventory.removeItem(stack.materialId(), stack.quantity());
+            chestStorage.addItem(stack.materialId(), moved);
+            if (stack.materialId().equals(equippedWeapon)) {
+                equippedWeapon = "";
+            }
+            travelStatus = "Stored: " + prettyName(stack.materialId()) + " x" + moved;
+            updateMapView();
+            return;
+        }
+
+        var stored = chestStorage.entries();
+        row = hitRow(mouseX, mouseY, p.x + p.pad * 2 + p.colW, p.colW, firstLine, p.lineH, stored.size());
+        if (row >= 0) {
+            Inventory.ItemStack stack = stored.get(row);
+            int moved = chestStorage.removeItem(stack.materialId(), stack.quantity());
+            inventory.addItem(stack.materialId(), moved);
+            travelStatus = "Taken: " + prettyName(stack.materialId()) + " x" + moved;
+            updateMapView();
+        }
+    }
+
+    /** Draws the two-column chest transfer panel while it is open. */
+    private void drawChest() {
+        if (!chestOpen) {
+            return;
+        }
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        ChestLayout p = chestLayout();
+        float top = p.y + p.boxH - p.pad;
+        float rightCol = p.x + p.pad * 2 + p.colW;
+        float firstLine = top - p.lineH * 1.6f;
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.04f, 0.05f, 0.08f, 0.96f);
+        dialogueShapes.rect(p.x, p.y, p.boxW, p.boxH);
+        dialogueShapes.end();
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.85f, 0.65f, 0.30f, 1);
+        dialogueShapes.rect(p.x, p.y, p.boxW, p.boxH);
+        dialogueShapes.end();
+
+        dialogueFont.getData().setScale(p.scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.85f, 0.65f, 0.30f, 1);
+        dialogueFont.draw(dialogueBatch, "STORAGE CHEST", p.x + p.pad, top);
+        dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
+        dialogueFont.draw(dialogueBatch, "INVENTORY", p.x + p.pad, top - p.lineH * 1.2f);
+        dialogueFont.setColor(0.95f, 0.80f, 0.40f, 1);
+        dialogueFont.draw(dialogueBatch, "CHEST", rightCol, top - p.lineH * 1.2f);
+
+        float cursor = firstLine;
+        if (inventory.isEmpty()) {
+            dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
+            dialogueFont.draw(dialogueBatch, "(empty)", p.x + p.pad, cursor);
+        } else {
+            for (Inventory.ItemStack stack : inventory.entries()) {
+                boolean equipped = stack.materialId().equals(equippedWeapon);
+                dialogueFont.setColor(equipped ? 0.40f : 0.85f,
+                        equipped ? 1f : 0.85f, equipped ? 0.55f : 0.85f, 1);
+                dialogueFont.draw(dialogueBatch, prettyName(stack.materialId())
+                                + "  x" + stack.quantity() + (equipped ? "  [Worn]" : ""),
+                        p.x + p.pad, cursor);
+                cursor -= p.lineH;
+            }
+        }
+
+        cursor = firstLine;
+        if (chestStorage.isEmpty()) {
+            dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
+            dialogueFont.draw(dialogueBatch, "(empty)", rightCol, cursor);
+        } else {
+            for (Inventory.ItemStack stack : chestStorage.entries()) {
+                dialogueFont.setColor(0.95f, 0.90f, 0.55f, 1);
+                dialogueFont.draw(dialogueBatch, prettyName(stack.materialId())
+                        + "  x" + stack.quantity(), rightCol, cursor);
+                cursor -= p.lineH;
+            }
+        }
+
+        dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
+        dialogueFont.draw(dialogueBatch, "[Right-click] move item    [E/B] Close",
+                p.x + p.pad, p.y + p.pad + 4f);
         dialogueBatch.end();
     }
     /** Turns a raw material id such as weapon_lightning_staff into a readable name. */
