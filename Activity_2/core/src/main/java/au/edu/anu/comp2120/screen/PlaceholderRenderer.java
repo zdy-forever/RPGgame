@@ -179,18 +179,22 @@ public final class PlaceholderRenderer implements Disposable {
         }
         shapes.setColor(0.20f, 0.85f, 0.60f, 1);
         draw(player.getBounds());
-        // Draw NPC (yellow square)
+// Draw NPCs, each with its own identifying colour
         if (npcs != null) {
             for (NPC npc : npcs) {
-                if ("notice_board".equals(npc.getId())) {
-                    shapes.setColor(1f, 1f, 1f, 1);
-                } else {
-                    boolean grantsReward = npc.getRewardItemId() != null;
-                    shapes.setColor(grantsReward ? 1f : 0.30f,
-                            grantsReward ? 1f : 0.90f,
-                            grantsReward ? 0f : 0.95f, 1);
+                switch (npc.getId()) {
+                    case "notice_board" -> shapes.setColor(1f, 1f, 1f, 1);        // white
+                    case "storage_chest" -> shapes.setColor(0.90f, 0.72f, 0.20f, 1); // gold
+                    case "healing_spring" -> shapes.setColor(0.35f, 0.75f, 0.95f, 1); // blue
+                    default -> {
+                        boolean grantsReward = npc.getRewardItemId() != null;
+                        shapes.setColor(grantsReward ? 1f : 0.30f,
+                                grantsReward ? 1f : 0.90f,
+                                grantsReward ? 0f : 0.95f, 1);
+                    }
                 }
                 draw(new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight()));
+
             }
         }
         for (Combatant actor : combatants) {
