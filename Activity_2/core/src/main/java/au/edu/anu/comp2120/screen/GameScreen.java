@@ -55,6 +55,8 @@ public final class GameScreen extends ScreenAdapter {
     private String questFeedback = "Choose one Boss. You can replace an unfinished quest in Hub.";
     /** Whether the one-time all-guardians ending currently owns dialogue input. */
     private boolean endingOpen;
+    /** Optional credits after completed Hall dialogue; never available from the Hub tutorial. */
+    private final CreditsDialogue credits = new CreditsDialogue();
     /** Highlighted destination while the portal NPC's choice dialogue is open. */
     private PortalGuide.Destination portalChoice = PortalGuide.Destination.TRAINING;
     /** Hub-only NPC adapter for existing class and O mode selection. */
@@ -193,8 +195,20 @@ public final class GameScreen extends ScreenAdapter {
         drawChest();
         drawSkillHud(hud);
         drawDialogue();
+        drawOutcome(delta);
+    }
 
-
+    /**
+     * Displays return feedback above all HUD layers without pausing input or gameplay.
+     * Uses real UI time rather than the capped/paused world animation clock.
+     * @param delta elapsed frame seconds; invalid values are treated as zero
+     */
+    private void drawOutcome(float delta) {
+        int width = Gdx.graphics.getWidth(), height = Gdx.graphics.getHeight();
+        if (width <= 0 || height <= 0) { return; }
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, width, height));
+        renderer.drawOutcome(dialogueBatch, dialogueFont, dialogueShapes, width, height,
+                Float.isFinite(delta) ? Math.max(0, delta) : 0);
     }
 
     /**
@@ -206,7 +220,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         dialogueBatch.begin();
         renderer.drawSkillHud(dialogueBatch, dialogueFont, session.getPlayer(), combatDemo, hud,
-                Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                Gdx.graphics.getWidth());
         dialogueBatch.end();
     }
 
@@ -222,13 +236,18 @@ public final class GameScreen extends ScreenAdapter {
             showBattleReturn();
             return;
         }
+        if (credits.isOpen()) {
+            handleCreditsInput();
+            updateMapView();
+            return;
+        }
         if (endingOpen) {
             if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
                 dialogueLine++;
                 if (dialogueLine >= BossQuests.ENDING_LINES.size()) {
                     endingOpen = false;
-                    dialogueOpen = false;
-                    activeNpc = null;
+                    dialogueLine = 0;
+                    credits.open();
                     travelStatus = "All five guardians defeated - journey complete";
                 }
             }
@@ -324,7 +343,7 @@ public final class GameScreen extends ScreenAdapter {
                         bigMap = false;
                         quests.synchronize();
                         questChoice = quests.getActive().map(Enum::ordinal).orElse(0);
-                        questFeedback = "E accepts the highlighted unfinished Boss; Esc closes.";
+                        questFeedback = "E accepts any Boss, including rematches; Esc closes.";
                     }
                 }
             }
@@ -502,9 +521,32 @@ public final class GameScreen extends ScreenAdapter {
     }
 
 
-    /** Advances the dialogue, or closes it and grants the reward on the final line. */
+    /** Handles the completed Sage's optional credits without changing quest or reward state. */
+    private void handleCreditsInput() {
+        if (session.getCurrentMap().getType() != MapType.MEMORIAL
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            credits.close();
+        } else {
+            credits.select(Gdx.input.isKeyJustPressed(Input.Keys.UP), Gdx.input.isKeyJustPressed(Input.Keys.DOWN));
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) { credits.confirm(); }
+        }
+        if (!credits.isOpen()) {
+            dialogueOpen = false;
+            dialogueLine = 0;
+            activeNpc = null;
+        }
+    }
+
+    /** Advances dialogue, offers optional Hall credits after completion, or closes and grants an NPC reward. */
     private void advanceDialogue() {
         dialogueLine++;
+        if (activeNpc == GameConfig.GUIDE && session.getCurrentMap().getType() == MapType.MEMORIAL
+                && quests.getCompleted().size() == BossChallenge.values().length
+                && dialogueLine >= dialogueLines().size()) {
+            dialogueLine = 0;
+            credits.open();
+            return;
+        }
         if (activeNpc == null || dialogueLine >= dialogueLines().size()) {
             dialogueOpen = false;
             if (activeNpc != null && !activeNpc.hasInteracted()) {
@@ -714,6 +756,7 @@ public final class GameScreen extends ScreenAdapter {
      * @return the visible dialogue lines, never null
      */
     private List<String> dialogueLines() {
+        if (credits.isOpen()) { return List.of(credits.text()); }
         if (endingOpen) {
             return BossQuests.ENDING_LINES;
         }
@@ -723,6 +766,7 @@ public final class GameScreen extends ScreenAdapter {
             var targets = BossChallenge.values();
             for (int i = 0; i < targets.length; i++) {
                 text.append(i == questChoice ? ">     " : "      ").append(targets[i].displayName());
+                text.append(" [wins: ").append(quests.getSuccessCount(targets[i])).append(']');
                 if (quests.getActive().orElse(null) == targets[i]) {
                     text.append(" (ACTIVE)");
                 }
@@ -778,14 +822,18 @@ public final class GameScreen extends ScreenAdapter {
         boolean last = dialogueLine >= lines.size() - 1;
         String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted()
                 ? "[E] Close" : "[E] Take reward";
-        String hint = endingOpen ? (last ? "[E] Finish" : "[E] Continue")
+        boolean completedSage = activeNpc == GameConfig.GUIDE
+                && session.getCurrentMap().getType() == MapType.MEMORIAL
+                && quests.getCompleted().size() == BossChallenge.values().length;
+        String hint = credits.isOpen() ? credits.hint()
+                : endingOpen ? "[E] Continue"
                 : isQuestDialogueOpen() ? "[Up/Down] Choose   [E] Accept   [Esc] Close"
                 : isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
                 : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
                 : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
-                : last ? closeHint : "[E] Next";
+                : last && !completedSage ? closeHint : "[E] Next";
         String body = lines.get(dialogueLine);
-        DialogueLayout layout = DialogueLayout.fit(w, h, isTrainerDialogueOpen() || isQuestDialogueOpen(),
+        DialogueLayout layout = DialogueLayout.fit(w, h, isTrainerDialogueOpen() || isQuestDialogueOpen() || credits.isOpen(),
                 activeNpc.getName(), body, hint, this::measureDialogueText);
         float boxW = layout.width(), boxH = layout.height(), x = layout.x(), y = layout.y();
         float scale = layout.scale();

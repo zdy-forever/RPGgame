@@ -7,7 +7,6 @@ import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapType;
-import au.edu.anu.comp2120.world.SpawnPoint;
 import au.edu.anu.comp2120.world.Portal;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +22,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 /**
  * Composes pixel art with the retained procedural Hub and geometry-only world collision.
  * The historical class name is retained; animation does not control gameplay.
+ * Spawn points are invisible gameplay anchors and receive no debug marker.
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
@@ -30,10 +30,6 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 public final class PlaceholderRenderer implements Disposable {
     /** Read-only artwork presentation owned with this screen's GPU resources. */
     private final SceneArt art = new SceneArt();
-    /** Radius of the single visible default-spawn marker in world units. */
-    private static final float SPAWN_MARKER_RADIUS = 5;
-    /** Number of segments in a temporary circular marker. */
-    private static final int SPAWN_MARKER_SEGMENTS = 12;
     /** GPU resource used exclusively for simple geometry. */
     private final ShapeRenderer shapes;
     /** Fixed-size world view; window resizing adds letterboxing instead of changing its extent. */
@@ -143,9 +139,6 @@ public final class PlaceholderRenderer implements Disposable {
         debugBatch.end();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         drawBossWarnings(demo);
-        shapes.setColor(0.95f, 0.75f, 0.20f, 1);
-        SpawnPoint spawn = map.getSpawnPoint(map.getDefaultSpawnId());
-        shapes.circle((float) spawn.x(), (float) spawn.y(), SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
         shapes.end();
         drawNames(player, npcs);
     }
@@ -201,10 +194,9 @@ public final class PlaceholderRenderer implements Disposable {
      * @param demo existing ability observations
      * @param hud size/visibility policy
      * @param width window width
-     * @param height window height
      */
-    public void drawSkillHud(SpriteBatch batch, BitmapFont font, Player player, CombatDemo demo, HudLayout hud, int width, int height) {
-        art.hud(batch, font, player, demo.getAbilities(), hud, width, height);
+    public void drawSkillHud(SpriteBatch batch, BitmapFont font, Player player, CombatDemo demo, HudLayout hud, int width) {
+        art.hud(batch, font, player, demo.getAbilities(), hud, width);
     }
 
     /**
@@ -214,6 +206,22 @@ public final class PlaceholderRenderer implements Disposable {
      */
     public void showOutcome(au.edu.anu.comp2120.BattleResult result, au.edu.anu.comp2120.player.PlayerClass playerClass) {
         art.showOutcome(result, playerClass);
+    }
+
+    /**
+     * Advances and draws return feedback separately from the persistent, hideable skill HUD.
+     * @param batch idle screen-space UI batch
+     * @param font shared UI font
+     * @param uiShapes idle screen-space geometry renderer
+     * @param width logical window width
+     * @param height logical window height
+     * @param delta finite non-negative UI elapsed seconds, including time in menus
+     * @throws IllegalArgumentException if elapsed time is invalid
+     */
+    public void drawOutcome(SpriteBatch batch, BitmapFont font, ShapeRenderer uiShapes,
+                            int width, int height, double delta) {
+        art.advanceOutcome(delta);
+        art.drawOutcome(batch, font, uiShapes, width, height);
     }
     /**
      * Draws static Hub scenery or a tiled Memorial Hall floor beneath all actors.

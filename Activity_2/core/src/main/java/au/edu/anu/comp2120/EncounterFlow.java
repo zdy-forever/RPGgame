@@ -32,6 +32,8 @@ public final class EncounterFlow {
     private ActiveEncounter active;
     /** Latest settled result, observed without consuming rewards. */
     private BattleResult lastResult;
+    /** Session-local successful encounter counts by map; independent of distinct quest/stone completion. */
+    private final Map<String, Integer> successCounts = new LinkedHashMap<>();
 
     /**
      * Claims ownership of task portals and closes them until externally configured in Hub.
@@ -177,6 +179,7 @@ public final class EncounterFlow {
         }
         if (outcome == BattleResult.Outcome.SUCCESS) {
             completedIds.add(active.id());
+            successCounts.merge(active.mapId(), 1, (count, increment) -> count == Integer.MAX_VALUE ? count : count + increment);
             closePortals();
             active = null;
         }
@@ -190,6 +193,18 @@ public final class EncounterFlow {
      */
     public Optional<BattleResult> getLastResult() {
         return Optional.ofNullable(lastResult);
+    }
+
+    /**
+     * Reads successful returns for a Boss arena, without counting failed attempts or result polls.
+     * Counts advance only after a successful Hub transition, once per fresh acceptance.
+     * One guardian owns each campaign arena; counts are in memory and are not save data.
+     * @param mapId stable Boss arena ID
+     * @return non-negative success count, saturated at Integer.MAX_VALUE
+     * @throws NullPointerException if mapId is null
+     */
+    public int getSuccessCount(String mapId) {
+        return successCounts.getOrDefault(Objects.requireNonNull(mapId, "map ID"), 0);
     }
 
     /**

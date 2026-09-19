@@ -43,6 +43,41 @@ final class MemorialHallTest {
     /** Creates fresh session-local progress for every test. */
     MemorialHallTest() { }
 
+    /** Hub and Hall share the Sage's display identity, but not scripts, placement or ending routing ID. */
+    @Test void sageHasSeparateBeginnerAndMemorialRoles() {
+        var hubSage = GameConfig.HUB_GUIDE;
+        var hallSage = GameConfig.GUIDE;
+        assertEquals("Old Sage", hubSage.getName());
+        assertEquals(hubSage.getName(), hallSage.getName());
+        assertNotSame(hubSage, hallSage);
+        assertNotEquals(hubSage.getId(), hallSage.getId());
+        assertTrue(GameConfig.HUB_NPCS.contains(hubSage));
+        assertEquals(184, hubSage.getX());
+        assertEquals(221, hubSage.getY());
+        assertFalse(GameConfig.HUB_NPCS.contains(hallSage));
+        assertEquals(1, GameConfig.HUB_NPCS.stream().filter(npc -> npc.getName().equals("Old Sage")).count());
+        assertTrue(session.getCurrentMap().isWalkable(new CollisionBox(hubSage.getX(), hubSage.getY(),
+                hubSage.getWidth(), hubSage.getHeight())));
+        for (var other : GameConfig.HUB_NPCS) {
+            if (other == hubSage) { continue; }
+            assertFalse(new CollisionBox(hubSage.getX(), hubSage.getY(), hubSage.getWidth(), hubSage.getHeight())
+                    .overlaps(new CollisionBox(other.getX(), other.getY(), other.getWidth(), other.getHeight())),
+                    "Sage must not overlap another NPC: " + other.getName());
+        }
+        assertNull(hubSage.getRewardItemId());
+        assertNotEquals(hubSage.getLines(), hallSage.getLines());
+        String tutorial = String.join("\n", hubSage.getLines());
+        assertTrue(tutorial.contains("WASD"));
+        assertTrue(tutorial.contains("Class Master"));
+        assertTrue(tutorial.contains("Quest Keeper FIRST"));
+        assertTrue(tutorial.contains("Accepting a task alone does not open it"));
+        assertTrue(tutorial.contains("Training"));
+        assertTrue(tutorial.contains("IN THE HALL"));
+        assertFalse(quests.consumeEnding());
+        assertTrue(quests.getActive().isEmpty());
+        assertTrue(quests.getCompleted().isEmpty());
+    }
+
     /** Hall fits one view, has a left-side Sage/right-side circle and a valid lower-left return. */
     @Test void layoutIsOneScreenAndHasNoCombatEncounter() {
         guide.select(PortalGuide.Destination.MEMORIAL);

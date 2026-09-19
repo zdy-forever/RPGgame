@@ -23,6 +23,26 @@ final class DialogueLayoutTest {
     DialogueLayoutTest() { }
 
     /**
+     * All supplied credits pages fit the existing adaptive panel with a separate footer.
+     * @param width logical window width
+     * @param height logical window height
+     */
+    @ParameterizedTest
+    @CsvSource({"960,540", "640,360", "480,270", "320,180"})
+    void creditsPagesKeepFooterSeparate(int width, int height) {
+        var credits = new CreditsDialogue();
+        credits.open();
+        for (int i = 0; i <= CreditsDialogue.PAGES.size(); i++) {
+            var layout = DialogueLayout.fit(width, height, true, "Old Sage", credits.text(),
+                    credits.hint(), DialogueLayoutTest::measure);
+            assertContained(layout, width, height);
+            assertEquals(measure(credits.text(), layout.scale(), layout.textWidth()), layout.bodyHeight(), EPSILON);
+            credits.confirm();
+        }
+        assertFalse(credits.isOpen());
+    }
+
+    /**
      * Narrow, short, tiny and enlarged windows keep every band inside the panel without overlap.
      * @param width window width
      * @param height window height

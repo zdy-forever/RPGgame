@@ -55,7 +55,8 @@ returning and choosing Battle restores its route and retry identity. Reward outb
 
 `BossChallenge` defines five distinct Boss/map identities. `BossQuests.accept` is the Quest Keeper's
 Hub-only adapter: validate/prepare gameplay first, then store the accepted target and unique
-acceptance. It rejects completed targets and retains identity for an unfinished repeat selection.
+acceptance. Cleared guardians can be accepted again with a fresh ID; reselecting the same active
+task retains its retry identity. Quest rows show per-guardian win counts beside the retained clear check.
 `EncounterFlow.prepare` records this permission while closing all owned portals; accepting,
 replacing or re-accepting a quest never opens a gate. `activate` reuses the same validation/preparation
 and opens the chosen portal only when Portal Guide confirms Battle. Merely viewing its label/menu
@@ -63,6 +64,17 @@ does not activate anything. Invalid preparation preserves previous permission an
 `synchronize` observes the exact accepted BattleResult after settlement: FAILURE retains the task;
 SUCCESS adds the distinct target to an immutable-exposed completion set and clears the active task.
 Old/unrelated results cannot complete a different task. It never claims material rewards.
+`EncounterFlow` separately counts successful completed returns by arena ID (one Boss per campaign
+arena). The count advances only after a valid success return, not on failure, reward claim, polling,
+acceptance or practice. A completed acceptance ID remains non-replayable; a rematch uses a new ID.
+`CombatDemo` passes the arena's previous count to a fresh Boss. `BossScaling` derives from original
+tuning, using `HP multiplier = min(4, 1 + log10(wins + 1))` (HP rounded to an integer) and
+`attack rate = min(2, 1 + 0.25 * log10(wins + 1))`. Both phases' melee cooldowns and ranged cooldown
+are divided by this rate. Active windows remain unchanged and provide an additional cooldown floor.
+The 0.8-second melee warning, damage, projectile speed, movement speed, phase threshold and reward
+quantity remain unchanged. Effective melee cadence grows less than twice as fast because its warning
+is preserved. Counts are per guardian and session-local, not persisted; failed retries use the same
+difficulty, and five repeated wins against one Boss still light only one stone.
 `consumeEnding` emits once after all five distinct completions, only in a living Memorial Hall.
 GameScreen calls it explicitly when the player interacts with Old Sage, never during frame polling
 or the automatic fifth-Boss return. GameScreen then owns a short modal E-advanced ending dialogue;
@@ -78,8 +90,16 @@ so non-16:9 windows do not stretch/compress dialogue geometry.
 `TravelCatalog.createGameplayPortals()` combines the sole Hub task entrance with a separate always-open
 `memorial-hub` return in the hall's lower-left corner. EncounterFlow owns only `QUEST_PORTAL_ID`, so quest
 acceptance/completion cannot disable the hall exit. Both directions retain TravelSystem arrival protection.
-Old Sage is now hall-local, not duplicated in Hub. SceneArt reads `BossQuests.getCompleted()` snapshots
+Old Sage appears in both places with separate map-local NPC definitions: `HUB_GUIDE` at (184, 221)
+provides repeatable beginner guidance through the ordinary dialogue path, while `GUIDE` in the Hall
+retains stone progress and the ending conversation. Their distinct IDs prevent Hub dialogue from
+entering the ending branch; neither Sage grants an inventory reward. SceneArt reads `BossQuests.getCompleted()` snapshots
 to dim/light the five socket-aligned stone images; no inventory grant or second progress store exists.
+After completing the Hall Sage's ending or subsequent completed-progress dialogue, E opens a
+two-option credits menu (Up/Down to select, E to confirm). View credits pages through the supplied
+acknowledgements; Exit dialogue and Escape close only the conversation. Credits remain available on
+later completed Hall visits without replaying the one-time ending, and never appear in the Hub tutorial
+or before all five guardians are defeated. CreditsDialogue owns only this small presentation state.
 The hall shares existing movement, collision, camera, travel and encounter cleanup. It does not permit
 Hub-only class/O-mode changes. Its viewport-sized bounds remain fixed when the window is resized.
 

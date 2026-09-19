@@ -61,21 +61,18 @@ public final class BossQuests {
     }
 
     /**
-     * Accepts/replaces an unfinished target in a living Hub, retaining retry identity for the same quest.
-     * Gameplay validates routing before progress changes; completed targets cannot be farmed as new quests.
+     * Accepts/replaces a target in a living Hub, retaining retry identity for the same active quest.
+     * Completed targets may be challenged again with a fresh acceptance; first-clear stones remain lit.
      * Acceptance only prepares permission and closes the portal; Portal Guide must explicitly open it.
      * @param target one of the five guardians
      * @throws NullPointerException if target is null
-     * @throws IllegalStateException if outside a living Hub or the target is already completed
+     * @throws IllegalStateException if outside a living Hub
      * @throws IllegalArgumentException if the target portal/map/spawn is invalid
      */
     public void accept(BossChallenge target) {
         Objects.requireNonNull(target, "target");
         requireHub();
         synchronize();
-        if (completed.contains(target)) {
-            throw new IllegalStateException("Already defeated: " + target.displayName());
-        }
         ActiveEncounter next = active == target && permission != null ? permission
                 : new ActiveEncounter("boss-quest-" + UUID.randomUUID(), target.mapId(), "entry",
                         TravelCatalog.QUEST_PORTAL_ID);
@@ -113,6 +110,16 @@ public final class BossQuests {
      * @return immutable distinct completion snapshot
      */
     public Set<BossChallenge> getCompleted() { return Set.copyOf(completed); }
+
+    /**
+     * Reads authoritative encounter victories for a guardian, including repeat wins.
+     * @param target guardian whose next challenge should be previewed
+     * @return successful challenge count; failure and practice do not increase it
+     * @throws NullPointerException if target is null
+     */
+    public int getSuccessCount(BossChallenge target) {
+        return encounters.getSuccessCount(Objects.requireNonNull(target, "target").mapId());
+    }
 
     /**
      * Starts the one-time ending when called by the Memorial Hall Sage conversation.

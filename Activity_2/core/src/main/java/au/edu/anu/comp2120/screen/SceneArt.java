@@ -11,6 +11,7 @@ import au.edu.anu.comp2120.world.*;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.Disposable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,6 +86,8 @@ public final class SceneArt implements Disposable {
     private PlayerClass outcomeClass;
     /** Seconds in the non-blocking outcome presentation. */
     private double outcomeAge;
+    /** Both victory and failure remain visible for three presentation seconds after returning. */
+    static final double OUTCOME_SECONDS = 3;
     /** Feedback lifetime, unrelated to gameplay timing. */
     private static final double EFFECT_SECONDS = 0.4;
     /** Maximum simultaneous feedback pictures. */
@@ -132,8 +135,11 @@ public final class SceneArt implements Disposable {
      * This neither delays travel nor consumes the Inventory/Quest reward payload.
      * @param result immutable completed battle result
      * @param playerClass class at settlement
+     * @throws NullPointerException if either snapshot is null
      */
     public void showOutcome(BattleResult result, PlayerClass playerClass) {
+        java.util.Objects.requireNonNull(result, "result");
+        java.util.Objects.requireNonNull(playerClass, "player class");
         outcome = result; outcomeClass = playerClass; outcomeAge = 0;
     }
 
@@ -156,8 +162,6 @@ public final class SceneArt implements Disposable {
             effect("art/common_vfx/spawn.png", expanded(player.getBounds(), 18), 0.6);
         }
         time = (time + delta) % 3600;
-        outcomeAge += delta;
-        if (outcomeAge >= 2) { outcome = null; }
         effects.forEach(effect -> effect.age += delta);
         effects.removeIf(effect -> effect.age >= effect.duration);
         gates.values().forEach(gate -> gate.age += delta);
@@ -452,6 +456,8 @@ public final class SceneArt implements Disposable {
 
     /**
      * Draws class-specific visual overlays, leaving generic combat unaware of classes.
+     * Archer's right-facing spread artwork mirrors horizontally with the player's facing,
+     * using draw geometry rather than mutating a cached texture region.
      * @param batch active batch
      * @param player persistent player
      * @param abilities shared controller
@@ -473,7 +479,8 @@ public final class SceneArt implements Disposable {
         if (phase.equals("BUFF") && player.getPlayerClass() == PlayerClass.MAGE) { draw(batch, "art/status/rapid_cast.png", box); }
         if (abilities.getState(AbilitySlot.DASH) == AbilityState.ACTIVE) { draw(batch, "art/common_vfx/dash_trail.png", box); }
         if (launchRemaining > 0 && launch == AbilitySlot.SPECIAL && player.getPlayerClass() == PlayerClass.ARCHER) {
-            draw(batch, "art/skills/archer/spread_shot_effect.png", box);
+            art.draw(batch, "art/skills/archer/spread_shot_effect.png", box, time, true,
+                    abilities.getFacingX() < 0);
         }
     }
 
@@ -519,10 +526,9 @@ public final class SceneArt implements Disposable {
      * @param abilities common cooldowns
      * @param hud current responsive policy
      * @param windowWidth window width
-     * @param windowHeight window height
      */
     public void hud(SpriteBatch batch, BitmapFont font, Player player, PlayerAbilities abilities, HudLayout hud,
-                    int windowWidth, int windowHeight) {
+                    int windowWidth) {
         if (!hud.detailsVisible()) { return; }
         double size = 30 * hud.scale();
         double x = (windowWidth - size * 7) / 2;
@@ -549,20 +555,87 @@ public final class SceneArt implements Disposable {
         if (player.getPlayerClass() == PlayerClass.MAGE) {
             draw(batch,"art/ui/element_icons/"+lower(player.getMageElement())+".png",new CollisionBox(x+size*5.8,8,size,size));
         }
-        if (outcome != null && map.getType() == MapType.HUB) {
+    }
+
+    /**
+     * Advances return feedback independently of paused gameplay, dialogue and hidden skill icons.
+     * Expiry discards only presentation snapshots, never gameplay or reward state.
+     * @param delta finite non-negative elapsed UI seconds
+     * @throws IllegalArgumentException if time is negative or non-finite
+     */
+    void advanceOutcome(double delta) {
+        if (!Double.isFinite(delta) || delta < 0) { throw new IllegalArgumentException("Invalid UI time"); }
+        if (outcome == null) { return; }
+        outcomeAge = Math.min(OUTCOME_SECONDS, outcomeAge + delta);
+        if (outcomeAge >= OUTCOME_SECONDS) { outcome = null; outcomeClass = null; }
+    }
+
+    /**
+     * Reports whether a result is still in its three-second display window.
+     * @return true before expiry, independently of persistent HUD visibility
+     */
+    boolean hasOutcome() { return outcome != null; }
+
+    /**
+     * Fits the result panel to either window axis, capping growth at the reference window size.
+     * @param width logical window width
+     * @param height logical window height
+     * @return uniform scale, zero for a minimized window
+     */
+    static float outcomeScale(int width, int height) {
+        return Math.max(0, Math.min(1, Math.min(width / (float) GameConfig.HUD_REFERENCE_WIDTH,
+                height / (float) GameConfig.HUD_REFERENCE_HEIGHT)));
+    }
+
+    /**
+     * Draws a large, high-contrast return banner above other UI without capturing input.
+     * Uses existing screen-owned geometry and font resources; both batches must initially be idle.
+     * @param batch screen-space batch, with projection already set
+     * @param font shared UI font, restored after drawing
+     * @param shapes existing screen geometry renderer
+     * @param width logical window width
+     * @param height logical window height
+     */
+    public void drawOutcome(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes, int width, int height) {
+        float scale = outcomeScale(width, height);
+        if (!hasOutcome() || map == null || map.getType() != MapType.HUB || scale == 0) { return; }
+        boolean victory = outcome.outcome() == BattleResult.Outcome.SUCCESS;
+        Color accent = victory ? Color.GOLD : Color.SALMON;
+        float panelWidth = 600 * scale, panelHeight = 180 * scale;
+        float left = (width - panelWidth) / 2, bottom = height * 0.62f - panelHeight / 2;
+        float edge = 3 * scale;
+        shapes.setProjectionMatrix(batch.getProjectionMatrix());
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(accent);
+        shapes.rect(left, bottom, panelWidth, panelHeight);
+        shapes.setColor(0.025f, 0.035f, 0.055f, 1);
+        shapes.rect(left + edge, bottom + edge, panelWidth - edge * 2, panelHeight - edge * 2);
+        shapes.end();
+        float oldX = font.getData().scaleX, oldY = font.getData().scaleY;
+        Color oldFontColor = new Color(font.getColor()), oldBatchColor = new Color(batch.getColor());
+        batch.begin();
+        try {
+            batch.setColor(Color.WHITE);
             String theme = lower(BossChallenge.forMap(outcome.encounter().mapId()).orElse(BossChallenge.FIRE));
-            boolean victory = outcome.outcome() == BattleResult.Outcome.SUCCESS;
-            CollisionBox portrait = new CollisionBox(windowWidth/2.0-size,windowHeight-size*3.3,size*2,size*2);
-            art.draw(batch, victory ? "art/boss/"+theme+"/death/death_10f.png"
-                    : "art/player/"+outcomeClass.getId()+"/death/death_8f.png",portrait,outcomeAge,false,false);
-            art.draw(batch,victory ? "art/common_vfx/boss_defeat.png" : "art/common_vfx/disappear.png",
-                    portrait,Math.max(0,outcomeAge-0.5),false,false);
-            if (victory) {
-                draw(batch,"art/items/boss_materials/"+theme+"_material.png",
-                        new CollisionBox(portrait.right(),portrait.y(),size,size));
-            }
-            font.draw(batch,victory ? "BOSS DEFEATED" : "RETURNED TO HUB",
-                    (float)portrait.x(),(float)portrait.top()+16);
+            CollisionBox portrait = new CollisionBox(left + 16 * scale, bottom + 28 * scale, 120 * scale, 120 * scale);
+            art.draw(batch, victory ? "art/boss/" + theme + "/death/death_10f.png"
+                    : "art/player/" + outcomeClass.getId() + "/death/death_8f.png", portrait, outcomeAge, false, false);
+            art.draw(batch, victory ? "art/common_vfx/boss_defeat.png" : "art/common_vfx/disappear.png",
+                    portrait, Math.max(0, outcomeAge - 0.5), false, false);
+            float textX = left + 152 * scale;
+            font.setColor(accent);
+            font.getData().setScale(2.6f * scale);
+            font.draw(batch, victory ? "BOSS DEFEATED" : "CHALLENGE FAILED", textX, bottom + 132 * scale);
+            font.setColor(Color.WHITE);
+            font.getData().setScale(1.15f * scale);
+            font.draw(batch, "Returned to Hub - HP restored", textX, bottom + 79 * scale);
+            font.setColor(Color.LIGHT_GRAY);
+            font.draw(batch, victory ? "Victory!" : "You can challenge the Boss again.", textX, bottom + 48 * scale);
+        } finally {
+            font.getData().setScale(oldX, oldY);
+            font.setColor(oldFontColor);
+            batch.setColor(oldBatchColor);
+            batch.end();
         }
     }
 
