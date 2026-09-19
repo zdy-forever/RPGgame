@@ -1,6 +1,7 @@
 package au.edu.anu.comp2120.lwjgl3;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Files;
+import au.edu.anu.comp2120.audio.BackgroundMusic;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -63,5 +64,22 @@ final class RuntimeAssetsTest {
         assertNull(Lwjgl3Launcher.class.getResource("/art/maps/hub/hub_main.png"));
         assertNull(Lwjgl3Launcher.class.getResource("/art/maps/hub/achievement_corridor.png"));
         assertNull(Lwjgl3Launcher.class.getResource("/art_resources/ASSET_MANIFEST.csv"));
+    }
+
+    /**
+     * All renamed WAV files are on the runtime classpath with valid RIFF/WAVE headers.
+     * @throws IOException if a packaged audio stream cannot be read
+     */
+    @Test void renamedMusicIsPackagedForInternalLoading() throws IOException {
+        var files = new Lwjgl3Files();
+        for (var track : BackgroundMusic.Track.values()) {
+            assertNotNull(Lwjgl3Launcher.class.getResource("/" + track.path()));
+            try (var stream = files.internal(track.path()).read()) {
+                byte[] header = stream.readNBytes(12);
+                assertEquals(12, header.length);
+                assertEquals("RIFF", new String(header, 0, 4, StandardCharsets.US_ASCII));
+                assertEquals("WAVE", new String(header, 8, 4, StandardCharsets.US_ASCII));
+            }
+        }
     }
 }
