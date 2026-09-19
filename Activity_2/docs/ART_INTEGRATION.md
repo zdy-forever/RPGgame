@@ -54,8 +54,10 @@ it does not retain Boss objects, delay travel, change Quest state or consume mat
 - Element attachments, confirmed reactions, persistent ground fields and generic status overlays/icons.
 - Class, J/K/L/O and selected Mage-element icons. Cooldown numbers/dimming use the existing controller.
   Icons obey HudLayout's size cap and detail-hide threshold; they never change weapon/inventory state.
-- Success/failure plays a brief **non-blocking Hub HUD replay**, including death/defeat/disappear and a
-  themed material picture on success. Auto-return and full-HP recovery remain immediate. This is not
+- Success/failure displays a large **three-second non-blocking Hub banner**, with gold victory/red
+  failure text, a dark bordered panel and death/defeat/disappear artwork. It scales down for smaller
+  windows and stays visible independently of hidden skill icons or open menus. UI elapsed time, not
+  paused gameplay time, controls expiry. Auto-return and full-HP recovery remain immediate. This is not
   a corpse left in Hub or a second drop/claim operation; the reward payload still uses existing tuning.
 
 ### Honest coverage limit
@@ -75,8 +77,9 @@ documented in `assets/audio/README.md`. The original pack's provenance filenames
 
 Memorial Hall is a separate 640 x 360 world-unit room matching the camera's one-screen view.
 Its floor uses simple geometry; the imported five-slot circle sits on the right. Guardian completion
-lights the corresponding stone at its socket, while unearned stones remain dim. Old Sage has moved
-from Hub to the hall's left side. The return portal sits at (32, 32); arrival at (100, 48) is outside
+lights the corresponding stone at its socket, while unearned stones remain dim. Old Sage appears
+on the hall's left side for progress/ending dialogue and separately in Hub at (184, 221) as a
+beginner guide, using the same existing artwork. The return portal sits at (32, 32); arrival at (100, 48) is outside
 its trigger, preserving the existing arrival protection. These pictures do not change collision.
 The Hall-only minimap is hidden and the circle fits beneath the weapon panel, keeping every stone visible.
 

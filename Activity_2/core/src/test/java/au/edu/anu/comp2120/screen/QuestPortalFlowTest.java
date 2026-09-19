@@ -534,6 +534,7 @@ final class QuestPortalFlowTest {
         assertTrue(boundary.isBattleActive());
         assertTrue(boundary.getLastResult().isEmpty());
         assertTrue(boundary.getPendingRewards().isEmpty());
+        assertEquals(0, boundary.getSuccessCount(MapCatalog.CROSSROADS));
         assertTrue(routes.getPortal("task").enabled());
     }
 

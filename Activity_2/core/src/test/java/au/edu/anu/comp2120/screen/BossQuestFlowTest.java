@@ -101,11 +101,90 @@ final class BossQuestFlowTest {
         assertTrue(quests.getActive().isEmpty());
         assertFalse(travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
         assertThrows(IllegalStateException.class, () -> guide.select(PortalGuide.Destination.BATTLE));
-        assertThrows(IllegalStateException.class, () -> quests.accept(target));
+        assertThrows(IllegalStateException.class, () -> flow.activate(permission));
         assertEquals(1, flow.getPendingRewards().size());
         for (int i = 0; i < 10; i++) { quests.synchronize(); }
         assertEquals(1, quests.getCompleted().size());
+        assertEquals(1, quests.getSuccessCount(target));
         assertFalse(quests.consumeEnding());
+        quests.accept(target);
+        assertNotEquals(permission, flow.getActiveEncounter().orElseThrow());
+        assertFalse(travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
+        guide.select(PortalGuide.Destination.BATTLE);
+        enter();
+        assertEquals(520, demo.getBoss().orElseThrow().getHealth().getMaxHp());
+        assertEquals(520, demo.getBoss().orElseThrow().getHealth().getCurrentHp());
+    }
+
+    /** Repeat wins increase only that guardian and grant a fresh one-time reward, not another stone. */
+    @Test void repeatedVictoriesGrowOneGuardianWithoutUnlockingOtherStones() {
+        for (int wins = 0; wins < 5; wins++) {
+            quests.accept(BossChallenge.FIRE);
+            guide.select(PortalGuide.Destination.BATTLE);
+            enter();
+            int hp = au.edu.anu.comp2120.enemy.BossScaling.apply(GameConfig.SENTINEL, wins).maxHp();
+            assertEquals(hp, demo.getBoss().orElseThrow().getHealth().getMaxHp());
+            assertEquals(hp, demo.getBoss().orElseThrow().getHealth().getCurrentHp());
+            win();
+            var result = flow.getLastResult().orElseThrow();
+            assertEquals(wins + 1, quests.getSuccessCount(BossChallenge.FIRE));
+            for (int poll = 0; poll < 20; poll++) { quests.synchronize(); demo.returnToHubIfBattleEnded(); }
+            assertEquals(wins + 1, quests.getSuccessCount(BossChallenge.FIRE));
+            assertTrue(flow.claimReward(result).isPresent());
+            assertTrue(flow.claimReward(result).isEmpty());
+            assertEquals(java.util.Set.of(BossChallenge.FIRE), quests.getCompleted());
+            assertEquals(0, quests.getSuccessCount(BossChallenge.WATER));
+        }
+        guide.select(PortalGuide.Destination.MEMORIAL);
+        enter();
+        assertFalse(quests.consumeEnding(), "Five wins of the same Boss must not unlock all five stones");
+        session.switchMap(MapCatalog.HUB);
+        demo.update(0, PlayerCommand.NONE, false);
+        quests.accept(BossChallenge.WATER);
+        guide.select(PortalGuide.Destination.BATTLE);
+        enter();
+        assertEquals(400, demo.getBoss().orElseThrow().getHealth().getMaxHp());
+    }
+
+    /** Failure/reacceptance/replacement never increases difficulty or compounds an existing scaled definition. */
+    @Test void failedRematchesKeepSameDifficultyAndFreshEncounter() {
+        quests.accept(BossChallenge.FIRE);
+        guide.select(PortalGuide.Destination.BATTLE);
+        enter();
+        win();
+        quests.accept(BossChallenge.FIRE);
+        guide.select(PortalGuide.Destination.BATTLE);
+        enter();
+        for (int retry = 0; retry < 3; retry++) {
+            var old = demo.getBoss().orElseThrow();
+            var permission = flow.getActiveEncounter().orElseThrow();
+            assertEquals(520, old.getHealth().getMaxHp());
+            session.getPlayer().takeDamage(100);
+            demo.update(0, PlayerCommand.NONE, false);
+            quests.synchronize();
+            assertEquals(1, quests.getSuccessCount(BossChallenge.FIRE));
+            assertEquals(permission, flow.getActiveEncounter().orElseThrow());
+            assertTrue(travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
+            enter();
+            var fresh = demo.getBoss().orElseThrow();
+            assertNotSame(old, fresh);
+            assertEquals(520, fresh.getHealth().getCurrentHp());
+            assertEquals(1, fresh.getPhase());
+        }
+        session.getPlayer().takeDamage(100);
+        demo.update(0, PlayerCommand.NONE, false);
+        quests.accept(BossChallenge.WATER);
+        quests.accept(BossChallenge.FIRE);
+        assertEquals(1, quests.getSuccessCount(BossChallenge.FIRE));
+        guide.select(PortalGuide.Destination.BATTLE);
+        enter();
+        assertEquals(520, demo.getBoss().orElseThrow().getHealth().getMaxHp());
+    }
+
+    /** Null count queries fail explicitly instead of inventing a default guardian. */
+    @Test void nullSuccessQueriesAreRejected() {
+        assertThrows(NullPointerException.class, () -> quests.getSuccessCount(null));
+        assertThrows(NullPointerException.class, () -> flow.getSuccessCount(null));
     }
 
     /** Failure keeps acceptance retryable; replacing it in Hub routes only to the newly chosen Boss. */
@@ -193,6 +272,17 @@ final class BossQuestFlowTest {
             assertTrue(flow.claimReward(result).isEmpty());
         }
         assertEquals(5, quests.getCompleted().size());
+        session.switchMap(MapCatalog.HUB);
+        demo.update(0, PlayerCommand.NONE, false);
+        quests.accept(BossChallenge.FIRE);
+        guide.select(PortalGuide.Destination.BATTLE);
+        enter();
+        win();
+        assertEquals(2, quests.getSuccessCount(BossChallenge.FIRE));
+        assertEquals(5, quests.getCompleted().size());
+        guide.select(PortalGuide.Destination.MEMORIAL);
+        enter();
+        assertFalse(quests.consumeEnding(), "A rematch after the ending must not replay it");
     }
 
     /** Unrelated external acceptance results cannot mark the currently tracked task complete. */

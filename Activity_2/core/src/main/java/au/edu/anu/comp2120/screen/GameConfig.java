@@ -109,6 +109,21 @@ public final class GameConfig {
                     "Defeat all five guardians, then speak to me to complete your journey."),
             null
     );
+    /** Hub-local Sage offers repeatable beginner guidance, with no reward or ending trigger. */
+    public static final NPC HUB_GUIDE = new NPC(
+            "hub_guide", "Old Sage",
+            184.0, 221.0, 24.0, 24.0,
+            List.of(
+                    "Welcome, adventurer! This Hub is your safe base. Press E to read the next tip, and E on the last page to close this guide.",
+                    "Use WASD to move. J is your light attack, K your class skill, L your dash, and O your ultimate.",
+                    "Visit the Class Master to choose Archer, Mage or Katana and an O mode. Class and O mode selection are Hub-only.",
+                    "Want to practise? Ask the Portal Guide for Training, then enter the portal. The target does not move or attack; the scoreboard records your damage.",
+                    "For a real battle, accept a Boss task from the Quest Keeper FIRST. Then ask the Portal Guide to select Battle and open the portal. Accepting a task alone does not open it.",
+                    "Each Battle Map has one Boss. Watch for the flashing warning and red melee area, dodge attacks, and use your skills between openings.",
+                    "Victory or defeat returns you here with full HP. Failure lets you retry the same task. After victory, accept any Boss again: each guardian gains health and attacks slightly faster as your wins against it grow, up to a limit.",
+                    "Each defeated guardian awakens one magic stone in Memorial Hall. Ask the Portal Guide to take you there. Once all five stones are lit, speak to me IN THE HALL to finish your journey."),
+            null
+    );
     /** Notice board listing the controls; readable any number of times. */
     public static final NPC NOTICE_BOARD = new NPC(
             "notice_board", "Notice Board",
@@ -148,7 +163,7 @@ public final class GameConfig {
             "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
-            List.of(WEAPON_MERCHANT, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);
+            List.of(HUB_GUIDE, WEAPON_MERCHANT, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

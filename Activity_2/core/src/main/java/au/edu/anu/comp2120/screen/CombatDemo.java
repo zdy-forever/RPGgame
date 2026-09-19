@@ -490,6 +490,7 @@ public final class CombatDemo {
      * Tries the exact map centre first, then nearby safe candidates if blocked or player-occupied.
      * No invalid Boss or training target is forced into a map.
      * Task success loot is transferred to EncounterFlow before this method discards the old Boss.
+     * Fresh admitted Bosses scale from original tuning and prior successes for this map, never attempts.
      * Unrestricted debug loot remains encounter-scoped and is discarded on reset/travel.
      */
     private void createEncounter() {
@@ -514,7 +515,8 @@ public final class CombatDemo {
                 var target = BossChallenge.forMap(session.getCurrentMap().getId());
                 boss = new Boss(target.map(BossChallenge::id).orElse("sentinel"),
                         target.map(BossChallenge::displayName).orElse("Sentinel"),
-                        placement, session.getCurrentMap(), GameConfig.SENTINEL, combat);
+                        placement, session.getCurrentMap(), GameConfig.SENTINEL, combat,
+                        encounterFlow == null ? 0 : encounterFlow.getSuccessCount(session.getCurrentMap().getId()));
                 return;
             }
         }

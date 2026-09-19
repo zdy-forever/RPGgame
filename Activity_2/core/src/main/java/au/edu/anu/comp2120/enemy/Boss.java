@@ -28,6 +28,8 @@ public final class Boss {
     private final String name;
     /** Immutable encounter tuning. */
     private final BossConfig config;
+    /** Ranged cooldown derived once from this guardian's previous wins, never from its current HP. */
+    private final double boltCooldown;
     /** Fixed map owning this encounter and its loot. */
     private final GameMap map;
     /** Existing health-owning hostile entity. */
@@ -67,16 +69,34 @@ public final class Boss {
      * @throws IllegalArgumentException if identity, placement, navigation geometry or combat world binding is invalid
      */
     public Boss(String id, String name, CollisionBox bounds, GameMap map, BossConfig config, CombatSystem combat) {
+        this(id, name, bounds, map, config, combat, 0);
+    }
+
+    /**
+     * Creates a fresh rematch using capped tuning based on earlier successful challenges.
+     * @param id non-blank Boss identity
+     * @param name non-blank display name
+     * @param bounds fully walkable body
+     * @param map encounter map
+     * @param config original unscaled encounter definition
+     * @param combat shared arena pipeline
+     * @param successes earlier wins against this guardian; failure does not increase this value
+     * @throws NullPointerException if a required argument is null
+     * @throws IllegalArgumentException if count, identity, placement or combat world binding is invalid
+     */
+    public Boss(String id, String name, CollisionBox bounds, GameMap map, BossConfig config,
+                CombatSystem combat, int successes) {
         this.id = Objects.requireNonNull(id, "Boss ID");
         this.name = Objects.requireNonNull(name, "Boss name");
         this.map = Objects.requireNonNull(map, "map");
-        this.config = Objects.requireNonNull(config, "config");
+        this.config = BossScaling.apply(config, successes);
+        boltCooldown = BossConfig.BOLT_COOLDOWN / BossScaling.attackRate(successes);
         this.combat = Objects.requireNonNull(combat, "combat");
         if (id.isBlank() || name.isBlank()) {
             throw new IllegalArgumentException("Boss identity and name must not be blank");
         }
-        enemy = new Enemy(config.maxHp());
-        navigation = new EnemyAI(enemy, bounds, map, config.navigation(), combat);
+        enemy = new Enemy(this.config.maxHp());
+        navigation = new EnemyAI(enemy, bounds, map, this.config.navigation(), combat);
     }
 
     /**
@@ -178,7 +198,7 @@ public final class Boss {
             case WIND -> ElementType.WIND;
         };
         combat.tryProjectiles(getCombatant(), new AttackSpec("boss-element-bolt", BossConfig.BOLT_DAMAGE,
-                BossConfig.BOLT_ACTIVE_SECONDS, BossConfig.BOLT_COOLDOWN, element), BossConfig.ELEMENT_BOLT,
+                BossConfig.BOLT_ACTIVE_SECONDS, boltCooldown, element), BossConfig.ELEMENT_BOLT,
                 BossConfig.BOLT_RANGE, dx, dy, map);
     }
 
