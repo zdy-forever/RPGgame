@@ -25,6 +25,12 @@ import java.util.Set;
  * @author Daoyan Zhu (u7782042)
  */
 public final class SceneArt implements Disposable {
+    /** Supplied warning artwork, used only for read-only melee preparation feedback. */
+    static final String BOSS_WARNING_IMAGE = "art/boss/common/attack_warning.png";
+    /** Normal Mage projectile width in world units, independent of source image resolution. */
+    private static final float MAGE_BOLT_WIDTH = 24;
+    /** Boss projectile art is twice as wide and twice as tall as the same Mage image. */
+    private static final float BOSS_BOLT_SCALE = 2;
     /** Sole owner of lazy GPU images. */
     private final ArtAssets art = new ArtAssets();
     /** Small bounded set of short-lived confirmed-hit pictures. */
@@ -337,6 +343,24 @@ public final class SceneArt implements Disposable {
         for (Effect effect : effects) {
             art.draw(batch, effect.path, effect.bounds, effect.age, false, false);
         }
+        demo.getBoss().filter(boss -> boss.getMeleeWarning().isPresent()
+                && warningVisible(boss.getWindupProgress())).ifPresent(boss -> {
+            CollisionBox body = boss.getBounds();
+            draw(batch, BOSS_WARNING_IMAGE,
+                    new CollisionBox(body.x() + body.width() / 2 - 24, body.top() + 20, 48, 48));
+        });
+    }
+
+    /**
+     * Flashes using simulation progress so pauses do not advance the warning. The phase derivative
+     * rises continuously from two to ten cycles per complete windup, without frame-rate dependence.
+     * @param progress elapsed windup fraction, clamped to the visible window
+     * @return whether the exclamation should be drawn in this frame
+     */
+    static boolean warningVisible(double progress) {
+        double t = Math.max(0, Math.min(1, progress));
+        double cycles = 2 * t + 4 * t * t;
+        return cycles - Math.floor(cycles) < 0.5;
     }
 
     /**
@@ -461,12 +485,13 @@ public final class SceneArt implements Disposable {
     private void projectile(SpriteBatch batch, Attack attack) {
         ElementType element = attack.getSpecification().element();
         String path = attack.getSource().getFaction() == Faction.ENEMY ? "art/projectiles/boss/"
-                + (element == ElementType.NONE ? "fire" : lower(element)) + "_projectile.png"
+                + (element == ElementType.NONE ? "fire" : lower(element)) + "_bolt.png"
                 : element == ElementType.NONE ? "art/projectiles/archer/arrow.png"
                 : "art/projectiles/mage/" + lower(element) + "_bolt.png";
         var frame = art.frame(path, time, true);
         CollisionBox box = attack.getHitbox();
-        float width = element == ElementType.NONE ? 28 : 24;
+        float width = attack.getSource().getFaction() == Faction.ENEMY ? MAGE_BOLT_WIDTH * BOSS_BOLT_SCALE
+                : element == ElementType.NONE ? 28 : MAGE_BOLT_WIDTH;
         float height = width * frame.getRegionHeight() / frame.getRegionWidth();
         float angle = (float) Math.toDegrees(Math.atan2(attack.getProjectile().getDirectionY(), attack.getProjectile().getDirectionX()));
         batch.draw(frame, (float)(box.x()+box.width()/2)-width/2, (float)(box.y()+box.height()/2)-height/2,

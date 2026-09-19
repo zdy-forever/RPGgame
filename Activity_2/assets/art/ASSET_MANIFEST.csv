@@ -1,4 +1,10 @@
 path,source_media,width,height
+art/boss/common/attack_warning.png,6baa3b6d-e144-4fe1-ae30-bc71e2b62595.png,1254,1254
+art/projectiles/boss/fire_bolt.png,art/projectiles/mage/fire_bolt.png,144,128
+art/projectiles/boss/water_bolt.png,art/projectiles/mage/water_bolt.png,144,128
+art/projectiles/boss/lightning_bolt.png,art/projectiles/mage/lightning_bolt.png,144,128
+art/projectiles/boss/ice_bolt.png,art/projectiles/mage/ice_bolt.png,144,128
+art/projectiles/boss/wind_bolt.png,art/projectiles/mage/wind_bolt.png,144,128
 art/memorial/magic_circle.png,bdb9d568-a020-4bc6-806b-a1f20b59ee28.png,1254,1254
 art/memorial/fire_stone.png,4e6c6aae-fe60-455e-9f0c-e3631cf48fc6.png,1254,1254
 art/memorial/water_stone.png,9074864e-a75b-4277-bf71-6bd1f15425f7.png,1254,1254

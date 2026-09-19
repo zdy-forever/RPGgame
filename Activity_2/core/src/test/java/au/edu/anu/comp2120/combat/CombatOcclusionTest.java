@@ -62,6 +62,8 @@ final class CombatOcclusionTest {
         }
         if (type == PlayerClass.KATANA && slot != AbilitySlot.LIGHT) {
             boss.update(source, 0);
+            // Finish the preparation before settling this defensive-response fixture's triggering hit.
+            boss.update(source, BossConfig.MELEE_WINDUP);
         }
         combat.update(0);
         abilities.afterCombat();
@@ -273,6 +275,7 @@ final class CombatOcclusionTest {
                 List.of(pattern), List.of(pattern), "test-material", 1);
         Boss boss = new Boss("boss", "Boss", new CollisionBox(100, 100, 64, 64), map, config, combat);
         boss.update(player, 0);
+        boss.update(player, BossConfig.MELEE_WINDUP);
         assertEquals(1, combat.getActiveAttacks().size(), "AI must actually cast before target moves");
         player.setHurtbox(new CollisionBox(200, 110, 20, 20));
         assertTrue(combat.getActiveAttacks().get(0).getHitbox().overlaps(player.getHurtbox()));

@@ -115,6 +115,7 @@ final class FinalClassSkillsTest {
         advance(f, 3.1);
         assertTrue(f.source().isTargetable());
         boss.update(f.source(), 0);
+        boss.update(f.source(), au.edu.anu.comp2120.enemy.BossConfig.MELEE_WINDUP);
         assertFalse(f.combat().getActiveAttacks().isEmpty());
     }
 

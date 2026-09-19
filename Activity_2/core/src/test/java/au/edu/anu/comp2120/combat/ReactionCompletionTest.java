@@ -206,6 +206,7 @@ final class ReactionCompletionTest {
         assertEquals(0, boss.getCombatant().getStatus().getFrozenRemaining());
         assertFalse(boss.getCombatant().getStatus().blocksActions());
         boss.update(source, 0);
+        boss.update(source, au.edu.anu.comp2120.enemy.BossConfig.MELEE_WINDUP);
         assertTrue(combat.getActiveAttacks().stream().anyMatch(a -> a.getSource() == boss.getCombatant() && a != existing));
         source.setHurtbox(new CollisionBox(100, 100, 20, 20));
         boss.update(source, 0.1);
