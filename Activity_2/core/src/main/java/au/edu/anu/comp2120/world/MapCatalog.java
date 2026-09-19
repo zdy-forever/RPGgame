@@ -17,13 +17,21 @@ public final class MapCatalog {
     public static final String TRAINING = "battle-training";
     /** Stable identifier for the second battle map. */
     public static final String CROSSROADS = "battle-crossroads";
+    /** Water guardian arena ID. */
+    public static final String WATER_ARENA = "battle-water";
+    /** Lightning guardian arena ID. */
+    public static final String LIGHTNING_ARENA = "battle-lightning";
+    /** Ice guardian arena ID. */
+    public static final String ICE_ARENA = "battle-ice";
+    /** Wind guardian arena ID. */
+    public static final String WIND_ARENA = "battle-wind";
 
     /** Prevents construction of the built-in catalogue utility. */
     private MapCatalog() {
     }
 
     /**
-     * Creates a Hub, a Training area and a Battle map with different dimensions and named spawns.
+     * Creates a Hub, a Training area and five guardian arenas with named spawns.
      * Interiors are unobstructed; outer map boundaries still constrain movement.
      * All geometry uses bottom-left world coordinates and is independent of rendering.
      *
@@ -42,6 +50,21 @@ public final class MapCatalog {
                 new GameMap(CROSSROADS, "Crossroads", MapType.BATTLE, 1200, 720,
                         List.of(),
                         Map.of("entry", new SpawnPoint(80, 80),
-                                "east", new SpawnPoint(1080, 80)), "entry"));
+                                "east", new SpawnPoint(1080, 80)), "entry"),
+                guardianArena(WATER_ARENA, "Water Arena"),
+                guardianArena(LIGHTNING_ARENA, "Lightning Arena"),
+                guardianArena(ICE_ARENA, "Ice Arena"),
+                guardianArena(WIND_ARENA, "Wind Arena"));
+    }
+
+    /**
+     * Defines an open guardian arena using the same collision/spawn model as Crossroads.
+     * @param id unique arena ID
+     * @param name readable arena name
+     * @return independent immutable map definition
+     */
+    private static GameMap guardianArena(String id, String name) {
+        return new GameMap(id, name, MapType.BATTLE, 1200, 720, List.of(),
+                Map.of("entry", new SpawnPoint(80, 80), "east", new SpawnPoint(1080, 80)), "entry");
     }
 }

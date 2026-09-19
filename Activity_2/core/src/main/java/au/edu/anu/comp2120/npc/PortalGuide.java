@@ -1,14 +1,13 @@
 package au.edu.anu.comp2120.npc;
 
-import au.edu.anu.comp2120.ActiveEncounter;
 import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.world.MapCatalog;
 import au.edu.anu.comp2120.world.MapType;
 import au.edu.anu.comp2120.world.TravelCatalog;
+import au.edu.anu.comp2120.enemy.BossChallenge;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Small NPC adapter selecting a route for the single Hub portal and returning from practice.
@@ -31,30 +30,20 @@ public final class PortalGuide {
      */
     public enum Destination {
         /** Practice map containing only a stationary training target. */
-        TRAINING(MapCatalog.TRAINING, "Training Ground"),
-        /** Existing Crossroads battle map. */
-        BATTLE(MapCatalog.CROSSROADS, "Battle Map (Crossroads)");
+        TRAINING("Training Ground"),
+        /** Battle destination supplied by the active quest, never a fixed default. */
+        BATTLE("Battle Map");
 
-        /** Registered map identifier used by GameSession. */
-        private final String mapId;
         /** Built-in-font-compatible name for the placeholder dialogue. */
         private final String label;
 
         /**
          * Defines one catalogue-backed option.
-         * @param mapId registered destination map ID
          * @param label displayed option text
          */
-        Destination(String mapId, String label) {
-            this.mapId = mapId;
+        Destination(String label) {
             this.label = label;
         }
-
-        /**
-         * Gets the registered destination.
-         * @return map ID, independent of display text
-         */
-        public String mapId() { return mapId; }
 
         /**
          * Gets the placeholder dialogue label.
@@ -82,13 +71,12 @@ public final class PortalGuide {
 
     /**
      * Configures the portal in a living Hub without moving or healing the player.
-     * Re-selecting an active destination keeps its acceptance identity, including after failure.
-     * A replacement or selection after success creates a fresh session-local acceptance ID.
-     * Practice removes local battle admission and configures ordinary travel; it has no outcome/reward.
-     * No external Quest state is modified. Invalid target geometry is checked before clearing admission.
+     * Battle requires a previously accepted encounter; this NPC never creates acceptance itself.
+     * Practice temporarily reroutes the portal without discarding the active quest or retry identity.
+     * No Quest state is modified. Battle re-selection restores the accepted target's exact route.
      * @param destination selected existing map
      * @throws NullPointerException if destination is null
-     * @throws IllegalStateException if selection is outside Hub or the player is dead
+     * @throws IllegalStateException if outside a living Hub or Battle has no accepted encounter
      * @throws IllegalArgumentException if portal/map/spawn configuration is invalid
      */
     public void select(Destination destination) {
@@ -97,20 +85,34 @@ public final class PortalGuide {
             throw new IllegalStateException("Portal selection requires a living player in Hub");
         }
         if (destination == Destination.TRAINING) {
-            if (session.getMap(destination.mapId()).getType() != MapType.TRAINING) {
+            if (session.getMap(MapCatalog.TRAINING).getType() != MapType.TRAINING) {
                 throw new IllegalArgumentException("Practice destination must be a Training map");
             }
-            travel.configurePortalDestination(TravelCatalog.QUEST_PORTAL_ID, destination.mapId(), "entry");
-            encounters.clearActiveEncounter();
+            travel.configurePortalDestination(TravelCatalog.QUEST_PORTAL_ID, MapCatalog.TRAINING, "entry");
             travel.setPortalEnabled(TravelCatalog.QUEST_PORTAL_ID, true);
             return;
         }
-        ActiveEncounter permission = encounters.getActiveEncounter()
-                .filter(active -> active.portalId().equals(TravelCatalog.QUEST_PORTAL_ID)
-                        && active.mapId().equals(destination.mapId()) && active.spawnId().equals("entry"))
-                .orElseGet(() -> new ActiveEncounter("portal-guide-" + UUID.randomUUID(),
-                        destination.mapId(), "entry", TravelCatalog.QUEST_PORTAL_ID));
+        var permission = encounters.getActiveEncounter()
+                .filter(active -> active.portalId().equals(TravelCatalog.QUEST_PORTAL_ID))
+                .orElseThrow(() -> new IllegalStateException("Accept a Boss quest from the Quest Keeper first"));
         encounters.activate(permission);
+    }
+
+    /**
+     * Labels Battle with its accepted Boss or a clear locked explanation.
+     * @param destination selected menu category
+     * @return current readable destination label
+     * @throws NullPointerException if destination is null
+     */
+    public String destinationLabel(Destination destination) {
+        if (Objects.requireNonNull(destination, "destination") == Destination.TRAINING) {
+            return destination.label();
+        }
+        return encounters.getActiveEncounter()
+                .filter(active -> active.portalId().equals(TravelCatalog.QUEST_PORTAL_ID))
+                .map(active -> "Battle: " + BossChallenge.forMap(active.mapId())
+                        .map(BossChallenge::displayName).orElse(session.getMap(active.mapId()).getName()))
+                .orElse("Battle: LOCKED - accept a Boss quest first");
     }
 
     /**

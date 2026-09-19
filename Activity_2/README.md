@@ -1,7 +1,7 @@
 # COMP2120 Group Game
 
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
-demonstrates a Hub, a separate Training Ground and a Battle Map, named spawn points, eight-direction
+demonstrates a Hub, a separate Training Ground and five Boss arenas, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera using geometric placeholders. Player and
 enemy models share validated integer health and one attack pipeline, independent
@@ -17,7 +17,26 @@ It loads no images, fonts, animation, sound, or music assets.
 Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
 choose **Training Ground** or **Battle Map** with **Up/Down**, then press **E** to confirm
 (**Escape** cancels). Confirmation configures the portal; walk into it to travel.
-The portal starts closed until a destination is selected. Achievement Wall is not included.
+The portal starts closed. **Battle requires an accepted Boss quest**; the Portal Guide cannot
+create one. Training remains available without a quest. Achievement Wall is not included.
+
+Talk to the **Quest Keeper** at (420,310): **E** opens the quest list, **Up/Down** highlights
+one of the five guardians, **E** accepts it, and **Escape** closes the list. Then choose Battle
+at the Portal Guide and walk into the single Hub portal. Its destination is the accepted
+guardian's arena, not a default map. One unfinished task can be replaced with another in Hub.
+**Accepting or replacing a task leaves the portal closed**, even if a previous Training/Battle
+route was open. Reading the Portal Guide dialogue alone does not open it: select Battle and
+press **E** to confirm. Re-accepting the same task also requires confirmation again.
+
+- Provisional targets: Fire / Water / Lightning / Ice / Wind Sentinel, each with a distinct arena.
+- A successful return records that target and shows a **green check before its name** next time
+  the quest list is opened. Completed targets cannot be accepted again this session.
+- Failure retains the task for retry with a fresh Boss; practice visits also retain the task.
+- Defeating all **five distinct** targets automatically opens a one-time Hub ending dialogue.
+  Press **E** through its three lines, then continue visiting Hub/Training.
+- This first version reuses the Sentinel's 400 HP, two-phase AI/patterns and material tuning for
+  all five identities. Distinct elemental Boss moves, final names and final ending script remain
+  future content work. Task progress and ending playback are session-local, without save/load.
 
 - Training has one stationary, non-attacking target, not a Boss. J/K/L/O use the shared
   abilities/combat pipeline. The scoreboard shows total delivered damage, last damage and
@@ -26,7 +45,7 @@ The portal starts closed until a destination is selected. Achievement Wall is no
 - **R** resets practice: score, attacks/effects, ability activity/cooldowns and player HP.
   Talk to the **Return to Hub** NPC near the Training entrance: **E** opens confirmation,
   **E** again returns, **Escape** cancels. Leaving and re-entering creates a fresh target/score.
-- Battle Map (Crossroads) contains one real Boss and retains the success/failure flow below.
+- Every admitted Battle arena contains one real Boss and retains the success/failure flow below.
 - F1/F2/F3 select class and F5 selects its O mode **in Hub only**, including before practice.
 
 The **Class Master** in Hub at (320,130) provides the same choices without debug keys:
@@ -36,10 +55,13 @@ press **E** to apply. The menu stays open so a class and its ultimate can be sel
 Selections preserve HP, position and cooldowns and are rejected while an ability is active.
 
 The small `PortalGuide` adapter uses the existing gameplay boundary; it does not implement
-Quest state or inventory rewards. Choosing Training clears gameplay battle admission only.
-Developer B's future Quest adapter can still call
-`gameScreen.getEncounterFlow().activate(new ActiveEncounter(id, mapId, spawnId, portalId))`
+Quest state or inventory rewards. Choosing Training only reroutes the shared portal and preserves
+the accepted target. `BossQuests` now owns this session's NPC acceptance and completion tracking.
+The lower-level external adapter boundary remains
+`gameScreen.getEncounterFlow().prepare(new ActiveEncounter(id, mapId, spawnId, portalId))`
 on the game-loop thread after acceptance in Hub, using `TravelCatalog.QUEST_PORTAL_ID`.
+`activate` remains the explicit open-route operation used by Portal Guide after confirmation.
+Future Quest integration should reuse/replace the one quest owner, not create competing progress stores.
 
 - The configured portal admits one fresh Boss; there are no ordinary enemies.
 - Player death: FAILURE, automatic Hub return/full HP, same permission available for retry.

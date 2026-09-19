@@ -5,6 +5,8 @@ import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.npc.PortalGuide;
 import au.edu.anu.comp2120.npc.ClassTrainer;
+import au.edu.anu.comp2120.enemy.BossChallenge;
+import au.edu.anu.comp2120.quest.BossQuests;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.world.*;
 import au.edu.anu.comp2120.TravelSystem;
@@ -41,6 +43,14 @@ public final class GameScreen extends ScreenAdapter {
     private final EncounterFlow encounterFlow;
     /** NPC selection adapter; routes all acceptance through the existing encounter boundary. */
     private final PortalGuide portalGuide;
+    /** Session-local task progress consuming the existing settled encounter results. */
+    private final BossQuests quests;
+    /** Highlighted guardian in the quest NPC menu. */
+    private int questChoice;
+    /** Quest acceptance/completion feedback shown in the same NPC menu. */
+    private String questFeedback = "Choose one Boss. You can replace an unfinished quest in Hub.";
+    /** Whether the one-time all-guardians ending currently owns dialogue input. */
+    private boolean endingOpen;
     /** Highlighted destination while the portal NPC's choice dialogue is open. */
     private PortalGuide.Destination portalChoice = PortalGuide.Destination.TRAINING;
     /** Hub-only NPC adapter for existing class and O mode selection. */
@@ -113,6 +123,7 @@ public final class GameScreen extends ScreenAdapter {
         var questPortals = TravelCatalog.createQuestPortals();
         travel = new TravelSystem(session, questPortals, TravelCatalog.createDestinations());
         encounterFlow = new EncounterFlow(session, travel, questPortals.stream().map(Portal::id).toList());
+        quests = new BossQuests(session, encounterFlow);
         portalGuide = new PortalGuide(session, travel, encounterFlow);
         combatDemo = new CombatDemo(session, encounterFlow);
         classTrainer = new ClassTrainer(session, combatDemo.getAbilities());
@@ -156,12 +167,21 @@ public final class GameScreen extends ScreenAdapter {
             updateGameplay(Math.min(delta, GameConfig.MAX_FRAME_DELTA));
         }
         skipNextUpdate = false;
+        quests.synchronize();
+        if (quests.consumeEnding()) {
+            endingOpen = true;
+            dialogueOpen = true;
+            dialogueLine = 0;
+            activeNpc = GameConfig.QUEST_KEEPER;
+            inventoryOpen = false;
+            chestOpen = false;
+            bigMap = false;
+        }
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
                 currentNpcs(),
                 travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
-        drawDialogue();
         drawCoordinates(hud);
         drawHealth(hud);
         drawTrainingScore();
@@ -170,6 +190,7 @@ public final class GameScreen extends ScreenAdapter {
         drawInteractionPrompt();
         drawMinimap(hud);
         drawChest();
+        drawDialogue();
 
 
     }
@@ -184,6 +205,25 @@ public final class GameScreen extends ScreenAdapter {
     private void updateGameplay(double delta) {
         if (combatDemo.returnToHubIfBattleEnded()) {
             showBattleReturn();
+            return;
+        }
+        if (endingOpen) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                dialogueLine++;
+                if (dialogueLine >= BossQuests.ENDING_LINES.size()) {
+                    endingOpen = false;
+                    dialogueOpen = false;
+                    activeNpc = null;
+                    travelStatus = "All five guardians defeated - journey complete";
+                }
+            }
+            updateMapView();
+            return;
+        }
+        if (isQuestDialogueOpen()) {
+            handleQuestDialogueInput();
+            combatDemo.update(delta, PlayerCommand.NONE, false);
+            updateMapView();
             return;
         }
         if (isPortalDialogueOpen()) {
@@ -245,8 +285,8 @@ public final class GameScreen extends ScreenAdapter {
                         inventoryOpen = false;
                         bigMap = false;
                         portalChoice = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID)
-                                .destinationMapId().equals(MapCatalog.CROSSROADS)
-                                ? PortalGuide.Destination.BATTLE : PortalGuide.Destination.TRAINING;
+                                .destinationMapId().equals(MapCatalog.TRAINING)
+                                ? PortalGuide.Destination.TRAINING : PortalGuide.Destination.BATTLE;
                     } else if (isTrainerDialogueOpen()) {
                         inventoryOpen = false;
                         bigMap = false;
@@ -255,6 +295,12 @@ public final class GameScreen extends ScreenAdapter {
                     } else if (isTrainingExitDialogueOpen()) {
                         inventoryOpen = false;
                         bigMap = false;
+                    } else if (isQuestDialogueOpen()) {
+                        inventoryOpen = false;
+                        bigMap = false;
+                        quests.synchronize();
+                        questChoice = quests.getActive().map(Enum::ordinal).orElse(0);
+                        questFeedback = "E accepts the highlighted unfinished Boss; Esc closes.";
                     }
                 }
             }
@@ -296,6 +342,39 @@ public final class GameScreen extends ScreenAdapter {
     private boolean isPortalDialogueOpen() {
         return dialogueOpen && activeNpc != null
                 && activeNpc.getId().equals(GameConfig.PORTAL_GUIDE.getId());
+    }
+
+    /**
+     * Distinguishes the quest menu from its one-time ending dialogue.
+     * @return true while the quest giver's selection menu is open
+     */
+    private boolean isQuestDialogueOpen() {
+        return !endingOpen && dialogueOpen && activeNpc != null
+                && activeNpc.getId().equals(GameConfig.QUEST_KEEPER.getId());
+    }
+
+    /** Accepts the highlighted target through quest/encounter APIs without teleporting or healing. */
+    private void handleQuestDialogueInput() {
+        if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false;
+            activeNpc = null;
+            return;
+        }
+        var targets = BossChallenge.values();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            questChoice = Math.floorMod(questChoice - 1, targets.length);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            questChoice = (questChoice + 1) % targets.length;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            try {
+                quests.accept(targets[questChoice]);
+                questFeedback = "Accepted: " + targets[questChoice].displayName() + ". Talk to the Portal Guide.";
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                questFeedback = failure.getMessage();
+            }
+        }
     }
 
     /**
@@ -374,7 +453,7 @@ public final class GameScreen extends ScreenAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             try {
                 portalGuide.select(portalChoice);
-                travelStatus = "Portal ready: " + portalChoice.label() + "; step into the portal";
+                travelStatus = "Portal ready: " + portalGuide.destinationLabel(portalChoice) + "; step into the portal";
                 dialogueOpen = false;
                 activeNpc = null;
             } catch (IllegalArgumentException | IllegalStateException failure) {
@@ -581,6 +660,7 @@ public final class GameScreen extends ScreenAdapter {
         String hint = switch (near.getId()) {
             case "portal_guide" -> "[E] Choose portal destination";
             case "class_master" -> "[E] Choose class / O ultimate mode";
+            case "quest_keeper" -> "[E] Accept Boss quest / view completion";
             case "training_exit" -> "[E] Return to Hub";
             case "notice_board" -> "[E] Read " + near.getName();
             case "healing_spring" -> "[E] Drink from " + near.getName();
@@ -603,6 +683,22 @@ public final class GameScreen extends ScreenAdapter {
      * @return the visible dialogue lines, never null
      */
     private List<String> dialogueLines() {
+        if (endingOpen) {
+            return BossQuests.ENDING_LINES;
+        }
+        if (isQuestDialogueOpen()) {
+            StringBuilder text = new StringBuilder("Defeated: ").append(quests.getCompleted().size())
+                    .append(" / ").append(BossChallenge.values().length).append('\n');
+            var targets = BossChallenge.values();
+            for (int i = 0; i < targets.length; i++) {
+                text.append(i == questChoice ? ">     " : "      ").append(targets[i].displayName());
+                if (quests.getActive().orElse(null) == targets[i]) {
+                    text.append(" (ACTIVE)");
+                }
+                text.append('\n');
+            }
+            return List.of(text.append(questFeedback).toString());
+        }
         if (isTrainerDialogueOpen()) {
             StringBuilder text = new StringBuilder("Current: ")
                     .append(session.getPlayer().getPlayerClass().getDisplayName())
@@ -615,9 +711,9 @@ public final class GameScreen extends ScreenAdapter {
         }
         if (isPortalDialogueOpen()) {
             return List.of((portalChoice == PortalGuide.Destination.TRAINING ? "> " : "  ")
-                    + PortalGuide.Destination.TRAINING.label() + "\n"
+                    + portalGuide.destinationLabel(PortalGuide.Destination.TRAINING) + "\n"
                     + (portalChoice == PortalGuide.Destination.BATTLE ? "> " : "  ")
-                    + PortalGuide.Destination.BATTLE.label());
+                    + portalGuide.destinationLabel(PortalGuide.Destination.BATTLE));
         }
         List<String> base = activeNpc.getLines();
         if (!activeNpc.hasInteracted() || activeNpc.getRewardItemId() == null) {
@@ -638,8 +734,9 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float boxW = w * (isTrainerDialogueOpen() ? 0.90f : 0.7f);
-        float boxH = h * (isTrainerDialogueOpen() ? 0.65f : isPortalDialogueOpen() ? 0.30f : 0.22f);
+        float boxW = w * (isTrainerDialogueOpen() || isQuestDialogueOpen() ? 0.90f : 0.7f);
+        float boxH = h * (isTrainerDialogueOpen() || isQuestDialogueOpen() ? 0.65f
+                : endingOpen ? 0.35f : isPortalDialogueOpen() ? 0.35f : 0.22f);
         float x = (w - boxW) / 2f;
         float y = 18f;
         float scale = Math.max(1f, h / 720f) * 1.4f;
@@ -669,11 +766,37 @@ public final class GameScreen extends ScreenAdapter {
                 ? "[E] Close"
                 : "[E] Take reward";
         dialogueFont.draw(dialogueBatch,
-                isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
+                endingOpen ? (last ? "[E] Finish" : "[E] Continue")
+                        : isQuestDialogueOpen() ? "[Up/Down] Choose   [E] Accept   [Esc] Close"
+                        : isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
                         : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
                         : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
                         : last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
+        if (isQuestDialogueOpen()) {
+            drawQuestChecks(x + pad, y + boxH - pad - 26f * scale, scale);
+        }
+    }
+
+    /**
+     * Draws actual green check marks before completed Boss names, without relying on font glyph coverage.
+     * @param x left edge of the menu text
+     * @param baseline baseline of the first text line (the completion count)
+     * @param scale current dialogue font scale
+     */
+    private void drawQuestChecks(float x, float baseline, float scale) {
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.25f, 1f, 0.4f, 1);
+        var targets = BossChallenge.values();
+        for (int i = 0; i < targets.length; i++) {
+            if (quests.getCompleted().contains(targets[i])) {
+                float y = baseline - (i + 1) * dialogueFont.getLineHeight() - dialogueFont.getCapHeight() / 2;
+                float left = x + 13f * scale;
+                dialogueShapes.line(left, y, left + 4f * scale, y - 4f * scale);
+                dialogueShapes.line(left + 4f * scale, y - 4f * scale, left + 12f * scale, y + 5f * scale);
+            }
+        }
+        dialogueShapes.end();
     }
     /**
      * Draws the persistent weapon slot in the top-right corner, within the capped HUD size.

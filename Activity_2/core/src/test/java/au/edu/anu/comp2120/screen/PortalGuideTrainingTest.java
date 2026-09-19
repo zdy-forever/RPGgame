@@ -13,6 +13,8 @@ import au.edu.anu.comp2120.combat.ElementField;
 import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.TrainingDummy;
+import au.edu.anu.comp2120.enemy.BossChallenge;
+import au.edu.anu.comp2120.quest.BossQuests;
 import au.edu.anu.comp2120.npc.PortalGuide;
 import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.player.PlayerClass;
@@ -48,6 +50,8 @@ final class PortalGuideTrainingTest {
     private final CombatDemo demo = new CombatDemo(session, combat, flow);
     /** NPC adapter used by GameScreen. */
     private final PortalGuide guide = new PortalGuide(session, travel, flow);
+    /** Real quest acceptance is now required before the guide can configure Battle. */
+    private final BossQuests quests = new BossQuests(session, flow);
 
     /** Creates an independent live-Hub fixture for each test. */
     PortalGuideTrainingTest() { }
@@ -75,12 +79,16 @@ final class PortalGuideTrainingTest {
     @EnumSource(PortalGuide.Destination.class)
     void selectionRequiresWalkingIntoTheSinglePortal(PortalGuide.Destination destination) {
         CollisionBox before = session.getPlayer().getBounds();
+        if (destination == PortalGuide.Destination.BATTLE) {
+            quests.accept(BossChallenge.FIRE);
+        }
+        String expectedMap = destination == PortalGuide.Destination.BATTLE ? MapCatalog.CROSSROADS : MapCatalog.TRAINING;
         guide.select(destination);
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
         assertEquals(before, session.getPlayer().getBounds());
-        assertEquals(destination.mapId(), travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId());
+        assertEquals(expectedMap, travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId());
         enterPortal();
-        assertEquals(destination.mapId(), session.getCurrentMap().getId());
+        assertEquals(expectedMap, session.getCurrentMap().getId());
         assertEquals(new CollisionBox(80, 80, 28, 28), session.getPlayer().getBounds());
         assertEquals(destination == PortalGuide.Destination.BATTLE, flow.isBattleActive());
         assertEquals(destination == PortalGuide.Destination.BATTLE, demo.getBoss().isPresent());
@@ -88,7 +96,7 @@ final class PortalGuideTrainingTest {
         assertEquals(2, demo.getCombatants().size());
         assertTrue(demo.getEnemies().isEmpty());
         for (int i = 0; i < 20; i++) { assertFalse(travel.updatePortals()); }
-        assertEquals(destination.mapId(), session.getCurrentMap().getId());
+        assertEquals(expectedMap, session.getCurrentMap().getId());
     }
 
     /** Practice never advances AI, moves the target, attacks the player or emits a result/reward. */
@@ -212,6 +220,7 @@ final class PortalGuideTrainingTest {
         assertNotSame(old, dummy());
         assertEquals(0, dummy().getTotalDamage());
         hub();
+        quests.accept(BossChallenge.FIRE);
         guide.select(PortalGuide.Destination.BATTLE);
         enterPortal();
         assertEquals(MapType.BATTLE, session.getCurrentMap().getType());
@@ -226,6 +235,7 @@ final class PortalGuideTrainingTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void battleOutcomesAndSubsequentNpcSelection(boolean success) {
+        quests.accept(BossChallenge.FIRE);
         guide.select(PortalGuide.Destination.BATTLE);
         var accepted = flow.getActiveEncounter().orElseThrow();
         guide.select(PortalGuide.Destination.BATTLE);
@@ -240,11 +250,16 @@ final class PortalGuideTrainingTest {
                 flow.getLastResult().orElseThrow().outcome());
         assertEquals(!success, travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
         assertEquals(success ? 1 : 0, flow.getPendingRewards().size());
+        quests.synchronize();
+        if (success) {
+            assertThrows(IllegalStateException.class, () -> guide.select(PortalGuide.Destination.BATTLE));
+            quests.accept(BossChallenge.WATER);
+        }
         guide.select(PortalGuide.Destination.BATTLE);
         if (success) { assertNotEquals(accepted.id(), flow.getActiveEncounter().orElseThrow().id()); }
         else { assertEquals(accepted, flow.getActiveEncounter().orElseThrow()); }
         guide.select(PortalGuide.Destination.TRAINING);
-        assertTrue(flow.getActiveEncounter().isEmpty());
+        assertTrue(flow.getActiveEncounter().isPresent(), "Practice must not abandon an accepted quest");
         enterPortal();
         assertTrue(demo.getBoss().isEmpty());
         assertTrue(demo.getTrainingDummy().isPresent());
@@ -258,6 +273,7 @@ final class PortalGuideTrainingTest {
     @ParameterizedTest
     @EnumSource(PortalGuide.Destination.class)
     void selectionGuardsAreAtomic(PortalGuide.Destination destination) {
+        quests.accept(BossChallenge.FIRE);
         guide.select(PortalGuide.Destination.BATTLE);
         var accepted = flow.getActiveEncounter().orElseThrow();
         var portal = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID);

@@ -29,7 +29,7 @@ final class GameSessionTest {
     void entersEveryBuiltInMapAndSpawnWithoutGraphics() {
         List<GameMap> maps = MapCatalog.createMaps();
         assertEquals(1, maps.stream().filter(map -> map.getType() == MapType.HUB).count());
-        assertEquals(1, maps.stream().filter(map -> map.getType() == MapType.BATTLE).count());
+        assertEquals(5, maps.stream().filter(map -> map.getType() == MapType.BATTLE).count());
         assertEquals(1, maps.stream().filter(map -> map.getType() == MapType.TRAINING).count());
         GameSession session = new GameSession(maps, MapCatalog.HUB,
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
