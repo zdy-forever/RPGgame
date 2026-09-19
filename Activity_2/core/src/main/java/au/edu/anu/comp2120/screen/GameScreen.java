@@ -148,6 +148,10 @@ public final class GameScreen extends ScreenAdapter {
      */
     @Override
     public void render(float delta) {
+        HudLayout hud = HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        if (!hud.detailsVisible()) {
+            bigMap = false;
+        }
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
             updateGameplay(Math.min(delta, GameConfig.MAX_FRAME_DELTA));
         }
@@ -158,13 +162,13 @@ public final class GameScreen extends ScreenAdapter {
                 travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
         drawDialogue();
-        drawCoordinates();
-        drawHealth();
+        drawCoordinates(hud);
+        drawHealth(hud);
         drawTrainingScore();
         drawInventory();
-        drawWeaponSlot();
+        drawWeaponSlot(hud);
         drawInteractionPrompt();
-        drawMinimap();
+        drawMinimap(hud);
         drawChest();
 
 
@@ -209,7 +213,8 @@ public final class GameScreen extends ScreenAdapter {
                 activeNpc = null;
             }
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
+        if (HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()).detailsVisible()
+                && Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             bigMap = !bigMap;
         }
         if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
@@ -444,11 +449,15 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Draws the player's health bar (red background, green fill) at the top-left corner,
      * with the numeric value centred inside the bar. Uses this screen's own resources.
+     * @param hud current size and visibility policy
      */
-    private void drawHealth() {
+    private void drawHealth(HudLayout hud) {
+        if (!hud.healthVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float scale = hud.scale();
         float x = 12f * scale;
         float barW = 180f * scale;
         float barH = 18f * scale;
@@ -538,11 +547,15 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Draws the live player coordinate in the top-left corner.
      * Uses this screen's own font and batch, so no renderer change is needed.
+     * @param hud current size and visibility policy
      */
-    private void drawCoordinates() {
+    private void drawCoordinates(HudLayout hud) {
+        if (!hud.detailsVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float scale = hud.scale();
         dialogueFont.getData().setScale(scale);
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
@@ -662,11 +675,17 @@ public final class GameScreen extends ScreenAdapter {
                         : last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
     }
-    /** Draws the persistent weapon slot in the top-right corner. */
-    private void drawWeaponSlot() {
+    /**
+     * Draws the persistent weapon slot in the top-right corner, within the capped HUD size.
+     * @param hud current size and visibility policy
+     */
+    private void drawWeaponSlot(HudLayout hud) {
+        if (!hud.detailsVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float scale = hud.scale();
         float boxW = 200f * scale;
         float boxH = 58f * scale;
         float x = w - boxW - 12f * scale;
@@ -749,17 +768,21 @@ public final class GameScreen extends ScreenAdapter {
     }
     /**
      * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
-     * Screen-space only; world geometry is scaled to fit the panel.
+     * Screen-space only; both panels and text stop growing at the reference window size.
+     * @param hud current size and visibility policy
      */
-    private void drawMinimap() {
+    private void drawMinimap(HudLayout hud) {
+        if (!hud.detailsVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float ui = Math.max(1f, h / 720f) * 1.4f;
+        float ui = hud.scale();
         GameMap map = session.getCurrentMap();
         CollisionBox bounds = map.getBounds();
 
-        float boxW = bigMap ? Math.min(w * 0.8f, 900f * ui) : 200f * ui;
-        float boxH = bigMap ? Math.min(h * 0.8f, 600f * ui) : 140f * ui;
+        float boxW = bigMap ? GameConfig.HUD_REFERENCE_WIDTH * 0.8f * ui / GameConfig.HUD_MAX_SCALE : 200f * ui;
+        float boxH = bigMap ? GameConfig.HUD_REFERENCE_HEIGHT * 0.8f * ui / GameConfig.HUD_MAX_SCALE : 140f * ui;
         float x = bigMap ? (w - boxW) / 2f : w - boxW - 12f * ui;
         float y = bigMap ? (h - boxH) / 2f : 12f * ui;
         float pad = 7f * ui;

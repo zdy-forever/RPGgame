@@ -18,6 +18,20 @@ import au.edu.anu.comp2120.player.PlayerClasses;
  * @author Jiaqi Chen (u7851266)
  */
 public final class GameConfig {
+    /** Window width at which persistent HUD elements reach their maximum size. */
+    public static final int HUD_REFERENCE_WIDTH = 960;
+    /** Window height at which persistent HUD elements reach their maximum size. */
+    public static final int HUD_REFERENCE_HEIGHT = 540;
+    /** Existing HP/coordinates/map/weapon drawing scale at the reference window size. */
+    public static final float HUD_MAX_SCALE = 1.4f;
+    /** Below this width, coordinates, minimap and weapon HUD are hidden. */
+    public static final int HUD_DETAILS_MIN_WIDTH = 640;
+    /** Below this height, coordinates, minimap and weapon HUD are hidden. */
+    public static final int HUD_DETAILS_MIN_HEIGHT = 360;
+    /** Below this width, even the HP bar is hidden. */
+    public static final int HUD_HEALTH_MIN_WIDTH = 320;
+    /** Below this height, even the HP bar is hidden. */
+    public static final int HUD_HEALTH_MIN_HEIGHT = 180;
     /** Fixed camera view width in world units, independent of map and window sizes. */
     public static final float CAMERA_VIEW_WIDTH = 640;
     /** Fixed camera view height in world units; window resizing preserves this aspect ratio. */

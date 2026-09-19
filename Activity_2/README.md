@@ -203,6 +203,18 @@ NPC and confirm E to leave; Escape cancels. Returning clears the practice scope.
 
 ## Camera behaviour and verification
 
+The persistent HP, position, minimap and weapon HUD scales down with the smaller window axis.
+Its maximum size is the existing **960 x 540** layout: larger windows move the anchored panels
+but do not enlarge them. Configuration is centralized in `GameConfig.HUD_*`:
+
+- Width below **640** or height below **360**: hide position, minimap and weapon; keep HP.
+- Width below **320** or height below **180**: hide HP as well.
+- At the exact thresholds the relevant elements stay visible; enlarging restores them.
+- Shrinking below the minimap threshold closes an expanded M map and releases its movement lock.
+  M cannot open an invisible map. The expanded map also has a capped reference size.
+
+These thresholds affect the four persistent HUD elements, not NPC dialogues or inventory panels.
+
 - `CameraFollow.viewFor(subjectBounds, mapBounds, viewWidth, viewHeight)` computes
   the visible world rectangle using only immutable geometry. `PlaceholderRenderer`
   applies its centre to the LibGDX camera before drawing. Player and world rules
