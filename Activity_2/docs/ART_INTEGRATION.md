@@ -12,6 +12,13 @@
 
 ## Runtime boundary
 
+The desktop module declares the shared `assets/` directory as main resources. Gradle copies it into
+the runtime classpath and desktop JAR, which is included in the generated distribution. Internal paths
+remain `art/...`; there is no hard-coded machine path or required working-directory override. Reload
+the Gradle project in IDEA after this build-configuration change. Generated macOS distribution scripts
+also carry the first-thread/native-access JVM options. RuntimeAssetsTest checks LibGDX's actual
+internal-file lookup outside the asset directory, including all 220 manifest images.
+
 `ArtAssets` lazily owns textures, uses nearest-neighbour filtering, splits horizontal animation strips
 and disposes its GPU cache. Filename frame counts distinguish character strips; documented 256-pixel
 frames apply to portal/VFX/skill strips. Wide static arrows and map images are not accidentally sliced.

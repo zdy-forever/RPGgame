@@ -163,8 +163,17 @@ On Windows:
 gradlew.bat lwjgl3:run
 ```
 
-The run task automatically uses `assets/` as the working directory and applies
-the macOS first-thread JVM option when required.
+The desktop module includes `assets/` as its main runtime resources. Gradle runs, IDEA's
+launcher classpath and distribution JARs all contain paths such as `art/hub/props/forge.png`;
+LibGDX internal files can load them without an `assets/` working-directory override.
+After changing Gradle configuration, use **Reload All Gradle Projects** in IDEA before running
+`Lwjgl3Launcher.main()` again. Direct non-Gradle macOS run configurations still need the VM option
+`-XstartOnFirstThread`; Gradle tasks and generated distribution scripts configure it automatically.
+
+Build a runnable distribution with `./gradlew :lwjgl3:installDist`, then run
+`lwjgl3/build/install/lwjgl3/bin/lwjgl3` (or `lwjgl3.bat` on Windows). Keep its `lib/` directory
+with the script; this is a distribution with dependencies, not a standalone `java -jar` archive.
+The application-default JVM options match the build host, so generate macOS distributions on macOS.
 
 ## Build and test
 

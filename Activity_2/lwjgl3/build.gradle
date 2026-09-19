@@ -2,10 +2,20 @@ plugins {
     id 'application'
 }
 
+// Keep one asset tree: IDE classpaths, Gradle runs and distributions all receive these resources.
+sourceSets.main.resources {
+    srcDir rootProject.file('assets')
+    exclude '**/.DS_Store', '**/.gitkeep', 'art_resources/**'
+}
+
 dependencies {
     implementation project(':core')
     implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:${gdxVersion}"
     runtimeOnly "com.badlogicgames.gdx:gdx-platform:${gdxVersion}:natives-desktop"
+
+    testImplementation platform("org.junit:junit-bom:${junitVersion}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // LibGDX 1.14.2 defaults to LWJGL 3.3.3. LWJGL 3.4+ is required for JDK 25.
     constraints {
@@ -20,10 +30,14 @@ dependencies {
 
 application {
     mainClass = 'au.edu.anu.comp2120.lwjgl3.Lwjgl3Launcher'
+    // Generated distribution scripts also need the native-access/macOS startup options.
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+    if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+        applicationDefaultJvmArgs += '-XstartOnFirstThread'
+    }
 }
 
 tasks.withType(JavaExec).configureEach {
-    workingDir = rootProject.file('assets')
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 
     if (System.getProperty('os.name').toLowerCase().contains('mac')) {
