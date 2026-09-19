@@ -10,6 +10,8 @@ import java.util.List;
 public final class TravelCatalog {
     /** Single production Hub portal; its historical ID stays stable while its destination can change. */
     public static final String QUEST_PORTAL_ID = "hub-training";
+    /** Production portal bounds at the configured Hub destination entrance. */
+    public static final CollisionBox HUB_PORTAL_TRIGGER = new CollisionBox(890, 245, 48, 64);
     /** Destination ID for the initially unlocked Hub entry. */
     public static final String HUB_ENTRY = "hub-entry";
     /** Destination ID for the initially locked Training entry. */
@@ -27,7 +29,7 @@ public final class TravelCatalog {
      * @return immutable single-entry task portal list, initially disabled
      */
     public static List<Portal> createQuestPortals() {
-        return List.of(new Portal(QUEST_PORTAL_ID, MapCatalog.HUB, new CollisionBox(160, 64, 48, 64),
+        return List.of(new Portal(QUEST_PORTAL_ID, MapCatalog.HUB, HUB_PORTAL_TRIGGER,
                 MapCatalog.TRAINING, "entry", false));
     }
 
@@ -42,7 +44,7 @@ public final class TravelCatalog {
         return List.of(
                 new Portal("hub-training", MapCatalog.HUB, new CollisionBox(160, 64, 48, 64),
                         MapCatalog.TRAINING, "entry", true),
-                new Portal("hub-crossroads", MapCatalog.HUB, new CollisionBox(160, 400, 48, 64),
+                new Portal("hub-crossroads", MapCatalog.HUB, new CollisionBox(160, MapCatalog.HUB_HEIGHT - 140, 48, 64),
                         MapCatalog.CROSSROADS, "entry", true),
                 new Portal("training-hub", MapCatalog.TRAINING, new CollisionBox(64, 64, 80, 80),
                         MapCatalog.HUB, "entry", true),

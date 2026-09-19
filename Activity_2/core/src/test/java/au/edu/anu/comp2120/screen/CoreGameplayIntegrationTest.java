@@ -63,6 +63,8 @@ final class CoreGameplayIntegrationTest {
         } else {
             flow.activate(new ActiveEncounter("walk-in", map, spawn, TravelCatalog.QUEST_PORTAL_ID));
         }
+        CollisionBox trigger = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).trigger();
+        session.getPlayer().enterArea(session.getCurrentMap(), trigger.x() - 60, trigger.y());
         for (int i = 0; i < 10 && session.getCurrentMap().getType() == MapType.HUB; i++) {
             frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
         }

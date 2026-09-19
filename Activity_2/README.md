@@ -11,7 +11,7 @@ HP and clears the encounter while retaining player identity and selected class/u
 The shared combat pipeline supports the first-version ordered elemental reactions, finite
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 The imported pixel-art pack now supplies characters, arenas, portals, skills and icons; no audio is loaded.
-Hub keeps its procedural background. All maps are 1600 x 1200; Training randomly selects an elemental
+Hub keeps its procedural background at 1080 x 400. Battle/Training maps are 1600 x 1200; Training randomly selects an elemental
 background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
 See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification and the five Boss
 projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions

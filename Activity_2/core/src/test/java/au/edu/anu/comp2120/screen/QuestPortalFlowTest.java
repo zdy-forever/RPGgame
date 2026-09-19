@@ -239,7 +239,8 @@ final class QuestPortalFlowTest {
         assertTrue(flow.claimReward(result).isEmpty());
         assertTrue(flow.getPendingRewards().isEmpty());
         assertThrows(IllegalStateException.class, () -> flow.activate(permission));
-        session.getPlayer().enterArea(session.getCurrentMap(), 160, 400);
+        CollisionBox closedPortal = travel.getPortal(permission.portalId()).trigger();
+        session.getPlayer().enterArea(session.getCurrentMap(), closedPortal.x(), closedPortal.y());
         assertFalse(travel.updatePortals());
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
         session.getPlayer().enterArea(session.getCurrentMap(), 64, 64);

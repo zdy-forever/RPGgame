@@ -82,10 +82,13 @@ public final class GameConfig {
     /** Hub merchant granting one placeholder weapon after dialogue. */
     public static final NPC WEAPON_MERCHANT = new NPC(
             "weapon_merchant", "Weapon Merchant",
-            600.0, 300.0, 24.0, 24.0,
+            650.0, 250.0, 24.0, 24.0,
             "Take this Lightning Staff! It will serve you well.",
             "weapon_lightning_staff"
     );
+    /** Decorative forge retains its original (+40, 0) offset from the merchant. */
+    public static final CollisionBox FORGE_BOUNDS = new CollisionBox(
+            WEAPON_MERCHANT.getX() + 40, WEAPON_MERCHANT.getY(), 40, 40);
     /** Tutorial NPC placed near the Hub spawn; gives advice but no item. */
     public static final NPC GUIDE = new NPC(
             "guide", "Old Sage",
@@ -111,14 +114,14 @@ public final class GameConfig {
     /** Storage chest that accepts and returns whatever the player carries. */
     public static final NPC STORAGE_CHEST = new NPC(
             "storage_chest", "Storage Chest",
-            450.0, 150.0, 30.0, 24.0,
+            590.0, 120.0, 30.0, 24.0,
             List.of("A sturdy chest. It holds whatever you leave here."),
             null
     );
     /** Destination selector beside, but not overlapping, the single Hub portal. */
     public static final NPC PORTAL_GUIDE = new NPC(
             "portal_guide", "Portal Guide",
-            128.0, 144.0, 24.0, 24.0,
+            765.0, 245.0, 24.0, 24.0,
             "Training is always available. Battle requires a quest from the Quest Keeper.", null
     );
     /** Class and ultimate trainer, clear of the portal and other interaction points. */
@@ -131,7 +134,7 @@ public final class GameConfig {
             "Return to Hub? Your practice score and active effects will be cleared.", null);
     /** Hub quest giver offering the five distinct Boss challenges. */
     public static final NPC QUEST_KEEPER = new NPC(
-            "quest_keeper", "Quest Keeper", 420.0, 310.0, 24.0, 24.0,
+            "quest_keeper", "Quest Keeper", 347.0, 240.0, 24.0, 24.0,
             "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =

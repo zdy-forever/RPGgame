@@ -11,10 +11,14 @@ import java.util.Map;
  * @author Daoyan Zhu (u7782042)
  */
 public final class MapCatalog {
-    /** Shared open-map width, larger than the camera view. */
+    /** Shared battle/training width, larger than the camera view. */
     public static final int MAP_WIDTH = 1600;
-    /** Shared open-map height; matches the elemental backgrounds' 4:3 aspect ratio. */
+    /** Shared battle/training height; matches the elemental backgrounds' 4:3 aspect ratio. */
     public static final int MAP_HEIGHT = 1200;
+    /** Hub width independent of elemental arena dimensions. */
+    public static final int HUB_WIDTH = 1080;
+    /** Compact Hub height, still larger than the camera's visible height. */
+    public static final int HUB_HEIGHT = 400;
     /** Stable identifier for the starting base. */
     public static final String HUB = "hub";
     /** Stable identifier for the practice map; historical ID retained for travel compatibility. */
@@ -43,10 +47,10 @@ public final class MapCatalog {
      */
     public static List<GameMap> createMaps() {
         return List.of(
-                new GameMap(HUB, "Hub", MapType.HUB, MAP_WIDTH, MAP_HEIGHT,
+                new GameMap(HUB, "Hub", MapType.HUB, HUB_WIDTH, HUB_HEIGHT,
                         List.of(),
                         Map.of("entry", new SpawnPoint(64, 64),
-                                "north", new SpawnPoint(64, 440)), "entry"),
+                                "north", new SpawnPoint(64, HUB_HEIGHT - 100)), "entry"),
                 new GameMap(TRAINING, "Training Ground", MapType.TRAINING, MAP_WIDTH, MAP_HEIGHT,
                         List.of(),
                         Map.of("entry", new SpawnPoint(80, 80),

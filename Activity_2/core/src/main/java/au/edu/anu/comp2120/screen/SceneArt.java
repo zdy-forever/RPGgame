@@ -244,7 +244,8 @@ public final class SceneArt implements Disposable {
         if (map.getType() == MapType.HUB) {
             String[] props = {"props/forge", "props/class_altar", "props/training_dummy",
                     "decorations/banner", "decorations/lamp", "decorations/plant", "decorations/furniture"};
-            double[][] positions = {{640,300},{345,155},{520,110},{390,240},{520,230},{80,210},{510,310}};
+            double[][] positions = {{GameConfig.FORGE_BOUNDS.x(),GameConfig.FORGE_BOUNDS.y()},
+                    {345,155},{520,110},{390,240},{520,230},{80,210},{510,310}};
             for (int i = 0; i < props.length; i++) {
                 draw(batch, "art/hub/" + props[i] + ".png", new CollisionBox(positions[i][0],positions[i][1],40,40));
             }
