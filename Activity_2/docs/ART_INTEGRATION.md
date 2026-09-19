@@ -9,7 +9,12 @@
 - The original pack's remaining **220 PNGs** matched their pre-move SHA-256 hashes.
 - Six additional Memorial Hall images were renamed into `art/memorial/`: `magic_circle.png` and
   `fire_stone.png`, `water_stone.png`, `lightning_stone.png`, `ice_stone.png`, `wind_stone.png`.
-  The manifest retains each original UUID filename and 1254 x 1254 dimensions; it now lists **226 PNGs**.
+  The manifest retains each original UUID filename and 1254 x 1254 dimensions.
+- Five Mage elemental bolt images are copied unchanged into `art/projectiles/boss/*_bolt.png`.
+  Boss rendering doubles both dimensions, without resampling
+  the files or modifying the Mage copies.
+- The supplied exclamation was renamed to `art/boss/common/attack_warning.png` without changing
+  its bytes. The manifest preserves its original UUID filename and now lists **232 PNGs**.
 - `assets/art_resources/` remains empty. Existing assets outside that import were not overwritten.
 - Hub gameplay, NPCs, quest acceptance, class selection and return-to-Hub are retained.
 
@@ -20,7 +25,7 @@ the runtime classpath and desktop JAR, which is included in the generated distri
 remain `art/...`; there is no hard-coded machine path or required working-directory override. Reload
 the Gradle project in IDEA after this build-configuration change. Generated macOS distribution scripts
 also carry the first-thread/native-access JVM options. RuntimeAssetsTest checks LibGDX's actual
-internal-file lookup outside the asset directory, including all 226 manifest images.
+internal-file lookup outside the asset directory, including every manifest image.
 
 `ArtAssets` lazily owns textures, uses nearest-neighbour filtering, splits horizontal animation strips
 and disposes its GPU cache. Filename frame counts distinguish character strips; documented 256-pixel
@@ -55,9 +60,12 @@ it does not retain Boss objects, delay travel, change Quest state or consume mat
 
 ### Honest coverage limit
 
-The five `art/projectiles/boss/*_projectile.png` images are relocated, GPU-load-validated and supported
-by the generic projectile renderer, but **not currently emitted in gameplay**: existing Boss patterns
-are sweep/slam, not projectile attacks. No new hostile mechanics were invented to force image use.
+Bosses now emit their arena's elemental bolt through the shared projectile pipeline while pursuing.
+The older `art/projectiles/boss/*_projectile.png` pack images remain archived runtime assets; the
+requested Mage-derived `*_bolt.png` copies are the flight artwork actually displayed.
+Melee attacks have a fixed red hitbox warning and accelerating exclamation flashes during a
+0.8-second preparation. The supplied image is `art/boss/common/attack_warning.png`, rendered
+above the Boss with its square source aspect ratio preserved; the geometric fallback is removed.
 Animation selection is presentation-only; short gameplay windows can finish before all frames play.
 Balance, five unique elemental Boss movesets, art authorship/licensing review and final UI polish remain
 separate work. That original art import added no audio; the later three-track BGM integration is

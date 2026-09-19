@@ -472,6 +472,25 @@ are documented boundaries but do not have empty packages yet.
   geometry to this pipeline instead of applying Health damage separately. Receivers
   must not re-enter the pipeline during damage delivery; simulation is single-threaded.
 
+### Boss melee telegraphs and elemental projectiles
+
+Boss owns a cancellable `WINDUP` state before each sweep/slam. It locks the attack rectangle and
+occlusion origin, stops pursuit for `BossConfig.MELEE_WINDUP` (0.8 seconds), then submits that exact
+geometry to the existing CombatSystem. Players can dodge the warning without the box tracking them.
+Death, phase transition, freeze/stagger, lost eligibility or detachment cancel preparation. Pattern
+index advances only after successful submission; shared source cooldown prevents melee/bolt spam.
+SceneArt/PlaceholderRenderer read preparation progress and geometry to draw accelerating flashes
+and a red border; rendering never creates attacks. A warning rectangle may extend across an obstacle,
+but confirmed-hit wall occlusion still rejects blocked targets.
+
+The five campaign guardians fire their matching element while in CHASE and within 480 units, with
+12 provisional damage, 300 units/second speed, 2-second cooldown, 2-second maximum lifetime and
+20-unit collision size. Bolts use the existing non-piercing Projectile/CombatSystem swept collision,
+including wall-wins ties, elemental attachment, parry, expiry and encounter cleanup. Custom maps
+without a BossChallenge mapping remain melee-only. TrainingDummy remains stationary and never attacks.
+The renderer uses independent copies of Mage bolt art at twice its width and height; gameplay has
+no texture dependency. GameScreen and combat damage rules are unchanged by these attack additions.
+
 ### Unified static-world attack occlusion
 
 - WalkableArea.hasLineOfSight queries a segment against the same immutable GameMap obstacle

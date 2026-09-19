@@ -3,6 +3,8 @@ package au.edu.anu.comp2120.enemy;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.CombatSystem;
 import au.edu.anu.comp2120.combat.Health;
+import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
@@ -44,6 +46,14 @@ public final class Boss {
     private boolean defeated;
     /** Pending reward; null before death or after its one-time claim. */
     private MaterialDrop drop;
+    /** Prepared melee pattern, null outside the cancellable windup window. */
+    private BossConfig.Pattern pendingPattern;
+    /** Locked world hitbox shown to the player before submission; never tracks a dodging target. */
+    private CollisionBox pendingHitbox;
+    /** Locked attack origin for the shared wall-occlusion contract. */
+    private CollisionBox pendingOrigin;
+    /** Remaining simulation time until the prepared melee strike is submitted. */
+    private double windupRemaining;
 
     /**
      * Creates and registers an encounter using shared Enemy health and navigation.
@@ -72,6 +82,8 @@ public final class Boss {
     /**
      * Advances encounter decisions, never combat time or damage directly.
      * Pattern index advances only on an accepted attack; shared source cooldown blocks spam.
+     * Melee locks a harmless warning rectangle, stops pursuit, then submits it after the windup.
+     * Elemental campaign guardians may fire shared projectiles while pursuing distant targets.
      * Captures the pattern-selected origin; combat-core rechecks wall occlusion when each target settles.
      * Transition frames consume time without attacks/movement, discarding any excess frame time.
      * Generic freeze/stagger pauses decisions; navigation still resolves queued collision-safe knockback.
@@ -86,9 +98,11 @@ public final class Boss {
         }
         synchronizeOutcome();
         if (defeated || !registered()) {
+            cancelWindup();
             return;
         }
         if (getCombatant().getStatus().blocksActions()) {
+            cancelWindup();
             navigation.update(null, delta, false);
             return;
         }
@@ -96,7 +110,34 @@ public final class Boss {
             transitionRemaining = Math.max(0, transitionRemaining - delta);
             return;
         }
+        if (pendingPattern != null) {
+            if (getCombatant().getStatus().getKnockbackX() != 0 || getCombatant().getStatus().getKnockbackY() != 0) {
+                // A displaced attacker must prepare again at its new collision-safe position.
+                cancelWindup();
+                navigation.update(null, delta, false);
+                return;
+            }
+            if (target == null || !combat.getCombatants().contains(target) || !target.isTargetable()
+                    || target.getFaction() == getCombatant().getFaction()) {
+                cancelWindup();
+                navigation.update(null, delta, false);
+                return;
+            }
+            windupRemaining = Math.max(0, windupRemaining - delta);
+            if (windupRemaining == 0) {
+                if (combat.tryAttack(getCombatant(), pendingPattern.attack(), pendingHitbox, pendingOrigin).isPresent()) {
+                    nextPattern = (nextPattern + 1) % (phase == 1 ? config.phaseOne() : config.phaseTwo()).size();
+                }
+                cancelWindup();
+            }
+            return;
+        }
         navigation.update(target, delta, false);
+        if (combat.getCooldownRemaining(getCombatant()) > 0) { return; }
+        if (navigation.getState() == EnemyState.CHASE) {
+            tryElementBolt(target);
+            return;
+        }
         if (navigation.getState() != EnemyState.ATTACK) {
             return;
         }
@@ -111,9 +152,59 @@ public final class Boss {
         }
         CollisionBox hitbox = Objects.requireNonNull(pattern.shape().create(body, pattern.range(), dx, dy),
                 "Boss pattern geometry");
-        if (combat.tryAttack(getCombatant(), pattern.attack(), hitbox, pattern.shape().origin(body, hitbox)).isPresent()) {
-            nextPattern = (nextPattern + 1) % cycle.size();
-        }
+        pendingPattern = pattern;
+        pendingHitbox = hitbox;
+        pendingOrigin = pattern.shape().origin(body, hitbox);
+        windupRemaining = BossConfig.MELEE_WINDUP;
+    }
+
+    /**
+     * Fires an aimed non-homing elemental bolt during pursuit through shared projectile settlement.
+     * Custom non-elemental maps retain navigation/melee only; official maps define guardian elements.
+     * @param target registered target already validated by EnemyAI
+     */
+    private void tryElementBolt(Combatant target) {
+        var guardian = BossChallenge.forMap(map.getId());
+        if (guardian.isEmpty()) { return; }
+        CollisionBox body = getBounds(), targetBox = target.getHurtbox();
+        double dx = targetBox.x() + targetBox.width() / 2 - body.x() - body.width() / 2;
+        double dy = targetBox.y() + targetBox.height() / 2 - body.y() - body.height() / 2;
+        if (Math.hypot(dx, dy) > BossConfig.BOLT_RANGE || (dx == 0 && dy == 0)) { return; }
+        ElementType element = switch (guardian.orElseThrow()) {
+            case FIRE -> ElementType.FIRE;
+            case WATER -> ElementType.WATER;
+            case LIGHTNING -> ElementType.LIGHTNING;
+            case ICE -> ElementType.ICE;
+            case WIND -> ElementType.WIND;
+        };
+        combat.tryProjectiles(getCombatant(), new AttackSpec("boss-element-bolt", BossConfig.BOLT_DAMAGE,
+                BossConfig.BOLT_ACTIVE_SECONDS, BossConfig.BOLT_COOLDOWN, element), BossConfig.ELEMENT_BOLT,
+                BossConfig.BOLT_RANGE, dx, dy, map);
+    }
+
+    /** Clears preparation without creating damage or altering the shared cooldown. */
+    private void cancelWindup() {
+        pendingPattern = null;
+        pendingHitbox = null;
+        pendingOrigin = null;
+        windupRemaining = 0;
+    }
+
+    /**
+     * Exposes the exact fixed melee geometry before impact, without renderer-owned timing.
+     * @return harmless warning rectangle, empty if dead, interrupted or detached
+     */
+    public Optional<CollisionBox> getMeleeWarning() {
+        return isAlive() && registered() && !getCombatant().getStatus().blocksActions()
+                ? Optional.ofNullable(pendingHitbox) : Optional.empty();
+    }
+
+    /**
+     * Reads windup progress, used for accelerated warning flashes.
+     * @return elapsed fraction from zero to one, or zero outside windup
+     */
+    public double getWindupProgress() {
+        return getMeleeWarning().isEmpty() ? 0 : 1 - windupRemaining / BossConfig.MELEE_WINDUP;
     }
 
     /**
@@ -124,10 +215,12 @@ public final class Boss {
      */
     public void synchronizeOutcome() {
         if (defeated || !registered()) {
+            cancelWindup();
             return;
         }
         if (!enemy.isAlive()) {
             defeated = true;
+            cancelWindup();
             transitionRemaining = 0;
             combat.cancelAttacks(getCombatant());
             CollisionBox body = getBounds();
@@ -138,6 +231,7 @@ public final class Boss {
                     map.getId(), placement);
         } else if (phase == 1 && getHealth().getCurrentHp() / (double) getHealth().getMaxHp() <= config.phaseTwoFraction()) {
             phase = 2;
+            cancelWindup();
             nextPattern = 0;
             transitionRemaining = config.transitionSeconds();
             navigation.resetAwareness();
@@ -165,6 +259,7 @@ public final class Boss {
         if (transitionRemaining > 0) {
             return BossState.PHASE_TRANSITION;
         }
+        if (pendingPattern != null) { return BossState.WINDUP; }
         return switch (navigation.getState()) {
             case CHASE -> BossState.CHASE;
             case ATTACK -> BossState.ATTACK;

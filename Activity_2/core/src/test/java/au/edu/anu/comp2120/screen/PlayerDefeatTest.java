@@ -279,6 +279,8 @@ final class PlayerDefeatTest {
         session.getPlayer().enterArea(session.getCurrentMap(),
                 demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         demo.update(0, PlayerCommand.NONE, false);
+        fresh.update(combat.getCombatants().stream().filter(actor -> actor.getEntity() == session.getPlayer())
+                .findFirst().orElseThrow(), au.edu.anu.comp2120.enemy.BossConfig.MELEE_WINDUP);
         Attack attack = combat.getActiveAttacks().stream()
                 .filter(candidate -> candidate.getSource() == fresh.getCombatant()).findFirst().orElseThrow();
         assertEquals("boss-sweep", attack.getSpecification().type());

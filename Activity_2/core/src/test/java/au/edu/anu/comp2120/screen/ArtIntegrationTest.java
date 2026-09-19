@@ -27,6 +27,48 @@ final class ArtIntegrationTest {
     ArtIntegrationTest() { }
 
     /**
+     * The renamed warning stays a transparent single image rather than an inferred animation strip.
+     * @throws IOException if the supplied warning cannot be decoded
+     */
+    @Test void bossWarningUsesSuppliedTransparentImage() throws IOException {
+        var warning = ImageIO.read(ASSETS.resolve(SceneArt.BOSS_WARNING_IMAGE).toFile());
+        assertNotNull(warning);
+        assertTrue(warning.getColorModel().hasAlpha());
+        assertEquals(1254, warning.getWidth());
+        assertEquals(1254, warning.getHeight());
+        assertEquals(1, ArtAssets.frameCount(SceneArt.BOSS_WARNING_IMAGE, warning.getWidth(), warning.getHeight()));
+    }
+
+    /**
+     * Boss bolts are exact independent copies of Mage resources, not resampled/corrupted images.
+     * @throws IOException if either resource cannot be read
+     */
+    @Test void bossBoltResourcesCopyMageElements() throws IOException {
+        for (String element : List.of("fire", "water", "lightning", "ice", "wind")) {
+            assertArrayEquals(Files.readAllBytes(ASSETS.resolve("art/projectiles/mage/" + element + "_bolt.png")),
+                    Files.readAllBytes(ASSETS.resolve("art/projectiles/boss/" + element + "_bolt.png")));
+        }
+    }
+
+    /** Later windup contains more flash edges; repeated rendering of one simulation time stays stable. */
+    @Test void meleeWarningFlashesFasterNearImpact() {
+        int firstHalfEdges = 0, secondHalfEdges = 0;
+        boolean previous = SceneArt.warningVisible(0);
+        assertTrue(previous);
+        for (int i = 1; i <= 1000; i++) {
+            boolean visible = SceneArt.warningVisible(i / 1000.0);
+            assertEquals(visible, SceneArt.warningVisible(i / 1000.0));
+            if (visible != previous) {
+                if (i <= 500) { firstHalfEdges++; }
+                else { secondHalfEdges++; }
+            }
+            previous = visible;
+        }
+        assertTrue(firstHalfEdges > 0);
+        assertTrue(secondHalfEdges > firstHalfEdges);
+    }
+
+    /**
      * Every relocated runtime PNG has valid manifest dimensions and a divisible horizontal strip.
      * @throws IOException if the asset catalogue or an image cannot be read
      */
@@ -46,7 +88,7 @@ final class ArtIntegrationTest {
         try (var files = Files.walk(ASSETS.resolve("art"))) {
             assertEquals(listed, new HashSet<>(files.filter(p -> p.toString().endsWith(".png")).toList()));
         }
-        assertEquals(226, listed.size());
+        assertEquals(232, listed.size());
     }
 
     /**

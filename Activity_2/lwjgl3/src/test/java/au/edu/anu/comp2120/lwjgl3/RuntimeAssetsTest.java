@@ -56,7 +56,7 @@ final class RuntimeAssetsTest {
                 }
             }
         }
-        assertEquals(226,paths.size());
+        assertEquals(232,paths.size());
     }
 
     /** Removed map pictures and import staging are not accidentally reintroduced into the runtime. */

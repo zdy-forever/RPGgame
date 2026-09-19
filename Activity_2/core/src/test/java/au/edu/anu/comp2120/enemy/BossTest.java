@@ -75,6 +75,9 @@ final class BossTest {
     @Test
     void patternsAlternateWithoutBasicEnemyAttackOrSpam() {
         boss.update(target, 0);
+        assertEquals(BossState.WINDUP, boss.getState());
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        boss.update(target, BossConfig.MELEE_WINDUP);
         assertEquals(BossState.ATTACK, boss.getState());
         assertEquals(1000, player.getHealth().getCurrentHp());
         assertEquals(1, combat.getActiveAttacks().size());
@@ -90,12 +93,15 @@ final class BossTest {
         assertEquals(985, player.getHealth().getCurrentHp());
         tick(1.2);
         tick(0);
+        boss.update(target, BossConfig.MELEE_WINDUP);
+        combat.update(0);
         Attack second = combat.getActiveAttacks().get(0);
         assertEquals("boss-slam", second.getSpecification().type());
         assertNotEquals(first.getId(), second.getId());
         assertEquals(965, player.getHealth().getCurrentHp());
         tick(1.6);
         tick(0);
+        boss.update(target, BossConfig.MELEE_WINDUP);
         assertEquals("boss-sweep", combat.getActiveAttacks().get(0).getSpecification().type());
     }
 
@@ -118,6 +124,7 @@ final class BossTest {
     @Test
     void phaseTransitionIsOneWayAndPreservesCooldown() {
         boss.update(target, 0);
+        boss.update(target, BossConfig.MELEE_WINDUP);
         Attack old = combat.getActiveAttacks().get(0);
         boss.getHealth().takeDamage(200);
         boss.synchronizeOutcome();
@@ -141,12 +148,14 @@ final class BossTest {
         assertTrue(combat.getActiveAttacks().isEmpty());
         tick(0.5);
         tick(0);
+        boss.update(target, BossConfig.MELEE_WINDUP);
         assertEquals("boss-heavy-sweep", combat.getActiveAttacks().get(0).getSpecification().type());
         boss.getHealth().takeDamage(220);
         boss.synchronizeOutcome();
         assertEquals(0, boss.getTransitionRemaining());
         tick(0.8);
         tick(0);
+        boss.update(target, BossConfig.MELEE_WINDUP);
         assertEquals("boss-heavy-slam", combat.getActiveAttacks().get(0).getSpecification().type());
     }
 
@@ -155,6 +164,7 @@ final class BossTest {
     void lethalCombatCreatesOneRewardAndStopsAllBehavior() {
         combat.tryAttack(target, new AttackSpec("lethal", 1000, 0.2, 0), boss.getBounds());
         boss.update(target, 0);
+        boss.update(target, BossConfig.MELEE_WINDUP);
         Attack queued = combat.getActiveAttacks().get(1);
         combat.update(0);
         assertEquals(BossState.DEAD, boss.getState());
@@ -236,7 +246,8 @@ final class BossTest {
         }
         assertTrue(wentAbove);
         assertTrue(navigating.getBounds().x() >= 370);
-        assertEquals(BossState.ATTACK, navigating.getState());
+        assertTrue(navigating.getState() == BossState.ATTACK || navigating.getState() == BossState.WINDUP);
+        assertTrue(((Enemy) destination.getEntity()).getHealth().getCurrentHp() < 10000);
     }
 
     /** Detached old-map encounters cannot move, attack, generate or claim stale rewards. */

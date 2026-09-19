@@ -142,11 +142,43 @@ public final class PlaceholderRenderer implements Disposable {
         art.actors(debugBatch, player, npcs, portals, demo, drops);
         debugBatch.end();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
+        drawBossWarnings(demo);
         shapes.setColor(0.95f, 0.75f, 0.20f, 1);
         SpawnPoint spawn = map.getSpawnPoint(map.getDefaultSpawnId());
         shapes.circle((float) spawn.x(), (float) spawn.y(), SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
         shapes.end();
         drawNames(player, npcs);
+    }
+
+    /**
+     * Outlines the exact locked warning and active melee hitboxes, never applying damage.
+     * @param demo read-only current encounter observations
+     */
+    private void drawBossWarnings(CombatDemo demo) {
+        demo.getBoss().ifPresent(boss -> {
+            shapes.setColor(1, 0.08f, 0.08f, 1);
+            boss.getMeleeWarning().ifPresent(this::drawAttackBorder);
+            for (var attack : demo.getActiveAttacks()) {
+                if (attack.isActive() && attack.getSource() == boss.getCombatant()
+                        && attack.getProjectile() == null && !attack.isDerived()) {
+                    drawAttackBorder(attack.getHitbox());
+                }
+            }
+        });
+    }
+
+    /**
+     * Draws an inward two-world-unit red outline independent of platform line-width support.
+     * @param box actual gameplay hitbox
+     */
+    private void drawAttackBorder(CollisionBox box) {
+        float x = (float) box.x(), y = (float) box.y();
+        float w = (float) box.width(), h = (float) box.height();
+        float edge = Math.min(2, Math.min(w, h));
+        shapes.rect(x, y, w, edge);
+        shapes.rect(x, y + h - edge, w, edge);
+        shapes.rect(x, y, edge, h);
+        shapes.rect(x + w - edge, y, edge, h);
     }
     /**
      * Resizes the screen viewport without recentering the camera or changing its world extent.

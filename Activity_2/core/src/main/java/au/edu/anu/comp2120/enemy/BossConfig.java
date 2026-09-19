@@ -1,6 +1,7 @@
 package au.edu.anu.comp2120.enemy;
 
 import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.combat.ProjectileSpec;
 import au.edu.anu.comp2120.player.AttackShape;
 import java.util.List;
 import java.util.Objects;
@@ -20,6 +21,18 @@ import java.util.Objects;
 public record BossConfig(int maxHp, EnemyConfig navigation, double phaseTwoFraction,
         double transitionSeconds, List<Pattern> phaseOne, List<Pattern> phaseTwo,
         String materialId, int materialQuantity) {
+    /** Readable melee preparation time; the locked hitbox is harmless until this time expires. */
+    public static final double MELEE_WINDUP = 0.8;
+    /** Enemy bolts use twice the Mage collision width, with shared swept wall/target collision. */
+    public static final ProjectileSpec ELEMENT_BOLT = new ProjectileSpec(300, 20, 2, 1, 0);
+    /** Maximum flight and initiation distance measured between actor centres. */
+    public static final double BOLT_RANGE = 480;
+    /** Cooldown shared with melee so both attacks cannot fire simultaneously. */
+    public static final double BOLT_COOLDOWN = 2;
+    /** Provisional per-bolt damage delivered only through CombatSystem. */
+    public static final int BOLT_DAMAGE = 12;
+    /** Metadata launch window; actual flight lifetime is owned by the shared projectile definition. */
+    public static final double BOLT_ACTIVE_SECONDS = 0.2;
     /**
      * Validates and defensively copies encounter data before any actor is registered.
      * @param maxHp positive health capacity

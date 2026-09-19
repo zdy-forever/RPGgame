@@ -9,6 +9,8 @@ public enum BossState {
     IDLE,
     /** Existing enemy navigation is positioning toward the target. */
     CHASE,
+    /** Stationary melee preparation with fixed visible geometry and no damage yet. */
+    WINDUP,
     /** Within attack distance, including time waiting for shared source cooldown. */
     ATTACK,
     /** Reaction freeze suppresses movement and new attacks, not existing hitboxes. */
