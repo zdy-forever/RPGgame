@@ -91,9 +91,13 @@ public final class GameConfig {
             128.0, 144.0, 24.0, 24.0,
             "Choose a destination, then step into the portal.", null
     );
+    /** Class and ultimate trainer, clear of the portal and other interaction points. */
+    public static final NPC CLASS_MASTER = new NPC(
+            "class_master", "Class Master", 320.0, 130.0, 24.0, 24.0,
+            "Choose your class and its O ultimate mode. J/K/L remain class-defined.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
-            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE);
+            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

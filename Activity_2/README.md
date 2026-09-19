@@ -28,6 +28,12 @@ The portal starts closed until a destination is selected. Achievement Wall is no
 - Battle Map (Crossroads) contains one real Boss and retains the success/failure flow below.
 - F1/F2/F3 select class and F5 selects its O mode **in Hub only**, including before practice.
 
+The **Class Master** in Hub at (320,130) provides the same choices without debug keys:
+approach and press **E**, select a profession or its **O mode A/B** with **Up/Down**, then
+press **E** to apply. The menu stays open so a class and its ultimate can be selected in turn;
+**Escape** closes it. J/K/L remain class-defined. Each class remembers its own O choice.
+Selections preserve HP, position and cooldowns and are rejected while an ability is active.
+
 The small `PortalGuide` adapter uses the existing gameplay boundary; it does not implement
 Quest state or inventory rewards. Choosing Training clears gameplay battle admission only.
 Developer B's future Quest adapter can still call

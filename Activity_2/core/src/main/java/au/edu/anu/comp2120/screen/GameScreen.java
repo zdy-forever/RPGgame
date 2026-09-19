@@ -4,6 +4,7 @@ import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.npc.PortalGuide;
+import au.edu.anu.comp2120.npc.ClassTrainer;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.world.*;
 import au.edu.anu.comp2120.TravelSystem;
@@ -42,6 +43,12 @@ public final class GameScreen extends ScreenAdapter {
     private final PortalGuide portalGuide;
     /** Highlighted destination while the portal NPC's choice dialogue is open. */
     private PortalGuide.Destination portalChoice = PortalGuide.Destination.TRAINING;
+    /** Hub-only NPC adapter for existing class and O mode selection. */
+    private final ClassTrainer classTrainer;
+    /** Highlighted trainer choice; changing it alone never changes gameplay state. */
+    private int trainerChoice;
+    /** Feedback displayed within the trainer dialogue after confirmation. */
+    private String trainerFeedback = "J/K/L follow your class; choose your O mode below.";
     /** Last HP/key feedback applied to the native title, avoiding redundant title updates. */
     private String combatStatus = "";
     /** Brief travel feedback shown in the native window title without a font asset. */
@@ -108,6 +115,7 @@ public final class GameScreen extends ScreenAdapter {
         encounterFlow = new EncounterFlow(session, travel, questPortals.stream().map(Portal::id).toList());
         portalGuide = new PortalGuide(session, travel, encounterFlow);
         combatDemo = new CombatDemo(session, encounterFlow);
+        classTrainer = new ClassTrainer(session, combatDemo.getAbilities());
         input = new PlayerInput(Gdx.input);
         renderer = new PlaceholderRenderer(GameConfig.CAMERA_VIEW_WIDTH, GameConfig.CAMERA_VIEW_HEIGHT);
         updateMapView();
@@ -180,6 +188,12 @@ public final class GameScreen extends ScreenAdapter {
             updateMapView();
             return;
         }
+        if (isTrainerDialogueOpen()) {
+            handleTrainerDialogueInput();
+            combatDemo.update(delta, PlayerCommand.NONE, false);
+            updateMapView();
+            return;
+        }
         boolean travelConsumed;
         try {
             travelConsumed = handleTravelInput();
@@ -229,6 +243,11 @@ public final class GameScreen extends ScreenAdapter {
                         portalChoice = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID)
                                 .destinationMapId().equals(MapCatalog.CROSSROADS)
                                 ? PortalGuide.Destination.BATTLE : PortalGuide.Destination.TRAINING;
+                    } else if (isTrainerDialogueOpen()) {
+                        inventoryOpen = false;
+                        bigMap = false;
+                        trainerChoice = session.getPlayer().getPlayerClass().ordinal();
+                        trainerFeedback = "J/K/L follow your class; choose your O mode below.";
                     }
                 }
             }
@@ -270,6 +289,36 @@ public final class GameScreen extends ScreenAdapter {
     private boolean isPortalDialogueOpen() {
         return dialogueOpen && activeNpc != null
                 && activeNpc.getId().equals(GameConfig.PORTAL_GUIDE.getId());
+    }
+
+    /**
+     * Identifies the class-selection dialogue without changing ordinary NPC scripts.
+     * @return true while the Class Master is the active speaker
+     */
+    private boolean isTrainerDialogueOpen() {
+        return dialogueOpen && activeNpc != null
+                && activeNpc.getId().equals(GameConfig.CLASS_MASTER.getId());
+    }
+
+    /** Handles the modal trainer menu before travel, debug keys or combat input. */
+    private void handleTrainerDialogueInput() {
+        if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false;
+            activeNpc = null;
+            return;
+        }
+        var choices = ClassTrainer.Choice.values();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            trainerChoice = Math.floorMod(trainerChoice - 1, choices.length);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            trainerChoice = (trainerChoice + 1) % choices.length;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            trainerFeedback = classTrainer.select(choices[trainerChoice])
+                    ? "Applied: " + classTrainer.label(choices[trainerChoice])
+                    : "Unchanged: already selected or an ability is still active.";
+        }
     }
 
     /**
@@ -480,6 +529,7 @@ public final class GameScreen extends ScreenAdapter {
         }
         String hint = switch (near.getId()) {
             case "portal_guide" -> "[E] Choose portal destination";
+            case "class_master" -> "[E] Choose class / O ultimate mode";
             case "notice_board" -> "[E] Read " + near.getName();
             case "healing_spring" -> "[E] Drink from " + near.getName();
             case "storage_chest" -> "[E] Open " + near.getName();
@@ -501,6 +551,16 @@ public final class GameScreen extends ScreenAdapter {
      * @return the visible dialogue lines, never null
      */
     private List<String> dialogueLines() {
+        if (isTrainerDialogueOpen()) {
+            StringBuilder text = new StringBuilder("Current: ")
+                    .append(session.getPlayer().getPlayerClass().getDisplayName())
+                    .append(" | O mode ").append(session.getPlayer().getUltimateMode()).append('\n');
+            var choices = ClassTrainer.Choice.values();
+            for (int i = 0; i < choices.length; i++) {
+                text.append(i == trainerChoice ? "> " : "  ").append(classTrainer.label(choices[i])).append('\n');
+            }
+            return List.of(text.append(trainerFeedback).toString());
+        }
         if (isPortalDialogueOpen()) {
             return List.of((portalChoice == PortalGuide.Destination.TRAINING ? "> " : "  ")
                     + PortalGuide.Destination.TRAINING.label() + "\n"
@@ -515,7 +575,7 @@ public final class GameScreen extends ScreenAdapter {
         withNotice.add("You already took the " + prettyName(activeNpc.getRewardItemId()) + ".");
         return withNotice;
     }
-    /** Draws the current NPC text or two-option portal menu using existing placeholder UI resources. */
+    /** Draws ordinary NPC text, portal choices or class/O configuration using shared UI resources. */
     private void drawDialogue() {
         if (!dialogueOpen || activeNpc == null) {
             return;
@@ -526,8 +586,8 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float boxW = w * 0.7f;
-        float boxH = h * (isPortalDialogueOpen() ? 0.30f : 0.22f);
+        float boxW = w * (isTrainerDialogueOpen() ? 0.90f : 0.7f);
+        float boxH = h * (isTrainerDialogueOpen() ? 0.65f : isPortalDialogueOpen() ? 0.30f : 0.22f);
         float x = (w - boxW) / 2f;
         float y = 18f;
         float scale = Math.max(1f, h / 720f) * 1.4f;
@@ -557,7 +617,8 @@ public final class GameScreen extends ScreenAdapter {
                 ? "[E] Close"
                 : "[E] Take reward";
         dialogueFont.draw(dialogueBatch,
-                isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
+                isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
+                        : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
                         : last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
     }
