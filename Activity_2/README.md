@@ -10,7 +10,7 @@ Boss and no ordinary enemies. Player defeat automatically returns to Hub, restor
 HP and clears the encounter while retaining player identity and selected class/ultimate configuration.
 The shared combat pipeline supports the first-version ordered elemental reactions, finite
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
-The imported pixel-art pack now supplies characters, arenas, portals, skills and icons; no audio is loaded.
+The imported pixel-art pack supplies characters, arenas, portals, skills and icons; streamed background music follows the map and guardian progress.
 Hub keeps its procedural background at 1080 x 400. Battle/Training maps are 1600 x 1200; Training randomly selects an elemental
 background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
 See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification and the five Boss
@@ -18,6 +18,13 @@ projectile images awaiting actual Boss projectile mechanics. Historical placehol
 in the development notes below are superseded by that document; collision remains geometric.
 
 ## Current controls: one Hub portal, practice, battle or Memorial Hall
+
+Background music loops automatically: Hub/Memorial Hall use `audio/hub_theme.wav` before all five
+guardian stones are collected and `audio/victory_theme.wav` afterwards (no ending conversation required).
+Training and Battle always use `audio/battle_theme.wav`. Moving between maps that share a song does
+not stop, reload or restart it, including Hub/Hall travel. A different song starts from its beginning.
+Music pauses/resumes with the application and is released when the game screen closes. Default volume
+is 50%, centralized in `BackgroundMusic.VOLUME`; no system-volume changes or sound effects are added.
 
 Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
 choose **Training Ground**, **Battle Map** or **Memorial Hall** with **Up/Down**, then press **E** to confirm

@@ -60,7 +60,8 @@ by the generic projectile renderer, but **not currently emitted in gameplay**: e
 are sweep/slam, not projectile attacks. No new hostile mechanics were invented to force image use.
 Animation selection is presentation-only; short gameplay windows can finish before all frames play.
 Balance, five unique elemental Boss movesets, art authorship/licensing review and final UI polish remain
-separate work. No audio was added. The original pack's provenance filenames are retained in its manifest.
+separate work. That original art import added no audio; the later three-track BGM integration is
+documented in `assets/audio/README.md`. The original pack's provenance filenames are retained in its manifest.
 
 ## Larger maps and practice
 

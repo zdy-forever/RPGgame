@@ -1,6 +1,7 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.GameSession;
+import au.edu.anu.comp2120.audio.BackgroundMusic;
 import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.npc.PortalGuide;
@@ -46,6 +47,8 @@ public final class GameScreen extends ScreenAdapter {
     private final PortalGuide portalGuide;
     /** Session-local task progress consuming the existing settled encounter results. */
     private final BossQuests quests;
+    /** Screen-owned streams survive travel and encounter cleanup, preserving same-song continuity. */
+    private final BackgroundMusic music;
     /** Highlighted guardian in the quest NPC menu. */
     private int questChoice;
     /** Quest acceptance/completion feedback shown in the same NPC menu. */
@@ -125,6 +128,7 @@ public final class GameScreen extends ScreenAdapter {
         travel = new TravelSystem(session, questPortals, TravelCatalog.createDestinations());
         encounterFlow = new EncounterFlow(session, travel, List.of(TravelCatalog.QUEST_PORTAL_ID));
         quests = new BossQuests(session, encounterFlow);
+        music = new BackgroundMusic();
         portalGuide = new PortalGuide(session, travel, encounterFlow);
         combatDemo = new CombatDemo(session, encounterFlow);
         classTrainer = new ClassTrainer(session, combatDemo.getAbilities());
@@ -170,6 +174,7 @@ public final class GameScreen extends ScreenAdapter {
         }
         skipNextUpdate = false;
         quests.synchronize();
+        music.update(session.getCurrentMap().getType(), quests.getCompleted().size() == BossChallenge.values().length);
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
                 currentNpcs(),
@@ -1268,24 +1273,27 @@ public final class GameScreen extends ScreenAdapter {
         renderer.resize(width, height);
     }
 
-    /** Suspends simulation while the application is paused. */
+    /** Suspends simulation and music while the application is paused, retaining playback position. */
     @Override
     public void pause() {
         paused = true;
+        music.pause();
     }
 
-    /** Resumes simulation without accumulating time spent paused. */
+    /** Resumes simulation and music without accumulating paused time or resetting the song. */
     @Override
     public void resume() {
         paused = false;
         skipNextUpdate = true;
+        music.resume();
     }
 
     /**
-     * Releases geometry rendering resources owned by this screen.
+     * Releases rendering resources and all streamed music owned by this screen.
      */
     @Override
     public void dispose() {
+        music.dispose();
         renderer.dispose();
         dialogueBatch.dispose();
         dialogueFont.dispose();

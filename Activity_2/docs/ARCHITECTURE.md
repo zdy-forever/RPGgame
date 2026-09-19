@@ -30,6 +30,20 @@ should extend/replace this owner, not introduce a second independent quest progr
 
 ## Current production encounter boundary
 
+### Background music ownership
+
+`audio.BackgroundMusic` owns up to three lazy LibGDX `Music` streams for the lifetime of GameScreen,
+not a map or encounter. After `BossQuests.synchronize()`, the screen supplies the current MapType and
+whether all distinct guardian stones are collected. Training/Battle select battle music; Hub/Memorial
+select Hub music until completion, then victory music. The ending-dialogue flag is not involved.
+An unchanged Track selection does nothing, preserving playback across Hub/Hall portals and repeated
+frames. A changed Track stops the old stream before playing the cached/new loop. Pause uses `pause`,
+resume uses `play` without a seek, and disposal releases each loaded stream once. Music is streamed
+with `newMusic`, not loaded as a large in-memory `Sound`. Portable `audio/*.wav` classpath resources
+work through the existing desktop packaging; no build-path override or additional audio engine exists.
+
+### Portal admission and quest progress
+
 The current local entry adapter is `npc.PortalGuide`: Hub contains one initially disabled
 portal (`TravelCatalog.QUEST_PORTAL_ID`) and a nearby destination-selection NPC. E opens
 the choice, Up/Down selects Training, Battle or Memorial Hall, and E confirms without teleporting.
