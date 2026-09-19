@@ -1,4 +1,10 @@
 path,source_media,width,height
+art/memorial/magic_circle.png,bdb9d568-a020-4bc6-806b-a1f20b59ee28.png,1254,1254
+art/memorial/fire_stone.png,4e6c6aae-fe60-455e-9f0c-e3631cf48fc6.png,1254,1254
+art/memorial/water_stone.png,9074864e-a75b-4277-bf71-6bd1f15425f7.png,1254,1254
+art/memorial/lightning_stone.png,f35d6b78-6d29-4bb4-8d29-68e0ea0ecb14.png,1254,1254
+art/memorial/ice_stone.png,cf2fef44-0145-41d0-afcb-6de85ffb20aa.png,1254,1254
+art/memorial/wind_stone.png,0fd946f5-fc32-46ff-bcde-ad48a39ebf07.png,1254,1254
 art/maps/battle/fire_arena.png,image151.png,640,480
 art/maps/battle/water_arena.png,image177.png,640,480
 art/maps/battle/lightning_arena.png,image227.png,640,480

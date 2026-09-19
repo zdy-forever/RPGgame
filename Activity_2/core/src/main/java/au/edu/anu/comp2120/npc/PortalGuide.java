@@ -25,14 +25,16 @@ public final class PortalGuide {
     private final TravelSystem travel;
 
     /**
-     * The two existing playable destinations, without an achievement-room placeholder.
+     * Available practice, quest battle and peaceful memorial destinations.
      * @author Daoyan Zhu (u7782042)
      */
     public enum Destination {
         /** Practice map containing only a stationary training target. */
         TRAINING("Training Ground"),
         /** Battle destination supplied by the active quest, never a fixed default. */
-        BATTLE("Battle Map");
+        BATTLE("Battle Map"),
+        /** Peaceful room showing guardian stones and the final Sage conversation. */
+        MEMORIAL("Memorial Hall");
 
         /** Built-in-font-compatible name for the placeholder dialogue. */
         private final String label;
@@ -72,7 +74,7 @@ public final class PortalGuide {
     /**
      * Configures the portal in a living Hub without moving or healing the player.
      * Battle requires a previously accepted encounter; this NPC never creates acceptance itself.
-     * Practice temporarily reroutes the portal without discarding the active quest or retry identity.
+     * Practice and Memorial Hall reroute without discarding the active quest or retry identity.
      * No Quest state is modified. Battle re-selection restores the accepted target's exact route.
      * @param destination selected existing map
      * @throws NullPointerException if destination is null
@@ -84,11 +86,13 @@ public final class PortalGuide {
         if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()) {
             throw new IllegalStateException("Portal selection requires a living player in Hub");
         }
-        if (destination == Destination.TRAINING) {
-            if (session.getMap(MapCatalog.TRAINING).getType() != MapType.TRAINING) {
-                throw new IllegalArgumentException("Practice destination must be a Training map");
+        if (destination != Destination.BATTLE) {
+            String mapId = destination == Destination.TRAINING ? MapCatalog.TRAINING : MapCatalog.MEMORIAL_HALL;
+            MapType type = destination == Destination.TRAINING ? MapType.TRAINING : MapType.MEMORIAL;
+            if (session.getMap(mapId).getType() != type) {
+                throw new IllegalArgumentException("Destination has the wrong map type");
             }
-            travel.configurePortalDestination(TravelCatalog.QUEST_PORTAL_ID, MapCatalog.TRAINING, "entry");
+            travel.configurePortalDestination(TravelCatalog.QUEST_PORTAL_ID, mapId, "entry");
             travel.setPortalEnabled(TravelCatalog.QUEST_PORTAL_ID, true);
             return;
         }
@@ -105,7 +109,7 @@ public final class PortalGuide {
      * @throws NullPointerException if destination is null
      */
     public String destinationLabel(Destination destination) {
-        if (Objects.requireNonNull(destination, "destination") == Destination.TRAINING) {
+        if (Objects.requireNonNull(destination, "destination") != Destination.BATTLE) {
             return destination.label();
         }
         return encounters.getActiveEncounter()

@@ -10,6 +10,8 @@ public enum MapType {
     HUB,
     /** Non-hostile practice area with a stationary damage-scoring target. */
     TRAINING,
+    /** Peaceful hall displaying guardian stones and hosting the final Sage conversation. */
+    MEMORIAL,
     /** Area intended for future combat encounters. */
     BATTLE
 }

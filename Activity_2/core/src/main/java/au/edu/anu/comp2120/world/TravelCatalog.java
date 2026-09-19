@@ -12,6 +12,18 @@ public final class TravelCatalog {
     public static final String QUEST_PORTAL_ID = "hub-training";
     /** Production portal bounds at the configured Hub destination entrance. */
     public static final CollisionBox HUB_PORTAL_TRIGGER = new CollisionBox(890, 245, 48, 64);
+    /** Always-open return route in the lower-left corner of Memorial Hall. */
+    public static final String MEMORIAL_RETURN = "memorial-hub";
+
+    /**
+     * Supplies production routes, separating the ordinary hall exit from quest-owned admission.
+     * @return one configurable Hub entrance and an always-enabled Memorial Hall return
+     */
+    public static List<Portal> createGameplayPortals() {
+        return List.of(createQuestPortals().get(0),
+                new Portal(MEMORIAL_RETURN, MapCatalog.MEMORIAL_HALL, new CollisionBox(32, 32, 48, 64),
+                        MapCatalog.HUB, "entry", true));
+    }
     /** Destination ID for the initially unlocked Hub entry. */
     public static final String HUB_ENTRY = "hub-entry";
     /** Destination ID for the initially locked Training entry. */

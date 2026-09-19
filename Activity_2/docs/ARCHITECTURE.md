@@ -6,7 +6,7 @@ The asset-free gameplay boundary is retained, but production rendering now compo
 `ArtAssets` through the historical `PlaceholderRenderer`. See [Art integration](ART_INTEGRATION.md)
 for the current resource inventory, supported animations and remaining content limitations. Older
 placeholder-only rendering notes below describe the earlier foundation, not current visuals.
-MapCatalog centralizes Hub bounds at 1080 x 400 and battle/training bounds at 1600 x 1200;
+MapCatalog centralizes Hub bounds at 1080 x 400, Memorial Hall at 640 x 360 (one view), and battle/training bounds at 1600 x 1200;
 collision and 640 x 360 camera behavior do not derive from images.
 GameConfig supplies map-centred encounter bodies for Bosses and training targets, with nearby safety
 fallbacks only when collision or player occupancy prevents an exact-centre spawn.
@@ -32,11 +32,11 @@ should extend/replace this owner, not introduce a second independent quest progr
 
 The current local entry adapter is `npc.PortalGuide`: Hub contains one initially disabled
 portal (`TravelCatalog.QUEST_PORTAL_ID`) and a nearby destination-selection NPC. E opens
-the choice, Up/Down selects Training or Battle, and E confirms without teleporting.
-Walking into the configured portal performs normal travel. No Achievement Wall is implemented.
+the choice, Up/Down selects Training, Battle or Memorial Hall, and E confirms without teleporting.
+Walking into the configured portal performs normal travel.
 Selecting Battle requires an already accepted EncounterFlow permission and re-applies that exact
 route. Portal Guide never constructs acceptance IDs. No task means a locked Battle option.
-Selecting Training reconfigures the same portal without clearing the accepted quest/permission;
+Selecting Training or Memorial Hall reconfigures the same portal without clearing the accepted quest/permission;
 returning and choosing Battle restores its route and retry identity. Reward outbox data is preserved.
 
 `BossChallenge` defines five distinct Boss/map identities. `BossQuests.accept` is the Quest Keeper's
@@ -49,9 +49,25 @@ does not activate anything. Invalid preparation preserves previous permission an
 `synchronize` observes the exact accepted BattleResult after settlement: FAILURE retains the task;
 SUCCESS adds the distinct target to an immutable-exposed completion set and clears the active task.
 Old/unrelated results cannot complete a different task. It never claims material rewards.
-`consumeEnding` emits once after all five distinct completions in a living Hub. GameScreen then
-owns a short modal E-advanced ending dialogue; completed rows use geometric check marks rather
+`consumeEnding` emits once after all five distinct completions, only in a living Memorial Hall.
+GameScreen calls it explicitly when the player interacts with Old Sage, never during frame polling
+or the automatic fifth-Boss return. GameScreen then owns a short modal E-advanced ending dialogue;
+completed rows use geometric check marks rather
 than depending on Unicode glyph availability. NPC dialogue is drawn above the HUD.
+`DialogueLayout` separates title, body and controls using the view's actual wrapped GlyphLayout
+measurements. Panel height is content-driven, with capped reference-size fonts, two-axis shrinking
+and additional fitting for long pages. Quest check marks account for wrapped preceding rows.
+GameScreen restores the full framebuffer viewport for UI after drawing the letterboxed world,
+so non-16:9 windows do not stretch/compress dialogue geometry.
+
+`MapType.MEMORIAL` is a peaceful room: CombatDemo creates neither Boss nor training dummy there.
+`TravelCatalog.createGameplayPortals()` combines the sole Hub task entrance with a separate always-open
+`memorial-hub` return in the hall's lower-left corner. EncounterFlow owns only `QUEST_PORTAL_ID`, so quest
+acceptance/completion cannot disable the hall exit. Both directions retain TravelSystem arrival protection.
+Old Sage is now hall-local, not duplicated in Hub. SceneArt reads `BossQuests.getCompleted()` snapshots
+to dim/light the five socket-aligned stone images; no inventory grant or second progress store exists.
+The hall shares existing movement, collision, camera, travel and encounter cleanup. It does not permit
+Hub-only class/O-mode changes. Its viewport-sized bounds remain fixed when the window is resized.
 
 The five arenas reuse the existing Sentinel HP, AI, patterns and material tuning; only identities,
 names and arena routing differ in this first content version. No second damage engine or final

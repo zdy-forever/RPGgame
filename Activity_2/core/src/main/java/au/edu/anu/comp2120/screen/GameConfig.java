@@ -3,15 +3,17 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.enemy.EnemyConfig;
 import au.edu.anu.comp2120.enemy.BossConfig;
+import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.player.AttackShape;
 import au.edu.anu.comp2120.world.CollisionBox;
 import java.util.List;
+import java.util.Map;
 import au.edu.anu.comp2120.player.AbilityLoadout;
 import au.edu.anu.comp2120.player.PlayerClasses;
 
 /**
- * Shared player, camera, combat-debug, and timing configuration for the asset-free demonstration.
+ * Shared player, camera, combat tuning and scene-layout configuration.
  * World units are independent of window pixels; x points right and y points up.
  *
  * @author Daoyan Zhu (u7782042)
@@ -89,14 +91,22 @@ public final class GameConfig {
     /** Decorative forge retains its original (+40, 0) offset from the merchant. */
     public static final CollisionBox FORGE_BOUNDS = new CollisionBox(
             WEAPON_MERCHANT.getX() + 40, WEAPON_MERCHANT.getY(), 40, 40);
-    /** Tutorial NPC placed near the Hub spawn; gives advice but no item. */
+    /** Visual-only magic circle on the right side of the one-screen Memorial Hall. */
+    public static final CollisionBox MEMORIAL_CIRCLE = new CollisionBox(326, 24, 264, 264);
+    /** Five socket-aligned stone pictures, keyed by guardian identity rather than texture colour. */
+    public static final Map<BossChallenge, CollisionBox> MEMORIAL_STONES = Map.of(
+            BossChallenge.FIRE, new CollisionBox(432, 214, 52, 52),
+            BossChallenge.WATER, new CollisionBox(510, 155, 52, 52),
+            BossChallenge.LIGHTNING, new CollisionBox(481, 67, 52, 52),
+            BossChallenge.ICE, new CollisionBox(382, 67, 52, 52),
+            BossChallenge.WIND, new CollisionBox(350, 155, 52, 52));
+    /** Memorial Hall Sage on the left, hosting the final conversation without an inventory reward. */
     public static final NPC GUIDE = new NPC(
             "guide", "Old Sage",
-            200.0, 200.0, 24.0, 24.0,
+            100.0, 170.0, 24.0, 24.0,
             List.of(
-                    "Welcome, adventurer. This is the Hub.",
-                    "Press WASD to move, and talk to the merchant for a weapon.",
-                    "Accept a Boss quest from the Quest Keeper, then visit the Portal Guide."),
+                    "Welcome to Memorial Hall. Each fallen guardian awakens its elemental stone.",
+                    "Defeat all five guardians, then speak to me to complete your journey."),
             null
     );
     /** Notice board listing the controls; readable any number of times. */
@@ -138,7 +148,7 @@ public final class GameConfig {
             "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
-            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);
+            List.of(WEAPON_MERCHANT, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

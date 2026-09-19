@@ -46,7 +46,7 @@ final class ArtIntegrationTest {
         try (var files = Files.walk(ASSETS.resolve("art"))) {
             assertEquals(listed, new HashSet<>(files.filter(p -> p.toString().endsWith(".png")).toList()));
         }
-        assertEquals(220, listed.size());
+        assertEquals(226, listed.size());
     }
 
     /**
@@ -109,9 +109,15 @@ final class ArtIntegrationTest {
         assertTrue(demo.getTrainingAppearance().isEmpty());
     }
 
-    /** Every shipped map supports scrolling in both axes and keeps valid spawns/open boundaries. */
+    /** Arena/Hub maps scroll, while Memorial Hall fits exactly one camera view. */
     @Test void enlargedMapsGiveTheCameraRoomToScroll() {
         for (GameMap map : MapCatalog.createMaps()) {
+            if (map.getType() == MapType.MEMORIAL) {
+                assertEquals(new CollisionBox(0, 0, 640, 360), map.getBounds());
+                assertEquals(map.getBounds(), CameraFollow.viewFor(new CollisionBox(0,0,28,28),
+                        map.getBounds(),640,360));
+                continue;
+            }
             assertEquals(map.getType() == MapType.HUB ? 1080 : 1600,map.getBounds().width());
             assertEquals(map.getType() == MapType.HUB ? 400 : 1200,map.getBounds().height());
             var left = CameraFollow.viewFor(new CollisionBox(0,0,28,28),map.getBounds(),640,360);

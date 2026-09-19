@@ -158,7 +158,7 @@ final class BossQuestFlowTest {
         assertEquals(MapCatalog.LIGHTNING_ARENA, session.getCurrentMap().getId());
     }
 
-    /** All five distinct successes, not repeat polls or deaths, unlock one ending and preserve five rewards. */
+    /** Five successes unlock the ending, but only an explicit Hall Sage conversation consumes it. */
     @Test
     void completingFiveDifferentBossesTriggersEndingExactlyOnce() {
         int count = 0;
@@ -175,6 +175,13 @@ final class BossQuestFlowTest {
                 assertFalse(quests.consumeEnding());
             }
         }
+        assertFalse(quests.consumeEnding(), "No automatic ending on the fifth return to Hub");
+        guide.select(PortalGuide.Destination.MEMORIAL);
+        enter();
+        assertEquals(MapCatalog.MEMORIAL_HALL, session.getCurrentMap().getId());
+        session.getPlayer().takeDamage(100);
+        assertFalse(quests.consumeEnding());
+        session.getPlayer().getHealth().restoreFull();
         assertTrue(quests.consumeEnding());
         for (int i = 0; i < 20; i++) {
             quests.synchronize();

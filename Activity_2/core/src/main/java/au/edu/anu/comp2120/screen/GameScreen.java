@@ -16,6 +16,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
@@ -62,7 +63,7 @@ public final class GameScreen extends ScreenAdapter {
     /** Last HP/key feedback applied to the native title, avoiding redundant title updates. */
     private String combatStatus = "";
     /** Brief travel feedback shown in the native window title without a font asset. */
-    private String travelStatus = "Talk to the Portal Guide [E] to choose Training or Battle";
+    private String travelStatus = "Talk to the Portal Guide [E]: Training, Battle or Memorial Hall";
     /** Adapter for the application's keyboard input. */
     private final PlayerInput input;
     /** Art-backed world view owned by this screen, independent of combat rules. */
@@ -120,9 +121,9 @@ public final class GameScreen extends ScreenAdapter {
     public GameScreen() {
         session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
-        var questPortals = TravelCatalog.createQuestPortals();
+        var questPortals = TravelCatalog.createGameplayPortals();
         travel = new TravelSystem(session, questPortals, TravelCatalog.createDestinations());
-        encounterFlow = new EncounterFlow(session, travel, questPortals.stream().map(Portal::id).toList());
+        encounterFlow = new EncounterFlow(session, travel, List.of(TravelCatalog.QUEST_PORTAL_ID));
         quests = new BossQuests(session, encounterFlow);
         portalGuide = new PortalGuide(session, travel, encounterFlow);
         combatDemo = new CombatDemo(session, encounterFlow);
@@ -154,13 +155,14 @@ public final class GameScreen extends ScreenAdapter {
      * NPC returns consume commands; portal arrival immediately clears old-map attacks and dash.
      * Success/failure recovery consumes the rest of the frame before any Hub movement or portal check.
      * Frame stalls are capped and all simulation timers pause with this screen.
+     * Screen-space UI restores the full framebuffer viewport after the letterboxed world view.
      *
      * @param delta seconds elapsed since the previous frame
      */
     @Override
     public void render(float delta) {
         HudLayout hud = HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        if (!hud.detailsVisible()) {
+        if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
             bigMap = false;
         }
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
@@ -168,22 +170,14 @@ public final class GameScreen extends ScreenAdapter {
         }
         skipNextUpdate = false;
         quests.synchronize();
-        if (quests.consumeEnding()) {
-            endingOpen = true;
-            dialogueOpen = true;
-            dialogueLine = 0;
-            activeNpc = GameConfig.QUEST_KEEPER;
-            inventoryOpen = false;
-            chestOpen = false;
-            bigMap = false;
-        }
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
                 currentNpcs(),
                 travel.getPortals(currentMap.getId()),
                 combatDemo, paused || dialogueOpen || inventoryOpen || chestOpen || bigMap
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
-                combatDemo.getDrops());
+                combatDemo.getDrops(), quests.getCompleted());
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         drawCoordinates(hud);
         drawHealth(hud);
         drawTrainingScore();
@@ -269,7 +263,8 @@ public final class GameScreen extends ScreenAdapter {
                 activeNpc = null;
             }
         }
-        if (HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()).detailsVisible()
+        if (session.getCurrentMap().getType() != MapType.MEMORIAL
+                && HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()).detailsVisible()
                 && Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             bigMap = !bigMap;
         }
@@ -297,12 +292,20 @@ public final class GameScreen extends ScreenAdapter {
                     dialogueOpen = true;
                     dialogueLine = 0;
                     activeNpc = near;
+                    if (near.getId().equals(GameConfig.GUIDE.getId())
+                            && session.getCurrentMap().getType() == MapType.MEMORIAL) {
+                        endingOpen = quests.consumeEnding();
+                        inventoryOpen = false;
+                        bigMap = false;
+                    }
                     if (isPortalDialogueOpen()) {
                         inventoryOpen = false;
                         bigMap = false;
-                        portalChoice = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID)
-                                .destinationMapId().equals(MapCatalog.TRAINING)
-                                ? PortalGuide.Destination.TRAINING : PortalGuide.Destination.BATTLE;
+                        portalChoice = switch (travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId()) {
+                            case MapCatalog.TRAINING -> PortalGuide.Destination.TRAINING;
+                            case MapCatalog.MEMORIAL_HALL -> PortalGuide.Destination.MEMORIAL;
+                            default -> PortalGuide.Destination.BATTLE;
+                        };
                     } else if (isTrainerDialogueOpen()) {
                         inventoryOpen = false;
                         bigMap = false;
@@ -462,9 +465,12 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP) || Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
-            portalChoice = portalChoice == PortalGuide.Destination.TRAINING
-                    ? PortalGuide.Destination.BATTLE : PortalGuide.Destination.TRAINING;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            var choices = PortalGuide.Destination.values();
+            portalChoice = choices[Math.floorMod(portalChoice.ordinal() - 1, choices.length)];
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            var choices = PortalGuide.Destination.values();
+            portalChoice = choices[(portalChoice.ordinal() + 1) % choices.length];
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             try {
@@ -535,12 +541,13 @@ public final class GameScreen extends ScreenAdapter {
 
     /**
      * Supplies map-local NPCs; real battles continue to contain only the player and one Boss.
-     * @return registered Hub NPCs, one Training exit guide, or no Battle NPCs
+     * @return Hub services, Training exit, Memorial Sage, or no Battle NPCs
      */
     private List<NPC> currentNpcs() {
         return switch (session.getCurrentMap().getType()) {
             case HUB -> GameConfig.HUB_NPCS;
             case TRAINING -> List.of(GameConfig.TRAINING_EXIT);
+            case MEMORIAL -> List.of(GameConfig.GUIDE);
             case BATTLE -> List.of();
         };
     }
@@ -729,10 +736,19 @@ public final class GameScreen extends ScreenAdapter {
             return List.of(text.append(trainerFeedback).toString());
         }
         if (isPortalDialogueOpen()) {
-            return List.of((portalChoice == PortalGuide.Destination.TRAINING ? "> " : "  ")
-                    + portalGuide.destinationLabel(PortalGuide.Destination.TRAINING) + "\n"
-                    + (portalChoice == PortalGuide.Destination.BATTLE ? "> " : "  ")
-                    + portalGuide.destinationLabel(PortalGuide.Destination.BATTLE));
+            StringBuilder text = new StringBuilder();
+            for (var choice : PortalGuide.Destination.values()) {
+                text.append(choice == portalChoice ? "> " : "  ")
+                        .append(portalGuide.destinationLabel(choice)).append('\n');
+            }
+            return List.of(text.toString());
+        }
+        if (activeNpc.getId().equals(GameConfig.GUIDE.getId())
+                && session.getCurrentMap().getType() == MapType.MEMORIAL) {
+            return List.of("Awakened stones: " + quests.getCompleted().size() + " / 5.\n"
+                    + (quests.getCompleted().size() == BossChallenge.values().length
+                    ? "The seal is restored. Your deeds will be remembered here."
+                    : "Defeat the remaining guardians, then speak to me again.\nThe portal at the lower left returns to Hub."));
         }
         List<String> base = activeNpc.getLines();
         if (!activeNpc.hasInteracted() || activeNpc.getRewardItemId() == null) {
@@ -742,7 +758,7 @@ public final class GameScreen extends ScreenAdapter {
         withNotice.add("You already took the " + prettyName(activeNpc.getRewardItemId()) + ".");
         return withNotice;
     }
-    /** Draws ordinary NPC text, portal choices or class/O configuration using shared UI resources. */
+    /** Measures wrapped text to fit all dialogue bands before drawing, including on window resize. */
     private void drawDialogue() {
         if (!dialogueOpen || activeNpc == null) {
             return;
@@ -753,12 +769,21 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float boxW = w * (isTrainerDialogueOpen() || isQuestDialogueOpen() ? 0.90f : 0.7f);
-        float boxH = h * (isTrainerDialogueOpen() || isQuestDialogueOpen() ? 0.65f
-                : endingOpen ? 0.35f : isPortalDialogueOpen() ? 0.35f : 0.22f);
-        float x = (w - boxW) / 2f;
-        float y = 18f;
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        if (w <= 0 || h <= 0) { return; }
+        boolean last = dialogueLine >= lines.size() - 1;
+        String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted()
+                ? "[E] Close" : "[E] Take reward";
+        String hint = endingOpen ? (last ? "[E] Finish" : "[E] Continue")
+                : isQuestDialogueOpen() ? "[Up/Down] Choose   [E] Accept   [Esc] Close"
+                : isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
+                : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
+                : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
+                : last ? closeHint : "[E] Next";
+        String body = lines.get(dialogueLine);
+        DialogueLayout layout = DialogueLayout.fit(w, h, isTrainerDialogueOpen() || isQuestDialogueOpen(),
+                activeNpc.getName(), body, hint, this::measureDialogueText);
+        float boxW = layout.width(), boxH = layout.height(), x = layout.x(), y = layout.y();
+        float scale = layout.scale();
         dialogueFont.getData().setScale(scale);
 
         dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
@@ -771,30 +796,34 @@ public final class GameScreen extends ScreenAdapter {
         dialogueShapes.rect(x, y, boxW, boxH);
         dialogueShapes.end();
 
-        float pad = 14f * scale;
-        boolean last = dialogueLine >= lines.size() - 1;
+        float pad = layout.padding();
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(1f, 0.90f, 0.40f, 1);
-        dialogueFont.draw(dialogueBatch, activeNpc.getName(), x + pad, y + boxH - pad);
+        dialogueFont.draw(dialogueBatch, activeNpc.getName(), x + pad, layout.titleTop(),
+                layout.textWidth(), Align.left, true);
         dialogueFont.setColor(1f, 1f, 1f, 1);
-        dialogueFont.draw(dialogueBatch, lines.get(dialogueLine),
-                x + pad, y + boxH - pad - 26f * scale, boxW - 2 * pad, Align.left, true);
+        dialogueFont.draw(dialogueBatch, body,
+                x + pad, layout.bodyTop(), layout.textWidth(), Align.left, true);
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
-        String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted()
-                ? "[E] Close"
-                : "[E] Take reward";
-        dialogueFont.draw(dialogueBatch,
-                endingOpen ? (last ? "[E] Finish" : "[E] Continue")
-                        : isQuestDialogueOpen() ? "[Up/Down] Choose   [E] Accept   [Esc] Close"
-                        : isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
-                        : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
-                        : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
-                        : last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
+        dialogueFont.draw(dialogueBatch, hint, x + pad, layout.hintTop(), layout.textWidth(), Align.left, true);
         dialogueBatch.end();
         if (isQuestDialogueOpen()) {
-            drawQuestChecks(x + pad, y + boxH - pad - 26f * scale, scale);
+            drawQuestChecks(x + pad, layout.bodyTop(), scale, body, layout.textWidth());
         }
+    }
+
+    /**
+     * Measures with exactly the font scale and wrap width subsequently used for drawing.
+     * @param text current text including explicit line breaks
+     * @param scale requested uniform font scale
+     * @param width available wrap width
+     * @return actual wrapped glyph height
+     */
+    private float measureDialogueText(String text, float scale, float width) {
+        dialogueFont.getData().setScale(scale);
+        return new GlyphLayout(dialogueFont, text, com.badlogic.gdx.graphics.Color.WHITE,
+                width, Align.left, true).height;
     }
 
     /**
@@ -802,14 +831,20 @@ public final class GameScreen extends ScreenAdapter {
      * @param x left edge of the menu text
      * @param baseline baseline of the first text line (the completion count)
      * @param scale current dialogue font scale
+     * @param body menu text, used to account for wrapped rows before each check mark
+     * @param width body wrap width, identical to the actual drawing width
      */
-    private void drawQuestChecks(float x, float baseline, float scale) {
+    private void drawQuestChecks(float x, float baseline, float scale, String body, float width) {
         dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
         dialogueShapes.setColor(0.25f, 1f, 0.4f, 1);
         var targets = BossChallenge.values();
+        String[] rows = body.split("\n", -1);
         for (int i = 0; i < targets.length; i++) {
             if (quests.getCompleted().contains(targets[i])) {
-                float y = baseline - (i + 1) * dialogueFont.getLineHeight() - dialogueFont.getCapHeight() / 2;
+                String prefix = String.join("\n", java.util.Arrays.copyOfRange(rows, 0, i + 1));
+                float precedingHeight = measureDialogueText(prefix, scale, width)
+                        + dialogueFont.getLineHeight() - dialogueFont.getCapHeight();
+                float y = baseline - precedingHeight - dialogueFont.getCapHeight() / 2;
                 float left = x + 13f * scale;
                 dialogueShapes.line(left, y, left + 4f * scale, y - 4f * scale);
                 dialogueShapes.line(left + 4f * scale, y - 4f * scale, left + 12f * scale, y + 5f * scale);
@@ -911,10 +946,11 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
      * Screen-space only; both panels and text stop growing at the reference window size.
+     * Memorial Hall fits one view and omits the minimap so that all five stones remain visible.
      * @param hud current size and visibility policy
      */
     private void drawMinimap(HudLayout hud) {
-        if (!hud.detailsVisible()) {
+        if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
             return;
         }
         int w = Gdx.graphics.getWidth();

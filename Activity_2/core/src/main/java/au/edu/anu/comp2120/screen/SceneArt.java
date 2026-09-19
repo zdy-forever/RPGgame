@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Read-only art presentation for existing gameplay. Animation never applies damage, moves actors,
@@ -219,19 +220,37 @@ public final class SceneArt implements Disposable {
     }
 
     /**
-     * Draws an elemental background; Hub intentionally retains its procedural scenery.
+     * Draws an elemental background; peaceful Hub and Memorial Hall retain procedural scenery.
      * Extending the border beyond playable bounds keeps the decorative wall outside collision space.
      * @param batch active world batch
      * @param map current map
      * @param demo current gameplay
      */
     public void background(SpriteBatch batch, GameMap map, CombatDemo demo) {
-        if (map.getType() != MapType.HUB) {
+        if (map.getType() == MapType.BATTLE || map.getType() == MapType.TRAINING) {
             CollisionBox bounds = map.getBounds();
             art.draw(batch, "art/maps/battle/" + arenaTheme(map, demo) + "_arena.png",
                     new CollisionBox(bounds.x()-bounds.width()/3, bounds.y()-bounds.height()/3,
                             bounds.width()*5/3, bounds.height()*5/3), 0, false, false);
         }
+    }
+
+    /**
+     * Draws the fixed memorial circle and five stones; only confirmed guardian victories light them.
+     * This view consumes a progress snapshot and never awards inventory items or starts the ending.
+     * @param batch active world batch
+     * @param completed immutable or caller-owned read-only guardian completion snapshot
+     */
+    public void memorial(SpriteBatch batch, Set<BossChallenge> completed) {
+        if (map.getType() != MapType.MEMORIAL) { return; }
+        draw(batch, "art/memorial/magic_circle.png", GameConfig.MEMORIAL_CIRCLE);
+        for (BossChallenge target : BossChallenge.values()) {
+            boolean lit = completed.contains(target);
+            if (lit) { batch.setColor(Color.WHITE); }
+            else { batch.setColor(0.20f, 0.20f, 0.24f, 0.65f); }
+            draw(batch, "art/memorial/" + lower(target) + "_stone.png", GameConfig.MEMORIAL_STONES.get(target));
+        }
+        batch.setColor(Color.WHITE);
     }
 
     /**

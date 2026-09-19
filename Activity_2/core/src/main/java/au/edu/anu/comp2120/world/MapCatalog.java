@@ -21,6 +21,8 @@ public final class MapCatalog {
     public static final int HUB_HEIGHT = 400;
     /** Stable identifier for the starting base. */
     public static final String HUB = "hub";
+    /** One-screen commemorative room, independent of quest battle admission. */
+    public static final String MEMORIAL_HALL = "memorial-hall";
     /** Stable identifier for the practice map; historical ID retained for travel compatibility. */
     public static final String TRAINING = "battle-training";
     /** Stable identifier for the second battle map. */
@@ -39,7 +41,7 @@ public final class MapCatalog {
     }
 
     /**
-     * Creates a Hub, a Training area and five guardian arenas with named spawns.
+     * Creates a Hub, Memorial Hall, a Training area and five guardian arenas with named spawns.
      * Interiors are unobstructed; outer map boundaries still constrain movement.
      * All geometry uses bottom-left world coordinates and is independent of rendering.
      *
@@ -51,6 +53,8 @@ public final class MapCatalog {
                         List.of(),
                         Map.of("entry", new SpawnPoint(64, 64),
                                 "north", new SpawnPoint(64, HUB_HEIGHT - 100)), "entry"),
+                new GameMap(MEMORIAL_HALL, "Memorial Hall", MapType.MEMORIAL, 640, 360,
+                        List.of(), Map.of("entry", new SpawnPoint(100, 48)), "entry"),
                 new GameMap(TRAINING, "Training Ground", MapType.TRAINING, MAP_WIDTH, MAP_HEIGHT,
                         List.of(),
                         Map.of("entry", new SpawnPoint(80, 80),
