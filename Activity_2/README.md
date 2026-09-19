@@ -1,7 +1,7 @@
 # COMP2120 Group Game
 
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
-demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
+demonstrates a Hub, a separate Training Ground and a Battle Map, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera using geometric placeholders. Player and
 enemy models share validated integer health and one attack pipeline, independent
@@ -12,12 +12,34 @@ The shared combat pipeline supports the first-version ordered elemental reaction
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 It loads no images, fonts, animation, sound, or music assets.
 
-## Current production flow: externally accepted encounters
+## Current controls: one portal, practice or battle
 
-Task portals now start **closed**. Developer B's adapter calls
+Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
+choose **Training Ground** or **Battle Map** with **Up/Down**, then press **E** to confirm
+(**Escape** cancels). Confirmation configures the portal; walk into it to travel.
+The portal starts closed until a destination is selected. Achievement Wall is not included.
+
+- Training has one stationary, non-attacking target, not a Boss. J/K/L/O use the shared
+  abilities/combat pipeline. The scoreboard shows total delivered damage, last damage and
+  positive-damage hit count, including reaction/field ticks. The target replenishes its HP
+  after each hit so it remains available; it never grants rewards or a BattleResult.
+- **R** resets practice: score, attacks/effects, ability activity/cooldowns and player HP.
+  Talk to the **Return to Hub** NPC near the Training entrance: **E** opens confirmation,
+  **E** again returns, **Escape** cancels. Leaving and re-entering creates a fresh target/score.
+- Battle Map (Crossroads) contains one real Boss and retains the success/failure flow below.
+- F1/F2/F3 select class and F5 selects its O mode **in Hub only**, including before practice.
+
+The **Class Master** in Hub at (320,130) provides the same choices without debug keys:
+approach and press **E**, select a profession or its **O mode A/B** with **Up/Down**, then
+press **E** to apply. The menu stays open so a class and its ultimate can be selected in turn;
+**Escape** closes it. J/K/L remain class-defined. Each class remembers its own O choice.
+Selections preserve HP, position and cooldowns and are rejected while an ability is active.
+
+The small `PortalGuide` adapter uses the existing gameplay boundary; it does not implement
+Quest state or inventory rewards. Choosing Training clears gameplay battle admission only.
+Developer B's future Quest adapter can still call
 `gameScreen.getEncounterFlow().activate(new ActiveEncounter(id, mapId, spawnId, portalId))`
-on the game-loop thread after acceptance in Hub. No NPC, Quest logic or acceptance UI is
-implemented here, so a fresh launch intentionally cannot start a Boss fight by itself.
+on the game-loop thread after acceptance in Hub, using `TravelCatalog.QUEST_PORTAL_ID`.
 
 - The configured portal admits one fresh Boss; there are no ordinary enemies.
 - Player death: FAILURE, automatic Hub return/full HP, same permission available for retry.
@@ -26,12 +48,13 @@ implemented here, so a fresh launch intentionally cannot start a Boss fight by i
   `getPendingRewards()` and is transferred once by `claimReward(result)`.
 - Player identity/class/O configuration persist. F1/F2/F3/F4 configuration changes are
   Hub-only in production; battle R reset is disabled.
-- U/1/2/3 remain independent debug fast travel. They do **not** start a task Boss or award
-  a task result. Returning via fast travel abandons that combat scope but retains permission.
+- The old **U/1/2/3 debug travel keys are removed**. Entry uses NPC selection and the portal;
+  practice return uses its exit NPC, while Battle returns are outcome-driven. The low-level
+  fast-travel API remains available to adapters and contract tests, not keyboard shortcuts.
 
 See [the integration contract and test report](docs/QUEST_PORTAL_FLOW_REPORT.md).
-Historical feature/demo instructions below that use U/2/3 to spawn a Boss, switch abilities
-during battle, manually return through battle portals, or leave Boss loot on the map apply
+Historical feature/demo descriptions below that switch abilities during battle,
+manually return through battle portals, or leave Boss loot on the map apply
 only to the isolated unrestricted `CombatDemo(session)` harness, not the production screen.
 
 ## Attack wall obstruction
@@ -60,7 +83,7 @@ coordinator returns the same Player to Hub's default spawn (64,64), clears old a
 projectiles, elemental/derived effects and ability activity, then calls Health.restoreFull().
 No death callback switches maps. The remainder of the death frame is consumed; R cannot
 revive a dead player in Battle. Class configuration and remaining slot cooldowns are preserved.
-Re-entering either battle map creates a new Boss at full HP, phase 1 and fresh AI/cooldowns.
+Re-entering the admitted battle map creates a new Boss at full HP, phase 1 and fresh AI/cooldowns.
 
 Quick check after external acceptance: select F1/F2/F3 in Hub, enter the enabled task portal,
 approach the large Boss and let it attack. At zero HP you should immediately arrive alive in
@@ -132,35 +155,23 @@ members, with full doclint and warnings treated as errors. See
 
 ## Map and movement demonstration
 
-The game starts in the Hub. Walk into a purple rectangle to use a portal. Number
-keys now execute fast travel through its unlock checks, replacing unrestricted
-debug map switching. The window title shows the active map and travel feedback.
-
-| Key | Action | Initial state |
-| --- | --- | --- |
-| 1 | Fast travel to Hub `entry` | Unlocked |
-| 2 | Fast travel to Training `entry` | Locked |
-| 3 | Fast travel to Crossroads `entry` | Locked |
-| U | Unlock both Battle fast-travel destinations for this session | Debug only |
-
-The old key 4 map-selection shortcut has been removed. Visiting through a portal
+The game starts in the Hub. Ask the Portal Guide to select a destination, then walk
+into the purple portal. There are no number-key map switches or keyboard unlocks.
+The window title shows the active map and travel feedback. Visiting through a portal
 does not automatically unlock fast travel; future quest/discovery code can call
 `unlockDestination(id)`. Portal enabled state and fast-travel unlock state are
 independent. Closing/restarting the game restores the initial state.
 
 Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
-are obstacles, gold circles mark spawn anchors, and the green rectangle is the
+are obstacles when configured (built-in test walls have been removed), a gold circle marks
+only the default spawn anchor, and the green rectangle is the
 player. Bright purple rectangles are enabled portals; dark purple rectangles are
-disabled examples. A fixed-size camera view scrolls over maps larger than the
+the closed portal. A fixed-size camera view scrolls over maps larger than the
 view, instead of fitting the entire map into the window.
 
 | Portal | Source trigger (x, y, width, height) | Destination |
 | --- | --- | --- |
-| hub-training | Hub (160, 64, 48, 64) | Training `entry` |
-| hub-crossroads | Hub (160, 400, 48, 64) | Crossroads `entry` |
-| hub-disabled | Hub (220, 64, 48, 64), disabled | Crossroads `east` |
-| training-hub | Training (64, 64, 80, 80) | Hub `entry` |
-| crossroads-hub | Crossroads (64, 64, 80, 80) | Hub `north` |
+| hub-training (stable ID for the single portal) | Hub (160, 64, 48, 64) | NPC-selected Training or Crossroads `entry` |
 
 - Hold W/A/S/D to move up/left/down/right. Releasing keys stops movement.
 - Movement supports eight directions. Opposite keys cancel on each axis. W+D
@@ -184,17 +195,25 @@ view, instead of fitting the entire map into the window.
   frame at 0.1 seconds and discards the first update after startup/resume, so a
   stall does not cause a large jump. Model tests can exercise larger deltas.
 
-To check manually, launch the game, hold each movement key, walk into each side
-of a wall, reverse away from contact, try W+D and opposing keys, and resize the
-window. Initially press 2/3: the title should report that the destination is locked
-and position should not change. Walk right from the Hub spawn into the nearby
-purple portal to reach Training at (80, 80). Stay still: the overlapping return
-portal must not send you back. Walk fully outside it (for example right past
-x=144), then re-enter to return to Hub. Try U then 1/2/3 to exercise fast travel.
-The disabled dark-purple portal must have no effect. A successful travel command
-consumes the frame, leaving the player exactly at the selected spawn.
+To check manually, try WASD, W+D, opposing keys and the map's outer boundaries,
+then resize the window. Pressing U/1/2/3 must have no travel or unlock effect.
+Choose Training at the Portal Guide and enter the portal to arrive at (80,80).
+Stay still: arrival must not return you automatically. Talk to the Return to Hub
+NPC and confirm E to leave; Escape cancels. Returning clears the practice scope.
 
 ## Camera behaviour and verification
+
+The persistent HP, position, minimap and weapon HUD scales down with the smaller window axis.
+Its maximum size is the existing **960 x 540** layout: larger windows move the anchored panels
+but do not enlarge them. Configuration is centralized in `GameConfig.HUD_*`:
+
+- Width below **640** or height below **360**: hide position, minimap and weapon; keep HP.
+- Width below **320** or height below **180**: hide HP as well.
+- At the exact thresholds the relevant elements stay visible; enlarging restores them.
+- Shrinking below the minimap threshold closes an expanded M map and releases its movement lock.
+  M cannot open an invisible map. The expanded map also has a capped reference size.
+
+These thresholds affect the four persistent HUD elements, not NPC dialogues or inventory panels.
 
 - `CameraFollow.viewFor(subjectBounds, mapBounds, viewWidth, viewHeight)` computes
   the visible world rectangle using only immutable geometry. `PlaceholderRenderer`
@@ -220,17 +239,16 @@ consumes the frame, leaving the player exactly at the selected spawn.
 
 To check manually:
 
-1. Launch with `./gradlew lwjgl3:run`, press U then 3 to enter Crossroads.
+1. Launch with `./gradlew lwjgl3:run`, choose Training at the Portal Guide and enter.
 2. Walk right from its entry along the unobstructed lower part of the map. The
    view begins scrolling once the player reaches its centre, then stops at the
    right boundary. Reverse direction and verify the left boundary similarly.
-3. Re-enter Crossroads with 3 and walk up near the left side to check vertical
-   scrolling and the top boundary; reverse toward the bottom. Avoid re-entering
-   the return portal if you want to stay on the same map during the check.
+3. Walk up near the left side to check vertical scrolling and the top boundary;
+   reverse toward the bottom. Practice has no hostile Boss or automatic return portal.
 4. Resize the window wide, tall, and small while stationary and while moving.
    Shapes must retain their proportions and the same world region must remain
    visible. Minimize/restore and check that the camera still follows normally.
-5. Use 1/2/3 or the portals and check that the new spawn is visible immediately.
+5. Use the Hub portal and Training exit NPC and check that the new spawn is visible immediately.
 6. Small-map centring is covered by JUnit. For an optional visual check, temporarily
    set the configured view to 1280 x 720 and relaunch: Hub should remain centred
    with equal background margins even while the player moves. Restore 640 x 360
@@ -421,10 +439,10 @@ Placeholder controls (current first-version skills; numeric tuning is provisiona
 | F1 / F2 / F3 | Select Archer / Mage / Katana when no player attack or dash is active |
 | F4 | Hub-only outgoing debug element configuration; Mage J uses its own K-selected element |
 | F5 | Toggle current class's O mode A/B in Hub only; active skills reject changes |
-| R | Debug restore while alive: reset player HP/abilities and create a fresh Boss; dead Battle players return to Hub instead |
+| R | Reset practice/Hub HP and abilities; ignored in production Battle encounters |
 
-1. Run `./gradlew lwjgl3:run`, then press U and 3 to enter Crossroads. One large red Boss
-   appears at a validated placement. Training also has one Boss; Hub has no enemies.
+1. Run `./gradlew lwjgl3:run`, select Battle at the Portal Guide, then enter the portal.
+   One large red Boss appears at a validated placement. Training has a stationary dummy instead.
 2. The cyan outlines are hurtboxes. The player's is inset from its green body,
    demonstrating independence from visual size. Face an enemy with WASD and press J:
    a small yellow magic bolt travels until impact, 360 units, or 1.5 seconds.
@@ -485,7 +503,7 @@ combat, and the existing frame-time cap discards excess stall time.
   shape-generated attacks or configured projectile volleys to the existing `CombatSystem`.
   It never applies damage itself.
   Core combat handles hostile filtering, once-per-invocation hits, HP and death.
-- Fast travel consumes input before simulation. Portals are checked at the player's
+- NPC practice returns consume input before simulation. Portals are checked at the player's
   final position after movement/combat. Arrival immediately clears old-map attacks
   and cancels dash. The same controller retains slot cooldowns across all successful
   transitions, including re-entry, so travel cannot recharge abilities. This is
@@ -493,12 +511,13 @@ combat, and the existing frame-time cap discards excess stall time.
 - Pause freezes timing; R explicitly clears arena attacks, dash and cooldowns and
   restores HP. Restoring Health alone does not reset ability cooldowns.
 
-Manual checks: run `./gradlew lwjgl3:run`, press U then 2, and try J/K/O near enemies.
+Manual checks: run `./gradlew lwjgl3:run`, use the Portal Guide to enter Training,
+and try J/K/O near the stationary target.
 The native title shows each key's lifecycle and HP; yellow rectangles show actual
 attack hitboxes. Hold keys and then tap rapidly to verify no automatic repeat or
 cooldown bypass. Try WASD+L against a wall and near each map edge, then L without
 WASD to check remembered facing. Press all four keys to check dash priority. Dash
-or attack, travel with 1/2/3, and confirm active effects stop without resetting slot
+or attack, return through the Training exit NPC, and confirm effects stop without resetting slot
 cooldowns. Battle death now returns to Hub and restores HP automatically.
 
 Ability limitations: Archer, Mage and Katana use the first-version skills below.
@@ -563,9 +582,9 @@ Full tuning, changed files, automated verification and manual checks:
 
 ## Boss encounter prototype
 
-Run `./gradlew lwjgl3:run`, press U then 3 to enter **Crossroads**. The Sentinel is
+Run `./gradlew lwjgl3:run`, select Battle at the Portal Guide and enter **Crossroads**. The Sentinel is
 a large 64 x 64 red rectangle, normally starting at (360, 100). It uses 400 HP and
-the same player/enemy combat pipeline. Training also has one Boss; Hub remains peaceful.
+the same player/enemy combat pipeline. Training has a stationary practice target instead; Hub remains peaceful.
 The native window title reports Boss HP, phase, state and any dropped material.
 
 `Boss` composes the existing `Enemy` health owner and `EnemyAI` controller; there is

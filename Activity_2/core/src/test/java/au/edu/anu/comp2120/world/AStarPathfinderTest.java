@@ -9,7 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Checks actual route clearance, finite searches, off-grid connectors, and built-in map navigation.
+ * Checks actual route clearance, finite searches, off-grid connectors, and multi-wall navigation.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -107,11 +107,11 @@ final class AStarPathfinderTest {
         assertEquals(List.of(body), finder.findPath(body, body, 0));
     }
 
-    /** Both alternating walls in the actual Training map can be navigated with a 28-unit body. */
+    /** The former Training walls remain an isolated navigation fixture, not live map obstacles. */
     @Test
-    void navigatesActualTrainingMap() {
-        GameMap map = MapCatalog.createMaps().stream().filter(level -> level.getId().equals(MapCatalog.TRAINING))
-                .findFirst().orElseThrow();
+    void navigatesAlternatingWallFixture() {
+        GameMap map = TestMaps.rectangle(800, 600,
+                List.of(new CollisionBox(240, 0, 24, 380), new CollisionBox(480, 220, 24, 380)));
         AStarPathfinder finder = new AStarPathfinder(map, 28, 28, 16);
         CollisionBox start = new CollisionBox(80, 80, 28, 28);
         CollisionBox target = new CollisionBox(680, 480, 28, 28);

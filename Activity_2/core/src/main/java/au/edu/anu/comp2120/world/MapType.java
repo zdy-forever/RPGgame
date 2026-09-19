@@ -8,6 +8,8 @@ package au.edu.anu.comp2120.world;
 public enum MapType {
     /** Base used for preparation and future NPC interactions. */
     HUB,
+    /** Non-hostile practice area with a stationary damage-scoring target. */
+    TRAINING,
     /** Area intended for future combat encounters. */
     BATTLE
 }

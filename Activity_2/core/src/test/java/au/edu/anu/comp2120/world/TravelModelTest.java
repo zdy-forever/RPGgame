@@ -2,6 +2,7 @@ package au.edu.anu.comp2120.world;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -17,6 +18,16 @@ final class TravelModelTest {
 
     /** Creates a travel data test fixture. */
     TravelModelTest() {
+    }
+
+    /** Production keeps one configurable route, without demo-only or unused portal markers. */
+    @Test
+    void productionCatalogueOmitsUnusedAndDemoReturnPortals() {
+        List<Portal> portals = TravelCatalog.createQuestPortals();
+        assertEquals(List.of(TravelCatalog.QUEST_PORTAL_ID), portals.stream().map(Portal::id).toList());
+        assertTrue(portals.stream().allMatch(portal -> portal.sourceMapId().equals(MapCatalog.HUB)));
+        assertTrue(portals.stream().noneMatch(Portal::enabled));
+        assertTrue(TravelCatalog.createPortals().stream().noneMatch(portal -> portal.id().equals("hub-disabled")));
     }
 
     /**

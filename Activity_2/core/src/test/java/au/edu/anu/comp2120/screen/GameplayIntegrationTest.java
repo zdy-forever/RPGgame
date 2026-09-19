@@ -24,7 +24,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /**
- * Cross-module placeholder acceptance checks using real movement, travel, AI, abilities and combat.
+ * Isolated unrestricted harness checks using real movement, travel, AI, abilities and combat.
+ * Explicit travel API calls are fixtures, not removed keyboard shortcuts or production admission.
+ * Production NPC/portal/outcome acceptance is covered by PortalGuideTrainingTest and CoreGameplayIntegrationTest.
  * No assets or graphics context are loaded; camera assertions exercise the renderer's actual math.
  * @author Daoyan Zhu (u7782042)
  */
@@ -33,14 +35,14 @@ final class GameplayIntegrationTest {
     private final GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB, 28, 28, 180);
     /** Actual automatic portal/fast-travel coordinator. */
     private final TravelSystem travel = new TravelSystem(session, TravelCatalog.createPortals(), TravelCatalog.createDestinations());
-    /** Actual scene-side gameplay coordinator. */
+    /** Unrestricted combat harness; intentionally bypasses production quest admission for component checks. */
     private final CombatDemo demo = new CombatDemo(session);
 
-    /** Creates the normal Hub baseline without initializing graphics or loading assets. */
+    /** Creates an isolated Hub fixture without initializing graphics or loading assets. */
     GameplayIntegrationTest() {
     }
 
-    /** WASD-scale movement enters a real portal; arrival protection, collision and camera use the new map. */
+    /** Portal arrival uses the new open map: former walls allow movement and outer bounds still clamp. */
     @Test
     void hubMovementPortalArrivalCollisionAndCameraFormOneChain() {
         var player = session.getPlayer();
@@ -63,11 +65,14 @@ final class GameplayIntegrationTest {
         for (int i = 0; i < 10; i++) {
             frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
         }
-        assertEquals(212, player.getX());
+        assertEquals(260, player.getX());
         assertTrue(session.getCurrentMap().isWalkable(player.getBounds()));
+        player.moveBy(session.getCurrentMap().getBounds().width(), 0);
+        assertEquals(session.getCurrentMap().getBounds().right() - player.getBounds().width(), player.getX());
         assertCameraInsideMap();
         assertTrue(demo.getEnemies().isEmpty());
-        assertTrue(demo.getBoss().isPresent());
+        assertTrue(demo.getBoss().isEmpty());
+        assertTrue(demo.getTrainingDummy().isPresent());
         assertEquals(2, demo.getCombatants().size());
         assertThrows(IllegalStateException.class, () -> travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY));
         travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);

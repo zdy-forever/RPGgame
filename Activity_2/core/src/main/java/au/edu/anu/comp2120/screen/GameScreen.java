@@ -3,6 +3,8 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
+import au.edu.anu.comp2120.npc.PortalGuide;
+import au.edu.anu.comp2120.npc.ClassTrainer;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.world.*;
 import au.edu.anu.comp2120.TravelSystem;
@@ -37,10 +39,20 @@ public final class GameScreen extends ScreenAdapter {
     private final CombatDemo combatDemo;
     /** Stable external acceptance/result/reward boundary; contains no Quest or Inventory logic. */
     private final EncounterFlow encounterFlow;
+    /** NPC selection adapter; routes all acceptance through the existing encounter boundary. */
+    private final PortalGuide portalGuide;
+    /** Highlighted destination while the portal NPC's choice dialogue is open. */
+    private PortalGuide.Destination portalChoice = PortalGuide.Destination.TRAINING;
+    /** Hub-only NPC adapter for existing class and O mode selection. */
+    private final ClassTrainer classTrainer;
+    /** Highlighted trainer choice; changing it alone never changes gameplay state. */
+    private int trainerChoice;
+    /** Feedback displayed within the trainer dialogue after confirmation. */
+    private String trainerFeedback = "J/K/L follow your class; choose your O mode below.";
     /** Last HP/key feedback applied to the native title, avoiding redundant title updates. */
     private String combatStatus = "";
     /** Brief travel feedback shown in the native window title without a font asset. */
-    private String travelStatus = "Awaiting external encounter acceptance; task portals closed";
+    private String travelStatus = "Talk to the Portal Guide [E] to choose Training or Battle";
     /** Adapter for the application's keyboard input. */
     private final PlayerInput input;
     /** Geometry-only view owned by this screen. */
@@ -101,7 +113,9 @@ public final class GameScreen extends ScreenAdapter {
         var questPortals = TravelCatalog.createQuestPortals();
         travel = new TravelSystem(session, questPortals, TravelCatalog.createDestinations());
         encounterFlow = new EncounterFlow(session, travel, questPortals.stream().map(Portal::id).toList());
+        portalGuide = new PortalGuide(session, travel, encounterFlow);
         combatDemo = new CombatDemo(session, encounterFlow);
+        classTrainer = new ClassTrainer(session, combatDemo.getAbilities());
         input = new PlayerInput(Gdx.input);
         renderer = new PlaceholderRenderer(GameConfig.CAMERA_VIEW_WIDTH, GameConfig.CAMERA_VIEW_HEIGHT);
         updateMapView();
@@ -114,7 +128,8 @@ public final class GameScreen extends ScreenAdapter {
 
     /**
      * Gives external Quest/Inventory adapters acceptance, result and one-time reward APIs.
-     * All calls must run on the game-loop thread; no NPC or Quest implementation is provided here.
+     * All calls must run on the game-loop thread; the local Portal Guide uses this same boundary.
+     * Quest progress and Inventory reward consumption remain external responsibilities.
      * Intentionally exposed for external adapter integration, even before a local caller exists.
      * @return this screen's persistent gameplay integration boundary
      */
@@ -125,7 +140,7 @@ public final class GameScreen extends ScreenAdapter {
 
     /**
      * Samples input, updates movement/abilities and combat, then checks arrival portals before drawing.
-     * Fast travel consumes commands; portal arrival immediately clears old-map attacks and dash.
+     * NPC returns consume commands; portal arrival immediately clears old-map attacks and dash.
      * Success/failure recovery consumes the rest of the frame before any Hub movement or portal check.
      * Frame stalls are capped and all simulation timers pause with this screen.
      *
@@ -133,22 +148,27 @@ public final class GameScreen extends ScreenAdapter {
      */
     @Override
     public void render(float delta) {
+        HudLayout hud = HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        if (!hud.detailsVisible()) {
+            bigMap = false;
+        }
         if (!paused && !skipNextUpdate && Float.isFinite(delta) && delta >= 0) {
             updateGameplay(Math.min(delta, GameConfig.MAX_FRAME_DELTA));
         }
         skipNextUpdate = false;
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
-                currentMap.getType() == MapType.HUB ? GameConfig.HUB_NPCS : List.of(),
+                currentNpcs(),
                 travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
         drawDialogue();
-        drawCoordinates();
-        drawHealth();
+        drawCoordinates(hud);
+        drawHealth(hud);
+        drawTrainingScore();
         drawInventory();
-        drawWeaponSlot();
+        drawWeaponSlot(hud);
         drawInteractionPrompt();
-        drawMinimap();
+        drawMinimap(hud);
         drawChest();
 
 
@@ -166,12 +186,23 @@ public final class GameScreen extends ScreenAdapter {
             showBattleReturn();
             return;
         }
-        boolean travelConsumed;
-        try {
-            travelConsumed = handleTravelInput();
-        } catch (IllegalArgumentException | IllegalStateException failure) {
-            travelStatus = failure.getMessage();
-            travelConsumed = true;
+        if (isPortalDialogueOpen()) {
+            handlePortalDialogueInput();
+            combatDemo.update(delta, PlayerCommand.NONE, false);
+            updateMapView();
+            return;
+        }
+        if (isTrainerDialogueOpen()) {
+            handleTrainerDialogueInput();
+            combatDemo.update(delta, PlayerCommand.NONE, false);
+            updateMapView();
+            return;
+        }
+        if (isTrainingExitDialogueOpen()) {
+            handleTrainingExitInput();
+            combatDemo.update(delta, PlayerCommand.NONE, false);
+            updateMapView();
+            return;
         }
         long beforeCombat = session.getTransitionVersion();
         if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
@@ -182,7 +213,8 @@ public final class GameScreen extends ScreenAdapter {
                 activeNpc = null;
             }
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
+        if (HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()).detailsVisible()
+                && Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             bigMap = !bigMap;
         }
         if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
@@ -191,7 +223,7 @@ public final class GameScreen extends ScreenAdapter {
         if (chestOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
             handleChestRightClick();
         }
-        if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             if (chestOpen) {
                 chestOpen = false;
             } else if (dialogueOpen) {
@@ -209,10 +241,25 @@ public final class GameScreen extends ScreenAdapter {
                     dialogueOpen = true;
                     dialogueLine = 0;
                     activeNpc = near;
+                    if (isPortalDialogueOpen()) {
+                        inventoryOpen = false;
+                        bigMap = false;
+                        portalChoice = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID)
+                                .destinationMapId().equals(MapCatalog.CROSSROADS)
+                                ? PortalGuide.Destination.BATTLE : PortalGuide.Destination.TRAINING;
+                    } else if (isTrainerDialogueOpen()) {
+                        inventoryOpen = false;
+                        bigMap = false;
+                        trainerChoice = session.getPlayer().getPlayerClass().ordinal();
+                        trainerFeedback = "J/K/L follow your class; choose your O mode below.";
+                    } else if (isTrainingExitDialogueOpen()) {
+                        inventoryOpen = false;
+                        bigMap = false;
+                    }
                 }
             }
         }
-        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen || bigMap || chestOpen;
+        boolean frozen = dialogueOpen || inventoryOpen || bigMap || chestOpen;
         combatDemo.update(delta,
                 frozen ? PlayerCommand.NONE : input.sample(),
                 !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
@@ -239,6 +286,100 @@ public final class GameScreen extends ScreenAdapter {
         }
         if (!combatStatus.equals(combatDemo.getStatus())) {
             updateMapView();
+        }
+    }
+
+    /**
+     * Identifies the destination-choice dialogue without changing generic NPC scripts.
+     * @return true only while the Portal Guide is the active speaker
+     */
+    private boolean isPortalDialogueOpen() {
+        return dialogueOpen && activeNpc != null
+                && activeNpc.getId().equals(GameConfig.PORTAL_GUIDE.getId());
+    }
+
+    /**
+     * Identifies the class-selection dialogue without changing ordinary NPC scripts.
+     * @return true while the Class Master is the active speaker
+     */
+    private boolean isTrainerDialogueOpen() {
+        return dialogueOpen && activeNpc != null
+                && activeNpc.getId().equals(GameConfig.CLASS_MASTER.getId());
+    }
+
+    /**
+     * Identifies the explicit practice-return confirmation.
+     * @return true while the Training exit NPC is the active speaker
+     */
+    private boolean isTrainingExitDialogueOpen() {
+        return dialogueOpen && activeNpc != null
+                && activeNpc.getId().equals(GameConfig.TRAINING_EXIT.getId());
+    }
+
+    /** Confirms E or cancels Escape without adding any global travel shortcut. */
+    private void handleTrainingExitInput() {
+        if (session.getCurrentMap().getType() != MapType.TRAINING || !session.getPlayer().isAlive()
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false;
+            activeNpc = null;
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            try {
+                portalGuide.returnFromTraining();
+                dialogueOpen = false;
+                activeNpc = null;
+                travelStatus = "Practice finished; returned to Hub";
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                travelStatus = failure.getMessage();
+            }
+        }
+    }
+
+    /** Handles the modal trainer menu before travel, debug keys or combat input. */
+    private void handleTrainerDialogueInput() {
+        if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false;
+            activeNpc = null;
+            return;
+        }
+        var choices = ClassTrainer.Choice.values();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            trainerChoice = Math.floorMod(trainerChoice - 1, choices.length);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            trainerChoice = (trainerChoice + 1) % choices.length;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            trainerFeedback = classTrainer.select(choices[trainerChoice])
+                    ? "Applied: " + classTrainer.label(choices[trainerChoice])
+                    : "Unchanged: already selected or an ability is still active.";
+        }
+    }
+
+    /**
+     * Handles the modal choice before travel shortcuts or ability input can consume the same keys.
+     * Arrows change the highlight, E confirms through PortalGuide, and Escape cancels unchanged.
+     * Confirmation configures a route only; entering the portal on a later frame performs travel.
+     */
+    private void handlePortalDialogueInput() {
+        if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false;
+            activeNpc = null;
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP) || Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            portalChoice = portalChoice == PortalGuide.Destination.TRAINING
+                    ? PortalGuide.Destination.BATTLE : PortalGuide.Destination.TRAINING;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            try {
+                portalGuide.select(portalChoice);
+                travelStatus = "Portal ready: " + portalChoice.label() + "; step into the portal";
+                dialogueOpen = false;
+                activeNpc = null;
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                travelStatus = failure.getMessage();
+            }
         }
     }
 
@@ -274,18 +415,15 @@ public final class GameScreen extends ScreenAdapter {
         }
     }
     /**
-     * Finds the closest NPC within interaction range on the Hub map.
+     * Finds the closest NPC within interaction range on the current map.
      *
      * @param player the player used as the search origin
      * @return the nearest NPC in range, or null when none is close enough
      */
     private NPC nearestNpc(Player player) {
-        if (session.getCurrentMap().getType() != MapType.HUB) {
-            return null;
-        }
         NPC best = null;
         double bestDistance = Double.MAX_VALUE;
-        for (NPC npc : GameConfig.HUB_NPCS) {
+        for (NPC npc : currentNpcs()) {
             double dx = player.getX() - npc.getX();
             double dy = player.getY() - npc.getY();
             double distance = Math.sqrt(dx * dx + dy * dy);
@@ -296,22 +434,30 @@ public final class GameScreen extends ScreenAdapter {
         }
         return best;
     }
+
     /**
-     * Draws the player's HP at the top-left corner, above the coordinate line.
-     * Uses this screen's own font and batch, so no renderer change is needed.
+     * Supplies map-local NPCs; real battles continue to contain only the player and one Boss.
+     * @return registered Hub NPCs, one Training exit guide, or no Battle NPCs
      */
-    /**
-     * Draws the player's health bar (red background, green fill) at the top-left corner,
-     * with the numeric value underneath. Uses this screen's own resources.
-     */
+    private List<NPC> currentNpcs() {
+        return switch (session.getCurrentMap().getType()) {
+            case HUB -> GameConfig.HUB_NPCS;
+            case TRAINING -> List.of(GameConfig.TRAINING_EXIT);
+            case BATTLE -> List.of();
+        };
+    }
     /**
      * Draws the player's health bar (red background, green fill) at the top-left corner,
      * with the numeric value centred inside the bar. Uses this screen's own resources.
+     * @param hud current size and visibility policy
      */
-    private void drawHealth() {
+    private void drawHealth(HudLayout hud) {
+        if (!hud.healthVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float scale = hud.scale();
         float x = 12f * scale;
         float barW = 180f * scale;
         float barH = 18f * scale;
@@ -335,6 +481,38 @@ public final class GameScreen extends ScreenAdapter {
                 x, baseline, barW, Align.center, false);
         dialogueBatch.end();
     }
+
+    /** Draws final delivered damage totals for the current stationary practice target only. */
+    private void drawTrainingScore() {
+        var practice = combatDemo.getTrainingDummy();
+        if (practice.isEmpty()) {
+            return;
+        }
+        var dummy = practice.orElseThrow();
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = Math.max(1f, h / 720f);
+        float x = 12f * scale;
+        float top = h - 85f * scale;
+        float boxW = 280f * scale;
+        float boxH = 150f * scale;
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.04f, 0.07f, 0.10f, 1);
+        dialogueShapes.rect(x, top - boxH, boxW, boxH);
+        dialogueShapes.end();
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(0.85f, 0.95f, 1f, 1);
+        dialogueFont.draw(dialogueBatch, "TRAINING DAMAGE SCORE\n"
+                        + "Total damage: " + dummy.getTotalDamage() + "\n"
+                        + "Last damage: " + dummy.getLastDamage() + "\n"
+                        + "Damage hits: " + dummy.getHitCount() + "\n"
+                        + "[R] Reset practice\nTalk to Return to Hub NPC [E] to leave",
+                x + 10f * scale, top - 12f * scale, boxW - 20f * scale, Align.left, true);
+        dialogueBatch.end();
+    }
     /**
      * Parses the current HP number from the combat status text.
      *
@@ -347,11 +525,11 @@ public final class GameScreen extends ScreenAdapter {
             char c = segment.charAt(i);
             if (Character.isDigit(c)) {
                 digits.append(c);
-            } else if (digits.length() > 0) {
+            } else if (!digits.isEmpty()) {
                 break;
             }
         }
-        if (digits.length() == 0) {
+        if (digits.isEmpty()) {
             return MAX_HP;
         }
         return Math.max(0, Math.min(Integer.parseInt(digits.toString()), MAX_HP));
@@ -369,11 +547,15 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Draws the live player coordinate in the top-left corner.
      * Uses this screen's own font and batch, so no renderer change is needed.
+     * @param hud current size and visibility policy
      */
-    private void drawCoordinates() {
+    private void drawCoordinates(HudLayout hud) {
+        if (!hud.detailsVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float scale = hud.scale();
         dialogueFont.getData().setScale(scale);
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
@@ -397,6 +579,9 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         String hint = switch (near.getId()) {
+            case "portal_guide" -> "[E] Choose portal destination";
+            case "class_master" -> "[E] Choose class / O ultimate mode";
+            case "training_exit" -> "[E] Return to Hub";
             case "notice_board" -> "[E] Read " + near.getName();
             case "healing_spring" -> "[E] Drink from " + near.getName();
             case "storage_chest" -> "[E] Open " + near.getName();
@@ -413,12 +598,27 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.end();
     }
     /**
-     * Returns the script to show for the active NPC, appending a short
-     * reminder when its one-time reward has already been collected.
+     * Returns the active NPC script, the Portal Guide choice list, or a one-time reward reminder.
      *
      * @return the visible dialogue lines, never null
      */
     private List<String> dialogueLines() {
+        if (isTrainerDialogueOpen()) {
+            StringBuilder text = new StringBuilder("Current: ")
+                    .append(session.getPlayer().getPlayerClass().getDisplayName())
+                    .append(" | O mode ").append(session.getPlayer().getUltimateMode()).append('\n');
+            var choices = ClassTrainer.Choice.values();
+            for (int i = 0; i < choices.length; i++) {
+                text.append(i == trainerChoice ? "> " : "  ").append(classTrainer.label(choices[i])).append('\n');
+            }
+            return List.of(text.append(trainerFeedback).toString());
+        }
+        if (isPortalDialogueOpen()) {
+            return List.of((portalChoice == PortalGuide.Destination.TRAINING ? "> " : "  ")
+                    + PortalGuide.Destination.TRAINING.label() + "\n"
+                    + (portalChoice == PortalGuide.Destination.BATTLE ? "> " : "  ")
+                    + PortalGuide.Destination.BATTLE.label());
+        }
         List<String> base = activeNpc.getLines();
         if (!activeNpc.hasInteracted() || activeNpc.getRewardItemId() == null) {
             return base;
@@ -427,6 +627,7 @@ public final class GameScreen extends ScreenAdapter {
         withNotice.add("You already took the " + prettyName(activeNpc.getRewardItemId()) + ".");
         return withNotice;
     }
+    /** Draws ordinary NPC text, portal choices or class/O configuration using shared UI resources. */
     private void drawDialogue() {
         if (!dialogueOpen || activeNpc == null) {
             return;
@@ -437,8 +638,8 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float boxW = w * 0.7f;
-        float boxH = h * 0.22f;
+        float boxW = w * (isTrainerDialogueOpen() ? 0.90f : 0.7f);
+        float boxH = h * (isTrainerDialogueOpen() ? 0.65f : isPortalDialogueOpen() ? 0.30f : 0.22f);
         float x = (w - boxW) / 2f;
         float y = 18f;
         float scale = Math.max(1f, h / 720f) * 1.4f;
@@ -468,14 +669,23 @@ public final class GameScreen extends ScreenAdapter {
                 ? "[E] Close"
                 : "[E] Take reward";
         dialogueFont.draw(dialogueBatch,
-                last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
+                isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
+                        : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
+                        : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
+                        : last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
     }
-    /** Draws the persistent weapon slot in the top-right corner. */
-    private void drawWeaponSlot() {
+    /**
+     * Draws the persistent weapon slot in the top-right corner, within the capped HUD size.
+     * @param hud current size and visibility policy
+     */
+    private void drawWeaponSlot(HudLayout hud) {
+        if (!hud.detailsVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
+        float scale = hud.scale();
         float boxW = 200f * scale;
         float boxH = 58f * scale;
         float x = w - boxW - 12f * scale;
@@ -558,17 +768,21 @@ public final class GameScreen extends ScreenAdapter {
     }
     /**
      * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
-     * Screen-space only; world geometry is scaled to fit the panel.
+     * Screen-space only; both panels and text stop growing at the reference window size.
+     * @param hud current size and visibility policy
      */
-    private void drawMinimap() {
+    private void drawMinimap(HudLayout hud) {
+        if (!hud.detailsVisible()) {
+            return;
+        }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float ui = Math.max(1f, h / 720f) * 1.4f;
+        float ui = hud.scale();
         GameMap map = session.getCurrentMap();
         CollisionBox bounds = map.getBounds();
 
-        float boxW = bigMap ? Math.min(w * 0.8f, 900f * ui) : 200f * ui;
-        float boxH = bigMap ? Math.min(h * 0.8f, 600f * ui) : 140f * ui;
+        float boxW = bigMap ? GameConfig.HUD_REFERENCE_WIDTH * 0.8f * ui / GameConfig.HUD_MAX_SCALE : 200f * ui;
+        float boxH = bigMap ? GameConfig.HUD_REFERENCE_HEIGHT * 0.8f * ui / GameConfig.HUD_MAX_SCALE : 140f * ui;
         float x = bigMap ? (w - boxW) / 2f : w - boxW - 12f * ui;
         float y = bigMap ? (h - boxH) / 2f : 12f * ui;
         float pad = 7f * ui;
@@ -601,14 +815,12 @@ public final class GameScreen extends ScreenAdapter {
                     Math.max((float) trigger.width() * s, 3f),
                     Math.max((float) trigger.height() * s, 3f));
         }
-        if (hub) {
-            for (NPC npc : GameConfig.HUB_NPCS) {
-                dialogueShapes.setColor(1f, 0.85f, 0.20f, 1);
-                dialogueShapes.rect(ox + (float) (npc.getX() - bounds.x()) * s,
-                        oy + (float) (npc.getY() - bounds.y()) * s,
-                        Math.max((float) npc.getWidth() * s, 3f),
-                        Math.max((float) npc.getHeight() * s, 3f));
-            }
+        for (NPC npc : currentNpcs()) {
+            dialogueShapes.setColor(1f, 0.85f, 0.20f, 1);
+            dialogueShapes.rect(ox + (float) (npc.getX() - bounds.x()) * s,
+                    oy + (float) (npc.getY() - bounds.y()) * s,
+                    Math.max((float) npc.getWidth() * s, 3f),
+                    Math.max((float) npc.getHeight() * s, 3f));
         }
         CollisionBox body = session.getPlayer().getBounds();
         dialogueShapes.setColor(0.20f, 0.95f, 0.45f, 1);
@@ -649,7 +861,10 @@ public final class GameScreen extends ScreenAdapter {
                                float pad, float lineH, float scale, float colW) {
     }
 
-    /** Recomputes the chest panel geometry from the current window size. */
+    /**
+     * Recomputes the chest panel geometry from the current window size.
+     * @return layout shared by chest rendering and hit testing
+     */
     private ChestLayout chestLayout() {
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
@@ -665,6 +880,13 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Finds which item row sits under the cursor within one column.
      *
+     * @param mouseX cursor x in screen units
+     * @param mouseY cursor y measured from the bottom of the window
+     * @param colX column's left edge
+     * @param colW column width
+     * @param firstLine baseline of the first row
+     * @param lineH height allocated to each row
+     * @param count number of available rows
      * @return zero-based row index, or -1 when no row is hit
      */
     private static int hitRow(float mouseX, float mouseY, float colX, float colW,
@@ -778,7 +1000,12 @@ public final class GameScreen extends ScreenAdapter {
                 p.x + p.pad, p.y + p.pad + 4f);
         dialogueBatch.end();
     }
-    /** Turns a raw material id such as weapon_lightning_staff into a readable name. */
+    /**
+     * Turns a raw material id such as weapon_lightning_staff into a readable name.
+     * @param materialId non-null material identifier
+     * @return formatted name, or the original identifier when no name remains
+     * @throws NullPointerException if materialId is null
+     */
     private String prettyName(String materialId) {
         String cleaned = materialId.replace("weapon_", "").replace('_', ' ').trim();
         if (cleaned.isEmpty()) {
@@ -844,35 +1071,6 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
     }
-    /**
-     * Handles fast-travel shortcuts and an explicit temporary debug unlock key.
-     *
-     * @return true if a travel command consumed this frame's movement update
-     * @throws IllegalArgumentException if a configured destination or spawn is invalid
-     * @throws IllegalStateException if a selected destination is locked
-     */
-    private boolean handleTravelInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.U)) {
-            travel.unlockDestination(TravelCatalog.TRAINING_ENTRY);
-            travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);
-            travelStatus = "Fast travel unlocked for this session (debug)";
-            return true;
-        }
-        String destination;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            destination = TravelCatalog.HUB_ENTRY;
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            destination = TravelCatalog.TRAINING_ENTRY;
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-            destination = TravelCatalog.CROSSROADS_ENTRY;
-        } else {
-            return false;
-        }
-        travel.fastTravel(destination);
-        travelStatus = "Fast travel: " + travel.getDestination(destination).name();
-        return true;
-    }
-
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
         GameMap map = session.getCurrentMap();

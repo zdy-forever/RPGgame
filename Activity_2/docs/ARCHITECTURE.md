@@ -11,6 +11,27 @@ SUCCESS/FAILURE returns without completing, deleting, failing or replacing any Q
 
 ## Current production encounter boundary
 
+The current local entry adapter is `npc.PortalGuide`: Hub contains one initially disabled
+portal (`TravelCatalog.QUEST_PORTAL_ID`) and a nearby destination-selection NPC. E opens
+the choice, Up/Down selects Training or Battle, and E confirms without teleporting.
+Walking into the configured portal performs normal travel. No Achievement Wall is implemented.
+Selecting Battle calls the existing `EncounterFlow.activate`; selecting Training validates
+and reconfigures the same portal, clears gameplay admission and enables ordinary practice travel.
+It does not change external Quest state. Failed Battle acceptance is reused when selecting
+Battle again; a completed acceptance is replaced by a fresh ID. Reward outbox data is preserved.
+
+`MapType.TRAINING` is separate from `BATTLE`. It contains one `enemy.TrainingDummy`, with
+no AI, movement, attacks, Boss reward or battle outcome. Damage is delivered by the existing
+CombatSystem; the dummy records actual positive delivered damage and restores its Health
+after every hit. CombatDemo discards its knockback requests to keep the target stationary.
+GameScreen draws total/last damage and hit count using existing debug text. R clears the
+practice combat scope/cooldowns and restores player HP. The Training-only Return to Hub NPC
+uses `PortalGuide.returnFromTraining()` after E confirmation, reusing validated travel and
+arrival protection without healing or creating BattleResult/rewards. U/1/2/3 debug travel
+bindings are removed; the underlying fast-travel API and its contract tests remain supported.
+Map transitions create a fresh dummy/score and clear old attacks, fields and ability activity.
+Player identity/class/per-class O choices remain unchanged; class/O selection stays Hub-only.
+
 `GameScreen` wires one `EncounterFlow(session, travel, taskPortalIds)` into
 `CombatDemo(session, encounterFlow)`. `GameScreen.getEncounterFlow()` is the adapter entry point.
 The one-argument CombatDemo constructor remains an unrestricted standalone debug/test harness;
@@ -22,7 +43,7 @@ each admitted built-in Battle map/spawn; generic Enemy/EnemyAI remain reusable c
   not a Quest. `activate`/`clearActiveEncounter` require a living Hub player. Activation
   validates a Battle map and full-body spawn before disabling old/enabling new task routes.
   Encounter IDs identify acceptances, not maps; a completed acceptance ID cannot be replayed.
-- Production `TravelCatalog.createQuestPortals()` supplies only initially closed Hub routes.
+- Production `TravelCatalog.createQuestPortals()` supplies one initially closed Hub route.
   No ordinary battle return portal is generated. Normal return is driven by settlement.
 - `TravelSystem.arrivedThrough` checks the exact transition stamp and portal ID. Fast travel
   retains its independent unlock/routing rules but cannot create a task Boss, even on the
@@ -58,11 +79,12 @@ See [Quest portal flow report](QUEST_PORTAL_FLOW_REPORT.md) for calls, tests and
 ### Core integration baseline
 
 The headless integration suite uses the production EncounterFlow/CombatDemo wiring, real
-TravelSystem and shared CombatSystem. It covers admission at all four built-in Battle spawns,
+TravelSystem and shared CombatSystem. It covers both built-in Battle spawns and both Training spawns,
 exact Player/Boss membership, actual ability-driven victories, failure/retry/replacement,
 reward-once delivery and Hub-only selection. No Quest implementation or automatic acceptance
-is included: a fresh GameScreen intentionally starts with closed task portals until Developer
-B supplies permission through the public boundary.
+is included: the local Portal Guide explicitly selects the route, while Developer B can
+provide Quest-backed acceptance through the same public boundary. Historical multi-Battle
+contract tests use explicit fixture maps rather than treating the real Training Ground as a Boss arena.
 
 Cross-scope tests leave 15 concrete skill phases through FAILURE, SUCCESS and normal fast
 travel, while reaction fields/statuses and active attacks exist. Retained old references are

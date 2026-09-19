@@ -10,6 +10,7 @@ import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.enemy.EnemyAI;
 import au.edu.anu.comp2120.enemy.Boss;
+import au.edu.anu.comp2120.enemy.TrainingDummy;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.player.PlayerAbilities;
 import au.edu.anu.comp2120.player.PlayerCommand;
@@ -25,7 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Graphics-free coordinator for player requests, single-Boss encounters and settled battle returns.
+ * Graphics-free coordinator for player requests, stationary practice, Boss encounters and battle returns.
  * Owns encounter placement/cleanup and post-settlement outcomes, not AI or damage rules.
  * Screen input supplies commands; common abilities own execution while rendering reads geometry.
  *
@@ -44,6 +45,8 @@ public final class CombatDemo {
     private Combatant player;
     /** Optional current-scope encounter; battle maps contain a Boss and no ordinary enemies. */
     private Boss boss;
+    /** Training-only receiver and damage score; no navigation, attacks, rewards or battle outcome. */
+    private TrainingDummy trainingDummy;
     /** Last synchronized transition stamp, including re-entry to the same map. */
     private long transitionVersion = Long.MIN_VALUE;
     /** Latest completed failure return, retained for read-only diagnostics, never quest mutation. */
@@ -208,13 +211,13 @@ public final class CombatDemo {
             return;
         }
         player.setHurtbox(playerHurtbox());
-        if (reset && (encounterFlow == null || session.getCurrentMap().getType() == MapType.HUB)) {
+        if (reset && (encounterFlow == null || session.getCurrentMap().getType() != MapType.BATTLE)) {
             combat.clear();
             combat.bindWorld(session.getCurrentMap());
             session.getPlayer().getHealth().restoreFull();
             combat.register(player);
             abilities.reset();
-            createBoss();
+            createEncounter();
             return;
         }
         if (cycleUltimateMode) {
@@ -233,6 +236,9 @@ public final class CombatDemo {
             boss.update(player, delta);
         }
         combat.update(delta);
+        if (trainingDummy != null) {
+            trainingDummy.getCombatant().getStatus().clearKnockback();
+        }
         abilities.afterCombat();
         if (returnToHubIfBattleEnded()) {
             return;
@@ -343,6 +349,14 @@ public final class CombatDemo {
     }
 
     /**
+     * Exposes current practice scores without creating another damage engine or requiring graphics.
+     * @return stationary target in Training, otherwise empty
+     */
+    public Optional<TrainingDummy> getTrainingDummy() {
+        return Optional.ofNullable(trainingDummy);
+    }
+
+    /**
      * Returns unclaimed current-map reward data for the geometry-only view.
      * @return immutable list containing zero or one Boss material drop
      */
@@ -378,6 +392,11 @@ public final class CombatDemo {
             boss.getDrop().ifPresent(drop -> status.append(" Drop ").append(drop.materialId())
                     .append(" x").append(drop.quantity()));
         }
+        if (trainingDummy != null) {
+            status.append(" | Training total ").append(trainingDummy.getTotalDamage())
+                    .append(" last ").append(trainingDummy.getLastDamage())
+                    .append(" hits ").append(trainingDummy.getHitCount());
+        }
         return status.append(" | ").append(session.getPlayer().getPlayerClass().getDisplayName())
                 .append(" | Element ").append(session.getPlayer().getClassDefinition().abilities().light().attack().element())
                 .append(" | Mage element ").append(session.getPlayer().getMageElement())
@@ -388,7 +407,7 @@ public final class CombatDemo {
                 .append(" K ").append(abilities.getState(AbilitySlot.SPECIAL))
                 .append(" L ").append(abilities.getState(AbilitySlot.DASH))
                 .append(" O ").append(abilities.getState(AbilitySlot.ULTIMATE))
-                .append(" | R reset HP/abilities (Hub in task flow)").toString();
+                .append(" | R reset HP/abilities/score (Hub/Training)").toString();
     }
 
     /**
@@ -419,20 +438,29 @@ public final class CombatDemo {
         } else {
             abilities.bindAfterTransition(player);
         }
-        createBoss();
+        createEncounter();
         transitionVersion = session.getTransitionVersion();
         return true;
     }
 
     /**
-     * Creates a fresh encounter after scope clear/reset, without changing map definitions.
-     * Production scopes require exact task portal admission; unrelated travel creates no Boss.
+     * Creates a fresh target after scope clear/reset, without changing map definitions.
+     * Training always receives a stationary dummy, with no Boss AI, rewards or battle admission.
+     * Production Battle scopes require exact task portal admission; unrelated travel creates no Boss.
      * Skips blocked or actor-overlapping placements; no invalid Boss is forced into a map.
      * Task success loot is transferred to EncounterFlow before this method discards the old Boss.
      * Unrestricted debug loot remains encounter-scoped and is discarded on reset/travel.
      */
-    private void createBoss() {
+    private void createEncounter() {
         boss = null;
+        trainingDummy = null;
+        if (session.getCurrentMap().getType() == MapType.TRAINING) {
+            if (session.getCurrentMap().isWalkable(GameConfig.TRAINING_TARGET)) {
+                trainingDummy = new TrainingDummy(GameConfig.TRAINING_TARGET);
+                combat.register(trainingDummy.getCombatant());
+            }
+            return;
+        }
         if (session.getCurrentMap().getType() != MapType.BATTLE
                 || (encounterFlow != null && !encounterFlow.isBattleActive())) {
             return;

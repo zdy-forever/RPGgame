@@ -8,7 +8,6 @@ import au.edu.anu.comp2120.combat.Attack;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.enemy.Enemy;
-import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossState;
 import au.edu.anu.comp2120.player.AbilitySlot;
 import au.edu.anu.comp2120.player.AbilityState;
@@ -256,20 +255,19 @@ final class CombatDemoTest {
         demo.update(0, true, false);
         session.getPlayer().takeDamage(25);
         List<Attack> oldAttacks = demo.getActiveAttacks();
-        Enemy previousEnemy = enemy(demo);
-        Boss previousAI = demo.getBoss().orElseThrow();
-        CollisionBox previousPosition = previousAI.getBounds();
+        var previousDummy = demo.getTrainingDummy().orElseThrow();
+        CollisionBox previousPosition = previousDummy.getCombatant().getHurtbox();
         travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);
         travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY);
         demo.update(0, true, false);
         assertEquals(75, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(400, previousEnemy.getHealth().getCurrentHp());
+        assertEquals(0, previousDummy.getTotalDamage());
         assertEquals(400, enemy(demo).getHealth().getCurrentHp());
-        assertNotSame(previousEnemy, enemy(demo));
+        assertFalse(demo.getCombatants().contains(previousDummy.getCombatant()));
         assertTrue(oldAttacks.stream().noneMatch(Attack::isActive));
         assertTrue(demo.getActiveAttacks().isEmpty());
-        previousAI.update(demo.getCombatants().get(0), 1);
-        assertEquals(previousPosition, previousAI.getBounds());
+        demo.update(0.1, PlayerCommand.NONE, false);
+        assertEquals(previousPosition, previousDummy.getCombatant().getHurtbox());
     }
 
     /** A custom small battle map without a Boss-sized candidate must not force an invalid spawn. */
@@ -300,7 +298,8 @@ final class CombatDemoTest {
         session.switchMap(MapCatalog.TRAINING);
         demo.update(0, false, false);
         assertFalse(attack.isActive());
-        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
+        assertEquals(0, demo.getTrainingDummy().orElseThrow().getTotalDamage());
+        assertTrue(demo.getBoss().isEmpty());
     }
 
     /** A portal transition uses the same cleanup path and does not automatically heal the player. */
@@ -319,7 +318,8 @@ final class CombatDemoTest {
         assertEquals(MapCatalog.TRAINING, session.getCurrentMap().getId());
         assertFalse(attack.isActive());
         assertEquals(80, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(400, enemy(demo).getHealth().getCurrentHp());
+        assertEquals(0, demo.getTrainingDummy().orElseThrow().getTotalDamage());
+        assertTrue(demo.getBoss().isEmpty());
     }
 
     /**

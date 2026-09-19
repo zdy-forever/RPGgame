@@ -42,7 +42,8 @@ final class BossDemoTest {
         for (String map : List.of(MapCatalog.HUB, MapCatalog.TRAINING)) {
             session.switchMap(map);
             demo.update(0, false, false);
-            assertEquals(map.equals(MapCatalog.HUB), demo.getBoss().isEmpty());
+            assertTrue(demo.getBoss().isEmpty());
+            assertEquals(map.equals(MapCatalog.TRAINING), demo.getTrainingDummy().isPresent());
             assertTrue(demo.getEnemies().isEmpty());
             assertEquals(map.equals(MapCatalog.HUB) ? 1 : 2, demo.getCombatants().size());
             assertTrue(demo.getDrops().isEmpty());
@@ -116,13 +117,13 @@ final class BossDemoTest {
     }
 
     /**
-     * Reset placement avoids the player without dropping the single encounter on either battle map.
-     * @param mapId built-in battle map
+     * Reset placement avoids the player from either named spawn of the current Battle map.
+     * @param spawnId built-in Battle spawn
      */
     @ParameterizedTest
-    @ValueSource(strings = {MapCatalog.TRAINING, MapCatalog.CROSSROADS})
-    void resetUsesSafeFallbackPlacement(String mapId) {
-        session.switchMap(mapId);
+    @ValueSource(strings = {"entry", "east"})
+    void resetUsesSafeFallbackPlacement(String spawnId) {
+        session.switchMap(MapCatalog.CROSSROADS, spawnId);
         demo.update(0, PlayerCommand.NONE, false);
         CollisionBox previous = demo.getBoss().orElseThrow().getBounds();
         session.getPlayer().enterArea(session.getCurrentMap(), previous.x(), previous.y());

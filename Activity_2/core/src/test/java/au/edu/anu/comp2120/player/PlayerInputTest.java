@@ -24,6 +24,22 @@ final class PlayerInputTest {
     PlayerInputTest() {
     }
 
+    /** Removed travel keys do not produce movement, ability or loadout intents in the retained adapter. */
+    @Test
+    void removedTravelKeysProduceNoPlayerIntent() {
+        Set<Integer> keys = Set.of(Input.Keys.NUM_1, Input.Keys.NUM_2, Input.Keys.NUM_3, Input.Keys.U);
+        Input keyboard = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),
+                new Class<?>[] {Input.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "isKeyPressed", "isKeyJustPressed" -> keys.contains((Integer) args[0]);
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        PlayerInput input = new PlayerInput(keyboard);
+        assertEquals(PlayerCommand.NONE, input.sample());
+        assertTrue(input.sampleClassSelection().isEmpty());
+        assertFalse(input.sampleElementCycle());
+        assertFalse(input.sampleUltimateModeCycle());
+    }
+
     /** F4 is an independent key-edge request; holding it cannot repeatedly cycle elements. */
     @Test
     void elementCycleUsesKeyEdgesWithoutChangingOtherMappings() {
