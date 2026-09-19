@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Coordinates the map session, movement input, combat debug adapter, and geometry-only presentation.
+ * Coordinates the map session, input, combat adapter and read-only art presentation.
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
@@ -65,7 +65,7 @@ public final class GameScreen extends ScreenAdapter {
     private String travelStatus = "Talk to the Portal Guide [E] to choose Training or Battle";
     /** Adapter for the application's keyboard input. */
     private final PlayerInput input;
-    /** Geometry-only view owned by this screen. */
+    /** Art-backed world view owned by this screen, independent of combat rules. */
     private final PlaceholderRenderer renderer;
     /** Whether lifecycle pause has suspended movement. */
     private boolean paused;
@@ -181,7 +181,9 @@ public final class GameScreen extends ScreenAdapter {
         renderer.render(currentMap, session.getPlayer(),
                 currentNpcs(),
                 travel.getPortals(currentMap.getId()),
-                combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
+                combatDemo, paused || dialogueOpen || inventoryOpen || chestOpen || bigMap
+                        || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
+                combatDemo.getDrops());
         drawCoordinates(hud);
         drawHealth(hud);
         drawTrainingScore();
@@ -190,9 +192,23 @@ public final class GameScreen extends ScreenAdapter {
         drawInteractionPrompt();
         drawMinimap(hud);
         drawChest();
+        drawSkillHud(hud);
         drawDialogue();
 
 
+    }
+
+    /**
+     * Adds art-backed skill icons under modal dialogue without enlarging the capped HUD.
+     * @param hud current window visibility and scale
+     */
+    private void drawSkillHud(HudLayout hud) {
+        if (!hud.detailsVisible() || inventoryOpen || chestOpen || bigMap) { return; }
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
+        dialogueBatch.begin();
+        renderer.drawSkillHud(dialogueBatch, dialogueFont, session.getPlayer(), combatDemo, hud,
+                Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        dialogueBatch.end();
     }
 
     /**
@@ -462,8 +478,11 @@ public final class GameScreen extends ScreenAdapter {
         }
     }
 
-    /** Updates only placeholder feedback after a completed return; no Quest state is read or changed. */
+    /** Updates non-blocking visual feedback after a completed return; no Quest/reward state is changed. */
     private void showBattleReturn() {
+        encounterFlow.getLastResult()
+                .filter(result -> result.encounterVersion() == session.getTransitionVersion() - 1)
+                .ifPresent(result -> renderer.showOutcome(result, session.getPlayer().getPlayerClass()));
         travelStatus = "Challenge " + encounterFlow.getLastResult()
                 .filter(result -> result.encounterVersion() == session.getTransitionVersion() - 1)
                 .map(result -> result.outcome().name())

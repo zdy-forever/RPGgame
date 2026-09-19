@@ -166,6 +166,14 @@ final class ClassSkills {
     }
 
     /**
+     * Exposes the fixed skill area during casting/field execution without granting mutation.
+     * @return captured geometry only while it represents a fixed area
+     */
+    Optional<CollisionBox> fieldBounds() {
+        return phase == Phase.CAST || phase == Phase.FIELD ? Optional.ofNullable(anchor) : Optional.empty();
+    }
+
+    /**
      * Starts a stateful slot after common cooldown arbitration; no damage is settled here.
      * @param requested owning slot
      * @param skill immutable skill definition

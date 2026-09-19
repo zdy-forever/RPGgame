@@ -3,14 +3,19 @@
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
 demonstrates a Hub, a separate Training Ground and five Boss arenas, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
-travel, and a map-bounded follow camera using geometric placeholders. Player and
+travel, and a map-bounded follow camera with pixel-art presentation. Player and
 enemy models share validated integer health and one attack pipeline, independent
-of the demonstration view. Each built-in Battle Map contains one two-phase placeholder
+of the view. Each built-in Battle Map contains one two-phase
 Boss and no ordinary enemies. Player defeat automatically returns to Hub, restores full
 HP and clears the encounter while retaining player identity and selected class/ultimate configuration.
 The shared combat pipeline supports the first-version ordered elemental reactions, finite
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
-It loads no images, fonts, animation, sound, or music assets.
+The imported pixel-art pack now supplies characters, arenas, portals, skills and icons; no audio is loaded.
+Hub keeps its procedural background. All maps are 1600 x 1200; Training randomly selects an elemental
+background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
+See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification and the five Boss
+projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions
+in the development notes below are superseded by that document; collision remains geometric.
 
 ## Current controls: one portal, practice or battle
 
@@ -158,8 +163,17 @@ On Windows:
 gradlew.bat lwjgl3:run
 ```
 
-The run task automatically uses `assets/` as the working directory and applies
-the macOS first-thread JVM option when required.
+The desktop module includes `assets/` as its main runtime resources. Gradle runs, IDEA's
+launcher classpath and distribution JARs all contain paths such as `art/hub/props/forge.png`;
+LibGDX internal files can load them without an `assets/` working-directory override.
+After changing Gradle configuration, use **Reload All Gradle Projects** in IDEA before running
+`Lwjgl3Launcher.main()` again. Direct non-Gradle macOS run configurations still need the VM option
+`-XstartOnFirstThread`; Gradle tasks and generated distribution scripts configure it automatically.
+
+Build a runnable distribution with `./gradlew :lwjgl3:installDist`, then run
+`lwjgl3/build/install/lwjgl3/bin/lwjgl3` (or `lwjgl3.bat` on Windows). Keep its `lib/` directory
+with the script; this is a distribution with dependencies, not a standalone `java -jar` archive.
+The application-default JVM options match the build host, so generate macOS distributions on macOS.
 
 ## Build and test
 
@@ -484,8 +498,8 @@ Placeholder controls (current first-version skills; numeric tuning is provisiona
    Resize still uses the existing camera.
 
 Class tuning is in `PlayerClasses`; scene/enemy tuning remains in `GameConfig`. Neither combat models nor detection import rendering
-or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
-the native title rather than loading fonts. `CombatDemo` delegates common movement/ability
+or asset APIs. `PlaceholderRenderer` now composes `SceneArt`/`ArtAssets`, retaining camera/procedural
+Hub geometry; HUD icons follow the existing responsive size policy. `CombatDemo` delegates common movement/ability
 execution to `PlayerAbilities`, coordinates placement and reset/transition policy,
 updates the Boss, then advances the shared CombatSystem exactly once before processing failure.
 

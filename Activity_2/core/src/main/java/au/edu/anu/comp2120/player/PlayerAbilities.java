@@ -28,6 +28,23 @@ import au.edu.anu.comp2120.combat.ProjectileSpec;
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlayerAbilities {
+    /**
+     * Reads horizontal facing for presentation; artwork never controls aim.
+     * @return -1, 0 or 1
+     */
+    public int getFacingX() { return facingX; }
+    /**
+     * Reads vertical facing for presentation.
+     * @return -1, 0 or 1
+     */
+    public int getFacingY() { return facingY; }
+    /**
+     * Observes a fixed cast/field area between finite damage ticks.
+     * @return immutable skill geometry while casting or a field is active
+     */
+    public Optional<au.edu.anu.comp2120.world.CollisionBox> getSkillFieldBounds() {
+        return skills.fieldBounds();
+    }
     /** Existing player; owns position, collision environment and health. */
     private final Player player;
     /** Shared arena pipeline; this controller never directly damages a target. */

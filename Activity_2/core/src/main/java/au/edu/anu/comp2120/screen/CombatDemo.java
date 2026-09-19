@@ -34,6 +34,35 @@ import java.util.Optional;
  * @author Daoyan Zhu (u7782042)
  */
 public final class CombatDemo {
+    /** Presentation-only randomness, independent of ability RNG and combat calculations. */
+    private final java.util.Random appearanceRandom = new java.util.Random();
+    /** Stable random pair for the current Training visit; null elsewhere. */
+    private TrainingAppearance trainingAppearance;
+
+    /**
+     * Reads the current visit's random arena/target, without replacing the stationary dummy.
+     * @return selection in Training, otherwise empty
+     */
+    public Optional<TrainingAppearance> getTrainingAppearance() {
+        return Optional.ofNullable(trainingAppearance);
+    }
+
+    /**
+     * Exposes current finite ground fields to the view without creating another update owner.
+     * @return immutable current-scope field snapshot
+     */
+    public List<au.edu.anu.comp2120.combat.ElementField> getElementFields() {
+        return combat.getElementFields();
+    }
+
+    /**
+     * Reads an actor's current attachment for presentation only.
+     * @param actor registered actor
+     * @return attached element or NONE
+     */
+    public ElementType getAttachedElement(Combatant actor) {
+        return combat.getElementStatus(actor).element();
+    }
     /** Existing map/player coordinator; all transitions remain its responsibility. */
     private final GameSession session;
     /** Reused arena pipeline, cleared on every successful map transition. */
@@ -333,6 +362,14 @@ public final class CombatDemo {
     }
 
     /**
+     * Transfers bounded confirmed-hit feedback to presentation, never to damage calculation.
+     * @return current-scope immutable observations, consumed once
+     */
+    public List<au.edu.anu.comp2120.combat.HitFeedback> drainHitFeedback() {
+        return combat.drainHitFeedback();
+    }
+
+    /**
      * Retains the diagnostics API while the gameplay scene no longer spawns ordinary enemies.
      * Boss navigation still reuses EnemyAI internally; ordinary AI remains available to isolated tests.
      * @return immutable empty list under the Boss-only encounter rule
@@ -431,6 +468,8 @@ public final class CombatDemo {
         }
         combat.clear();
         combat.bindWorld(session.getCurrentMap());
+        trainingAppearance = session.getCurrentMap().getType() == MapType.TRAINING
+                ? TrainingAppearance.choose(appearanceRandom) : null;
         player = new Combatant(session.getPlayer(), Faction.PLAYER, playerHurtbox());
         combat.register(player);
         if (abilities == null) {

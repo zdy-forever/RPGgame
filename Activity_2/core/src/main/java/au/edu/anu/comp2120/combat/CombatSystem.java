@@ -19,6 +19,29 @@ import java.util.Optional;
  * @author Daoyan Zhu (u7782042)
  */
 public final class CombatSystem {
+    /** Bounded observational mailbox, never used to drive damage or gameplay. */
+    private final java.util.ArrayDeque<HitFeedback> feedback = new java.util.ArrayDeque<>();
+    /** Limits retained presentation observations when no renderer consumes them. */
+    private static final int MAX_FEEDBACK = 128;
+
+    /**
+     * Transfers confirmed-hit observations once without changing combat state.
+     * @return immutable observations since the last drain or scope clear
+     */
+    public List<HitFeedback> drainHitFeedback() {
+        List<HitFeedback> result = List.copyOf(feedback);
+        feedback.clear();
+        return result;
+    }
+
+    /**
+     * Retains a bounded immutable observation; oldest feedback is disposable presentation data.
+     * @param hit settled hit snapshot
+     */
+    private void recordFeedback(HitFeedback hit) {
+        if (feedback.size() == MAX_FEEDBACK) { feedback.removeFirst(); }
+        feedback.addLast(hit);
+    }
     /** Maximum simultaneously retained projectiles; a volley is accepted or rejected as a whole. */
     public static final int MAX_PROJECTILES = 256;
     /** Maximum live derived invocations, bounding reaction fan-out across updates. */
@@ -367,6 +390,7 @@ public final class CombatSystem {
      * Also unbinds the old world. At transitions, bind the new world and register its actors afterward.
      */
     public void clear() {
+        feedback.clear();
         attacks.forEach(Attack::cancel);
         attacks.clear();
         cooldowns.keySet().forEach(Combatant::clearCapabilities);
@@ -445,6 +469,7 @@ public final class CombatSystem {
      */
     private void deliverDamage(Attack attack, Combatant target) {
         if (target.intercepts(attack)) {
+            recordFeedback(new HitFeedback(target.getHurtbox(), attack.getSpecification().element(), "", true));
             attack.recordHit(target.getEntity());
             return;
         }
@@ -452,6 +477,7 @@ public final class CombatSystem {
         ElementRules.Reaction reaction = attack.isDerived() || incoming == ElementType.NONE ? null
                 : elementRules.find(getElementStatus(target).element(), incoming).orElse(null);
         target.getEntity().takeDamage(calculateDamage(attack, target, reaction));
+        recordFeedback(new HitFeedback(target.getHurtbox(), incoming, reaction == null ? "" : reaction.id(), false));
         attack.recordLandedHit(target.getEntity());
         attack.recordHit(target.getEntity());
         if (!target.getEntity().isAlive() || reaction != null) {
