@@ -11,7 +11,7 @@ HP and clears the encounter while retaining player identity and selected class/u
 The shared combat pipeline supports the first-version ordered elemental reactions, finite
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 The imported pixel-art pack now supplies characters, arenas, portals, skills and icons; no audio is loaded.
-Hub keeps its procedural background. All maps are 1600 x 1200; Training randomly selects an elemental
+Hub keeps its procedural background at 1080 x 400. Battle/Training maps are 1600 x 1200; Training randomly selects an elemental
 background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
 See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification and the five Boss
 projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions
@@ -618,9 +618,11 @@ Full tuning, changed files, automated verification and manual checks:
 
 ## Boss encounter prototype
 
-Run `./gradlew lwjgl3:run`, select Battle at the Portal Guide and enter **Crossroads**. The Sentinel is
-a large 64 x 64 red rectangle, normally starting at (360, 100). It uses 400 HP and
+Run `./gradlew lwjgl3:run`, accept a Boss task, select Battle at the Portal Guide and enter its arena. The Sentinel has
+a 64 x 64 collision body centred on the map: (800, 600) in the built-in 1600 x 1200 arenas. It uses 400 HP and
 the same player/enemy combat pipeline. Training has a stationary practice target instead; Hub remains peaceful.
+The practice target also starts at the map centre. Nearby safe placement is used only if the centre is
+blocked or occupied by the player, such as during a debug reset; invalid bodies are never forced into walls.
 The native window title reports Boss HP, phase, state and any dropped material.
 
 `Boss` composes the existing `Enemy` health owner and `EnemyAI` controller; there is

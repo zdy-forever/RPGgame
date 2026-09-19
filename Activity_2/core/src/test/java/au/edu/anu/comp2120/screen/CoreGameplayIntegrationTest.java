@@ -63,6 +63,8 @@ final class CoreGameplayIntegrationTest {
         } else {
             flow.activate(new ActiveEncounter("walk-in", map, spawn, TravelCatalog.QUEST_PORTAL_ID));
         }
+        CollisionBox trigger = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).trigger();
+        session.getPlayer().enterArea(session.getCurrentMap(), trigger.x() - 60, trigger.y());
         for (int i = 0; i < 10 && session.getCurrentMap().getType() == MapType.HUB; i++) {
             frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
         }
@@ -96,7 +98,8 @@ final class CoreGameplayIntegrationTest {
         admit("win");
         var persistent = session.getPlayer();
         Boss oldBoss = boss();
-        session.getPlayer().enterArea(session.getCurrentMap(), type == PlayerClass.MAGE ? 80 : 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                oldBoss.getBounds().x() - (type == PlayerClass.MAGE ? 280 : 40), oldBoss.getBounds().y());
         for (int i = 0; i < 300 && session.getCurrentMap().getType() == MapType.BATTLE; i++) {
             CollisionBox body = persistent.getBounds();
             CollisionBox target = oldBoss.getBounds();
@@ -145,6 +148,8 @@ final class CoreGameplayIntegrationTest {
         admit("boss-defeat");
         var persistent = session.getPlayer();
         Boss oldBoss = boss();
+        // Start inside detection range; the centred arena Boss no longer detects the distant entry spawn.
+        persistent.enterArea(session.getCurrentMap(), oldBoss.getBounds().x() - 280, oldBoss.getBounds().y());
         for (int i = 0; i < 300 && session.getCurrentMap().getType() == MapType.BATTLE; i++) {
             frame(0.1, PlayerCommand.NONE);
         }
@@ -306,7 +311,8 @@ final class CoreGameplayIntegrationTest {
         demo.update(0, PlayerCommand.NONE, false, null, false, true);
         assertEquals(mode, session.getPlayer().getUltimateMode());
         if (skill.equals("counter-dash") || skill.equals("finisher")) {
-            session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+            session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         }
         boolean light = skill.equals("arrow") || skill.equals("slash");
         boolean special = List.of("volley", "parry", "recovery", "counter-dash").contains(skill);

@@ -48,12 +48,28 @@ public final class GameConfig {
     public static final AbilityLoadout PLAYER_ABILITIES = PlayerClasses.get(PlayerClasses.DEFAULT).abilities();
     /** Inset separating the player's hurtbox from its movement collision/placeholder body. */
     public static final double COMBAT_HURTBOX_INSET = 4;
-    /** Walkable candidates for each battle map's single Boss, checked against the player before placement. */
-    public static final List<CollisionBox> BOSS_PLACEMENTS = List.of(
-            new CollisionBox(360, 100, 64, 64), new CollisionBox(840, 400, 64, 64),
-            new CollisionBox(840, 100, 64, 64), new CollisionBox(360, 400, 64, 64));
-    /** Fixed stationary practice target, fully inside the Training map and clear of both spawns. */
-    public static final CollisionBox TRAINING_TARGET = new CollisionBox(360, 100, 64, 64);
+    /** Collision size shared by the Boss and stationary training target, independent of artwork. */
+    public static final double ENCOUNTER_BODY_SIZE = 64;
+    /** Safe fallback offset when the exact map centre is blocked or occupied by the player. */
+    private static final double ENCOUNTER_SPAWN_OFFSET = 160;
+
+    /**
+     * Places the target's body centre at the map centre, with nearby safety fallbacks for custom maps/resets.
+     * The coordinator checks each candidate against collision and the current player before spawning.
+     * @param map current map definition
+     * @return centre-first immutable candidates, never coordinates derived from a background image
+     * @throws NullPointerException if map is null
+     */
+    public static List<CollisionBox> encounterPlacements(au.edu.anu.comp2120.world.GameMap map) {
+        CollisionBox bounds = map.getBounds();
+        double x = bounds.x() + (bounds.width() - ENCOUNTER_BODY_SIZE) / 2;
+        double y = bounds.y() + (bounds.height() - ENCOUNTER_BODY_SIZE) / 2;
+        return List.of(new CollisionBox(x, y, ENCOUNTER_BODY_SIZE, ENCOUNTER_BODY_SIZE),
+                new CollisionBox(x + ENCOUNTER_SPAWN_OFFSET, y, ENCOUNTER_BODY_SIZE, ENCOUNTER_BODY_SIZE),
+                new CollisionBox(x - ENCOUNTER_SPAWN_OFFSET, y, ENCOUNTER_BODY_SIZE, ENCOUNTER_BODY_SIZE),
+                new CollisionBox(x, y + ENCOUNTER_SPAWN_OFFSET, ENCOUNTER_BODY_SIZE, ENCOUNTER_BODY_SIZE),
+                new CollisionBox(x, y - ENCOUNTER_SPAWN_OFFSET, ENCOUNTER_BODY_SIZE, ENCOUNTER_BODY_SIZE));
+    }
     /** Provisional two-phase sentinel: shared pursuit, alternating sweep/slam and one material reward. */
     public static final BossConfig SENTINEL = new BossConfig(400,
             new EnemyConfig(70, 500, 650, 96, new AttackSpec("boss-navigation-unused", 0, 0.2, 1)),
@@ -66,10 +82,13 @@ public final class GameConfig {
     /** Hub merchant granting one placeholder weapon after dialogue. */
     public static final NPC WEAPON_MERCHANT = new NPC(
             "weapon_merchant", "Weapon Merchant",
-            600.0, 300.0, 24.0, 24.0,
+            650.0, 250.0, 24.0, 24.0,
             "Take this Lightning Staff! It will serve you well.",
             "weapon_lightning_staff"
     );
+    /** Decorative forge retains its original (+40, 0) offset from the merchant. */
+    public static final CollisionBox FORGE_BOUNDS = new CollisionBox(
+            WEAPON_MERCHANT.getX() + 40, WEAPON_MERCHANT.getY(), 40, 40);
     /** Tutorial NPC placed near the Hub spawn; gives advice but no item. */
     public static final NPC GUIDE = new NPC(
             "guide", "Old Sage",
@@ -95,14 +114,14 @@ public final class GameConfig {
     /** Storage chest that accepts and returns whatever the player carries. */
     public static final NPC STORAGE_CHEST = new NPC(
             "storage_chest", "Storage Chest",
-            450.0, 150.0, 30.0, 24.0,
+            590.0, 120.0, 30.0, 24.0,
             List.of("A sturdy chest. It holds whatever you leave here."),
             null
     );
     /** Destination selector beside, but not overlapping, the single Hub portal. */
     public static final NPC PORTAL_GUIDE = new NPC(
             "portal_guide", "Portal Guide",
-            128.0, 144.0, 24.0, 24.0,
+            765.0, 245.0, 24.0, 24.0,
             "Training is always available. Battle requires a quest from the Quest Keeper.", null
     );
     /** Class and ultimate trainer, clear of the portal and other interaction points. */
@@ -115,7 +134,7 @@ public final class GameConfig {
             "Return to Hub? Your practice score and active effects will be cleared.", null);
     /** Hub quest giver offering the five distinct Boss challenges. */
     public static final NPC QUEST_KEEPER = new NPC(
-            "quest_keeper", "Quest Keeper", 420.0, 310.0, 24.0, 24.0,
+            "quest_keeper", "Quest Keeper", 347.0, 240.0, 24.0, 24.0,
             "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =

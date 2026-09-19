@@ -11,10 +11,15 @@ import au.edu.anu.comp2120.player.PlayerClass;
 import au.edu.anu.comp2120.player.PlayerCommand;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.MapCatalog;
+import au.edu.anu.comp2120.world.GameMap;
+import au.edu.anu.comp2120.world.MapType;
+import au.edu.anu.comp2120.world.SpawnPoint;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Exercises actual map/demo integration, shared player attacks, resets and encounter-scoped loot.
@@ -28,6 +33,50 @@ final class BossDemoTest {
 
     /** Creates an isolated encounter demonstration. */
     BossDemoTest() {
+    }
+
+    /** All five arenas and the stationary training guardian initially share the exact map centre. */
+    @Test
+    void builtInBossAndPracticeTargetsSpawnAtMapCentre() {
+        for (GameMap map : MapCatalog.createMaps()) {
+            if (map.getType() == MapType.HUB) { continue; }
+            GameSession current = new GameSession(List.of(map),map.getId(),28,28,180);
+            CombatDemo encounter = new CombatDemo(current);
+            CollisionBox body = map.getType() == MapType.TRAINING
+                    ? encounter.getTrainingDummy().orElseThrow().getCombatant().getHurtbox()
+                    : encounter.getBoss().orElseThrow().getBounds();
+            assertEquals(800,body.x()+body.width()/2,map.getId());
+            assertEquals(600,body.y()+body.height()/2,map.getId());
+            assertTrue(map.isWalkable(body));
+        }
+    }
+
+    /**
+     * Centre placement adapts to each map's dimensions instead of hard-coding the built-in centre.
+     * @param width map width
+     * @param height map height
+     */
+    @ParameterizedTest
+    @CsvSource({"600,400", "900,600", "1600,1200"})
+    void centreTracksMapDimensions(double width, double height) {
+        GameMap map = new GameMap("custom","Custom",MapType.BATTLE,width,height,List.of(),
+                Map.of("entry",new SpawnPoint(0,0)),"entry");
+        CombatDemo encounter = new CombatDemo(new GameSession(List.of(map),map.getId(),28,28,180));
+        CollisionBox body = encounter.getBoss().orElseThrow().getBounds();
+        assertEquals(width/2,body.x()+body.width()/2);
+        assertEquals(height/2,body.y()+body.height()/2);
+    }
+
+    /** A custom centre wall still cannot receive an invalid Boss; nearby safety fallback is retained. */
+    @Test
+    void blockedCentreUsesSafeNearbyPlacement() {
+        CollisionBox wall = new CollisionBox(468,268,64,64);
+        GameMap map = new GameMap("blocked","Blocked centre",MapType.BATTLE,1000,600,List.of(wall),
+                Map.of("entry",new SpawnPoint(0,0)),"entry");
+        CombatDemo encounter = new CombatDemo(new GameSession(List.of(map),map.getId(),28,28,180));
+        CollisionBox body = encounter.getBoss().orElseThrow().getBounds();
+        assertFalse(body.overlaps(wall));
+        assertTrue(map.isWalkable(body));
     }
 
     /** Each battle map gets one Boss with safe large geometry; Hub has no encounter. */
@@ -55,7 +104,8 @@ final class BossDemoTest {
     void playerAbilitiesAndPostCombatOutcomeAreIntegrated() {
         Boss boss = demo.getBoss().orElseThrow();
         demo.update(0, PlayerCommand.NONE, false, PlayerClass.KATANA);
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         boss.getHealth().takeDamage(180);
         demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
         demo.update(0, PlayerCommand.NONE, false);
@@ -97,7 +147,8 @@ final class BossDemoTest {
     @Test
     void transitionInvalidatesOldBossAndPendingAttacks() {
         Boss old = demo.getBoss().orElseThrow();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         demo.update(0, false, false);
         List<Attack> attacks = demo.getActiveAttacks();
         assertTrue(attacks.stream().anyMatch(attack -> attack.getSource() == old.getCombatant()));

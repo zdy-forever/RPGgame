@@ -239,7 +239,8 @@ final class QuestPortalFlowTest {
         assertTrue(flow.claimReward(result).isEmpty());
         assertTrue(flow.getPendingRewards().isEmpty());
         assertThrows(IllegalStateException.class, () -> flow.activate(permission));
-        session.getPlayer().enterArea(session.getCurrentMap(), 160, 400);
+        CollisionBox closedPortal = travel.getPortal(permission.portalId()).trigger();
+        session.getPlayer().enterArea(session.getCurrentMap(), closedPortal.x(), closedPortal.y());
         assertFalse(travel.updatePortals());
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
         session.getPlayer().enterArea(session.getCurrentMap(), 64, 64);
@@ -252,7 +253,8 @@ final class QuestPortalFlowTest {
     void sharedCombatKillCompletesInSameFrame() {
         assertTrue(demo.getAbilities().selectClass(PlayerClasses.get(PlayerClass.KATANA)));
         enter(permission("melee-kill", MapCatalog.CROSSROADS, "hub-crossroads"));
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         boss().getHealth().takeDamage(399);
         demo.update(0, new PlayerCommand(1, 0, true, false, false, false), false);
         assertEquals(BattleResult.Outcome.SUCCESS, flow.getLastResult().orElseThrow().outcome());

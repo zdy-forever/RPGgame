@@ -61,9 +61,15 @@ separate work. No audio was added. The original pack's provenance filenames are 
 
 ## Larger maps and practice
 
-All seven built-in map definitions now use centralized **1600 x 1200** world bounds. Existing spawn IDs,
-NPC/portal positions, empty obstacle lists and world collision remain unchanged. The **640 x 360**
-camera follows/clamps normally, with room to scroll in both axes.
+Battle/training maps use centralized **1600 x 1200** world bounds; Hub uses **1080 x 400**.
+The **640 x 360** camera follows/clamps normally, with room to scroll in both axes.
+Hub positions (bottom-left world coordinates): Storage Chest (590, 120), Quest Keeper (347, 240),
+Weapon Merchant (650, 250), forge (690, 250), Portal Guide (765, 245), quest portal (890, 245).
+The merchant/forge offset is preserved; the portal is 125 units right of its guide. Hub's `north` spawn is now (64, 300)
+to keep its full player body inside the shorter map. Spawn IDs and empty obstacle lists are unchanged.
+Boss and training-target collision bodies spawn centred on the current map (800, 600 in built-in arenas).
+The centre is calculated from map bounds, not image dimensions or a fixed lower-left coordinate.
+Existing safety checks retain nearby fallback candidates when the centre is blocked/player-occupied.
 
 Training remains `MapType.TRAINING`, with one original TrainingDummy and no Boss AI/reward/outcome.
 On entry, `TrainingAppearance` makes independent random choices for elemental arena and guardian art.

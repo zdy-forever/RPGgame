@@ -56,6 +56,46 @@ final class PortalGuideTrainingTest {
     /** Creates an independent live-Hub fixture for each test. */
     PortalGuideTrainingTest() { }
 
+    /** Hub layout uses the requested coordinates and preserves the merchant/forge offset. */
+    @Test
+    void hubLayoutPreservesRequestedPositionsAndOffsets() {
+        assertEquals(new CollisionBox(0, 0, 1080, 400), session.getCurrentMap().getBounds());
+        assertEquals(590, GameConfig.STORAGE_CHEST.getX());
+        assertEquals(120, GameConfig.STORAGE_CHEST.getY());
+        assertEquals(347, GameConfig.QUEST_KEEPER.getX());
+        assertEquals(240, GameConfig.QUEST_KEEPER.getY());
+        assertEquals(650, GameConfig.WEAPON_MERCHANT.getX());
+        assertEquals(250, GameConfig.WEAPON_MERCHANT.getY());
+        assertEquals(40, GameConfig.FORGE_BOUNDS.x() - GameConfig.WEAPON_MERCHANT.getX());
+        assertEquals(GameConfig.WEAPON_MERCHANT.getY(), GameConfig.FORGE_BOUNDS.y());
+        assertEquals(765, GameConfig.PORTAL_GUIDE.getX());
+        assertEquals(245, GameConfig.PORTAL_GUIDE.getY());
+        var trigger = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).trigger();
+        assertEquals(new CollisionBox(890, 245, 48, 64), trigger);
+    }
+
+    /** Resizing Hub leaves all NPCs, both spawn bodies and portal definitions within valid bounds. */
+    @Test
+    void smallerHubContainsAllInteractionPointsAndSpawns() {
+        var hub = session.getCurrentMap();
+        for (var npc : GameConfig.HUB_NPCS) {
+            assertTrue(hub.isWalkable(new CollisionBox(npc.getX(), npc.getY(),
+                    npc.getWidth(), npc.getHeight())), npc.getName());
+        }
+        assertTrue(hub.isWalkable(GameConfig.FORGE_BOUNDS));
+        for (var spawn : hub.getSpawnPoints().values()) {
+            assertTrue(hub.isWalkable(new CollisionBox(spawn.x(), spawn.y(), 28, 28)));
+        }
+        for (var portal : TravelCatalog.createQuestPortals()) {
+            assertTrue(hub.isWalkable(portal.trigger()));
+        }
+        for (var portal : TravelCatalog.createPortals()) {
+            if (portal.sourceMapId().equals(MapCatalog.HUB)) {
+                assertTrue(hub.isWalkable(portal.trigger()));
+            }
+        }
+    }
+
     /** The sole portal starts closed and the guide is registered nearby without covering its trigger. */
     @Test
     void onePortalAndAdjacentGuideAreAvailable() {
@@ -66,8 +106,8 @@ final class PortalGuideTrainingTest {
         assertTrue(GameConfig.HUB_NPCS.contains(npc));
         assertFalse(portals.get(0).trigger().overlaps(
                 new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight())));
-        assertTrue(Math.hypot(npc.getX() - portals.get(0).trigger().x(),
-                npc.getY() - portals.get(0).trigger().y()) < 100);
+        assertEquals(125, portals.get(0).trigger().x() - npc.getX());
+        assertEquals(npc.getY(), portals.get(0).trigger().y());
         assertTrue(flow.getActiveEncounter().isEmpty());
     }
 
@@ -105,7 +145,8 @@ final class PortalGuideTrainingTest {
         train();
         var dummy = dummy();
         CollisionBox before = dummy.getCombatant().getHurtbox();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                dummy().getCombatant().getHurtbox().x() - 40, dummy().getCombatant().getHurtbox().y());
         for (int i = 0; i < 600; i++) { demo.update(0.1, PlayerCommand.NONE, false); }
         assertEquals(before, dummy.getCombatant().getHurtbox());
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
@@ -125,7 +166,8 @@ final class PortalGuideTrainingTest {
     void lightAttacksUseSharedDamageAndScoreOnce(PlayerClass type) {
         demo.update(0, PlayerCommand.NONE, false, type);
         train();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                dummy().getCombatant().getHurtbox().x() - 40, dummy().getCombatant().getHurtbox().y());
         demo.update(0.1, new PlayerCommand(1, 0, true, false, false, false), false);
         int expected = PlayerClasses.get(type).abilities().light().attack().damage();
         assertEquals(expected, dummy().getTotalDamage());

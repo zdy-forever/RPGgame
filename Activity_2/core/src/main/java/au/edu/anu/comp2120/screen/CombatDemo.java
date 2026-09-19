@@ -487,7 +487,8 @@ public final class CombatDemo {
      * Creates a fresh target after scope clear/reset, without changing map definitions.
      * Training always receives a stationary dummy, with no Boss AI, rewards or battle admission.
      * Production Battle scopes require exact task portal admission; unrelated travel creates no Boss.
-     * Skips blocked or actor-overlapping placements; no invalid Boss is forced into a map.
+     * Tries the exact map centre first, then nearby safe candidates if blocked or player-occupied.
+     * No invalid Boss or training target is forced into a map.
      * Task success loot is transferred to EncounterFlow before this method discards the old Boss.
      * Unrestricted debug loot remains encounter-scoped and is discarded on reset/travel.
      */
@@ -495,9 +496,12 @@ public final class CombatDemo {
         boss = null;
         trainingDummy = null;
         if (session.getCurrentMap().getType() == MapType.TRAINING) {
-            if (session.getCurrentMap().isWalkable(GameConfig.TRAINING_TARGET)) {
-                trainingDummy = new TrainingDummy(GameConfig.TRAINING_TARGET);
-                combat.register(trainingDummy.getCombatant());
+            for (CollisionBox placement : GameConfig.encounterPlacements(session.getCurrentMap())) {
+                if (session.getCurrentMap().isWalkable(placement) && !placement.overlaps(session.getPlayer().getBounds())) {
+                    trainingDummy = new TrainingDummy(placement);
+                    combat.register(trainingDummy.getCombatant());
+                    break;
+                }
             }
             return;
         }
@@ -505,7 +509,7 @@ public final class CombatDemo {
                 || (encounterFlow != null && !encounterFlow.isBattleActive())) {
             return;
         }
-        for (CollisionBox placement : GameConfig.BOSS_PLACEMENTS) {
+        for (CollisionBox placement : GameConfig.encounterPlacements(session.getCurrentMap())) {
             if (session.getCurrentMap().isWalkable(placement) && !placement.overlaps(session.getPlayer().getBounds())) {
                 var target = BossChallenge.forMap(session.getCurrentMap().getId());
                 boss = new Boss(target.map(BossChallenge::id).orElse("sentinel"),

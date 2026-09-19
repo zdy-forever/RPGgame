@@ -75,7 +75,8 @@ final class PlayerDefeatTest {
         var health = player.getHealth();
         var abilities = demo.getAbilities();
         long encounter = session.getTransitionVersion();
-        player.enterArea(session.getCurrentMap(), 320, 100);
+        player.enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         health.takeDamage(99);
         demo.update(0, PlayerCommand.NONE, false);
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
@@ -250,7 +251,8 @@ final class PlayerDefeatTest {
     @Test
     void retryCreatesNewBossHealthAiPhaseAndCooldown() {
         Boss old = demo.getBoss().orElseThrow();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         old.getHealth().takeDamage(200);
         demo.update(0, PlayerCommand.NONE, false);
         assertEquals(2, old.getPhase());
@@ -274,7 +276,8 @@ final class PlayerDefeatTest {
         assertEquals(2, combat.getCombatants().size());
         assertTrue(demo.getEnemies().isEmpty());
         assertTrue(demo.getDrops().isEmpty());
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         demo.update(0, PlayerCommand.NONE, false);
         Attack attack = combat.getActiveAttacks().stream()
                 .filter(candidate -> candidate.getSource() == fresh.getCombatant()).findFirst().orElseThrow();

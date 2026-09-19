@@ -98,7 +98,8 @@ final class GameplayIntegrationTest {
         frame(0, PlayerCommand.NONE);
         demo.update(0, PlayerCommand.NONE, false, type);
         // Begin in range: this scenario validates each class's delivery, not a ranged kiting strategy.
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         Boss boss = demo.getBoss().orElseThrow();
         fightUntilNoHostiles(300);
         assertTrue(session.getPlayer().isAlive());
@@ -122,7 +123,8 @@ final class GameplayIntegrationTest {
         frame(0, PlayerCommand.NONE);
         demo.update(0, PlayerCommand.NONE, false, PlayerClass.KATANA);
         Boss boss = demo.getBoss().orElseThrow();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         fightUntilNoHostiles(200);
         assertTrue(session.getPlayer().isAlive());
         assertEquals(BossState.DEAD, boss.getState());
@@ -152,7 +154,8 @@ final class GameplayIntegrationTest {
         frame(0, PlayerCommand.NONE);
         demo.update(0, PlayerCommand.NONE, false, PlayerClass.KATANA);
         // Fixture placement isolates the real player/Boss spell interaction from navigation already covered above.
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         Boss boss = demo.getBoss().orElseThrow();
         cycleElement();
         assertEquals(ElementType.WATER, element());

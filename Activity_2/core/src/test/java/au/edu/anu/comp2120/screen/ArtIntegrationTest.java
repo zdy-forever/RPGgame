@@ -112,10 +112,11 @@ final class ArtIntegrationTest {
     /** Every shipped map supports scrolling in both axes and keeps valid spawns/open boundaries. */
     @Test void enlargedMapsGiveTheCameraRoomToScroll() {
         for (GameMap map : MapCatalog.createMaps()) {
-            assertEquals(1600,map.getBounds().width());
-            assertEquals(1200,map.getBounds().height());
+            assertEquals(map.getType() == MapType.HUB ? 1080 : 1600,map.getBounds().width());
+            assertEquals(map.getType() == MapType.HUB ? 400 : 1200,map.getBounds().height());
             var left = CameraFollow.viewFor(new CollisionBox(0,0,28,28),map.getBounds(),640,360);
-            var right = CameraFollow.viewFor(new CollisionBox(1572,1172,28,28),map.getBounds(),640,360);
+            var right = CameraFollow.viewFor(new CollisionBox(map.getBounds().right()-28,
+                    map.getBounds().top()-28,28,28),map.getBounds(),640,360);
             assertTrue(right.x()>left.x()); assertTrue(right.y()>left.y());
             assertTrue(right.right()<=map.getBounds().right()); assertTrue(right.top()<=map.getBounds().top());
             assertTrue(map.getObstacles().isEmpty());
