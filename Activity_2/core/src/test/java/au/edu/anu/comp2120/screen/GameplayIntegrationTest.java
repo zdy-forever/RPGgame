@@ -40,7 +40,7 @@ final class GameplayIntegrationTest {
     GameplayIntegrationTest() {
     }
 
-    /** WASD-scale movement enters a real portal; arrival protection, collision and camera use the new map. */
+    /** Portal arrival uses the new open map: former walls allow movement and outer bounds still clamp. */
     @Test
     void hubMovementPortalArrivalCollisionAndCameraFormOneChain() {
         var player = session.getPlayer();
@@ -63,11 +63,14 @@ final class GameplayIntegrationTest {
         for (int i = 0; i < 10; i++) {
             frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
         }
-        assertEquals(212, player.getX());
+        assertEquals(260, player.getX());
         assertTrue(session.getCurrentMap().isWalkable(player.getBounds()));
+        player.moveBy(session.getCurrentMap().getBounds().width(), 0);
+        assertEquals(session.getCurrentMap().getBounds().right() - player.getBounds().width(), player.getX());
         assertCameraInsideMap();
         assertTrue(demo.getEnemies().isEmpty());
-        assertTrue(demo.getBoss().isPresent());
+        assertTrue(demo.getBoss().isEmpty());
+        assertTrue(demo.getTrainingDummy().isPresent());
         assertEquals(2, demo.getCombatants().size());
         assertThrows(IllegalStateException.class, () -> travel.fastTravel(TravelCatalog.CROSSROADS_ENTRY));
         travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);

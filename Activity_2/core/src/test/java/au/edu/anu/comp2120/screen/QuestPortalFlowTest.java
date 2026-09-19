@@ -37,15 +37,18 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Exercises the production admission/outcome boundary through real travel and shared combat.
+ * Exercises the production admission/outcome boundary using two explicit Battle/portal fixtures.
+ * The live catalogue now has one Battle map and one practice map; multi-route contract coverage
+ * stays independent of that scene configuration.
  * No Quest, NPC, Inventory implementation or graphics context is substituted into the loop.
  * @author Daoyan Zhu (u7782042)
  */
 final class QuestPortalFlowTest {
     /** Persistent player/map fixture, initially at Hub entry outside task portals. */
-    private final GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB, 28, 28, 180);
-    /** Actual production route catalogue, without manual battle return portals. */
-    private final List<Portal> portals = TravelCatalog.createQuestPortals();
+    private final GameSession session = new GameSession(battleFixtureMaps(), MapCatalog.HUB, 28, 28, 180);
+    /** Two Hub routes for generic replacement tests; production's single route has separate coverage. */
+    private final List<Portal> portals = TravelCatalog.createPortals().stream()
+            .filter(portal -> portal.sourceMapId().equals(MapCatalog.HUB)).toList();
     /** Existing travel execution, not a test replacement. */
     private final TravelSystem travel = new TravelSystem(session, portals, TravelCatalog.createDestinations());
     /** External acceptance and retained result boundary. */
@@ -57,6 +60,17 @@ final class QuestPortalFlowTest {
 
     /** Creates an independent production-flow fixture. */
     QuestPortalFlowTest() {
+    }
+
+    /**
+     * Retains the historical second Battle fixture without changing the live practice map.
+     * @return Hub plus two Battle definitions used only for admission-contract tests
+     */
+    private static List<GameMap> battleFixtureMaps() {
+        return MapCatalog.createMaps().stream().map(map -> map.getType() == MapType.TRAINING
+                ? new GameMap(map.getId(), "Second battle fixture", MapType.BATTLE,
+                        map.getBounds().width(), map.getBounds().height(), map.getObstacles(),
+                        map.getSpawnPoints(), map.getDefaultSpawnId()) : map).toList();
     }
 
     /**
@@ -138,7 +152,7 @@ final class QuestPortalFlowTest {
         assertEquals(400, boss().getHealth().getCurrentHp());
         assertTrue(travel.getPortals(MapCatalog.CROSSROADS).isEmpty());
         assertFalse(travel.getPortal("hub-crossroads").enabled());
-        assertFalse(travel.getPortal("hub-disabled").enabled());
+        assertThrows(IllegalArgumentException.class, () -> travel.getPortal("hub-disabled"));
     }
 
     /** Failure restores Hub health, retains permission and rebuilds Boss HP/phase/state for the retry. */

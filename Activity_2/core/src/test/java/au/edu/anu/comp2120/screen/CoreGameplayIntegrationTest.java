@@ -10,6 +10,7 @@ import au.edu.anu.comp2120.TravelSystem;
 import au.edu.anu.comp2120.combat.*;
 import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossState;
+import au.edu.anu.comp2120.npc.PortalGuide;
 import au.edu.anu.comp2120.player.*;
 import au.edu.anu.comp2120.world.*;
 import java.util.List;
@@ -44,17 +45,24 @@ final class CoreGameplayIntegrationTest {
     CoreGameplayIntegrationTest() { }
 
     /**
-     * Every built-in Battle spawn is reached by actual Hub movement and creates exactly one Boss.
-     * @param map target battle ID
+     * Built-in practice/battle spawns are reached by Hub movement and create the correct single target.
+     * @param map target map ID
      * @param spawn target named spawn
      */
     @ParameterizedTest
     @CsvSource({"battle-training,entry", "battle-training,far-side", "battle-crossroads,entry", "battle-crossroads,east"})
-    void admissionByMovementUsesCurrentMapCollisionAndOneBoss(String map, String spawn) {
+    void admissionByMovementUsesCurrentMapCollisionAndOneTarget(String map, String spawn) {
         assertTrue(portals.stream().noneMatch(p -> travel.getPortal(p.id()).enabled()));
         frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
         assertTrue(demo.getBoss().isEmpty());
-        flow.activate(new ActiveEncounter("walk-in", map, spawn, "hub-training"));
+        boolean practice = session.getMap(map).getType() == MapType.TRAINING;
+        if (practice) {
+            new PortalGuide(session, travel, flow).select(PortalGuide.Destination.TRAINING);
+            travel.configurePortalDestination(TravelCatalog.QUEST_PORTAL_ID, map, spawn);
+            travel.setPortalEnabled(TravelCatalog.QUEST_PORTAL_ID, true);
+        } else {
+            flow.activate(new ActiveEncounter("walk-in", map, spawn, TravelCatalog.QUEST_PORTAL_ID));
+        }
         for (int i = 0; i < 10 && session.getCurrentMap().getType() == MapType.HUB; i++) {
             frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
         }
@@ -62,10 +70,16 @@ final class CoreGameplayIntegrationTest {
         SpawnPoint entry = session.getCurrentMap().getSpawnPoint(spawn);
         assertEquals(new CollisionBox(entry.x(), entry.y(), 28, 28), session.getPlayer().getBounds());
         assertSame(session.getCurrentMap(), session.getPlayer().getCollisionArea());
-        assertSingleBoss();
+        if (practice) {
+            assertTrue(demo.getBoss().isEmpty());
+            assertTrue(demo.getTrainingDummy().isPresent());
+            assertEquals(2, demo.getCombatants().size());
+        } else {
+            assertSingleBoss();
+        }
         for (int i = 0; i < 20; i++) { frame(0, PlayerCommand.NONE); }
         assertEquals(map, session.getCurrentMap().getId(), "Arrival protection must not return immediately");
-        assertTrue(flow.isBattleActive());
+        assertEquals(!practice, flow.isBattleActive());
         assertCameraAndWorld();
     }
 
@@ -112,7 +126,7 @@ final class CoreGameplayIntegrationTest {
         assertEquals(payload, flow.claimReward(result).orElseThrow());
         assertTrue(flow.claimReward(result).isEmpty());
         assertTrue(flow.getPendingRewards().isEmpty());
-        assertFalse(travel.getPortal("hub-crossroads").enabled());
+        assertFalse(travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
         assertTrue(flow.getActiveEncounter().isEmpty());
         long returned = session.getTransitionVersion();
         for (int i = 0; i < 20; i++) { frame(0.1, PlayerCommand.NONE); }
@@ -120,7 +134,7 @@ final class CoreGameplayIntegrationTest {
         assertEquals(result, flow.getLastResult().orElseThrow());
         assertTrue(demo.getBoss().isEmpty());
         assertThrows(IllegalStateException.class,
-                () -> flow.activate(new ActiveEncounter("win", MapCatalog.CROSSROADS, "entry", "hub-crossroads")));
+                () -> flow.activate(new ActiveEncounter("win", MapCatalog.CROSSROADS, "entry", TravelCatalog.QUEST_PORTAL_ID)));
         assertCameraAndWorld();
     }
 
@@ -142,7 +156,7 @@ final class CoreGameplayIntegrationTest {
         assertEquals(PlayerClass.MAGE, persistent.getPlayerClass());
         assertEquals(UltimateMode.B, persistent.getUltimateMode());
         assertTrue(flow.getPendingRewards().isEmpty());
-        assertTrue(travel.getPortal("hub-crossroads").enabled());
+        assertTrue(travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
         assertEquals(400, oldBoss.getHealth().getCurrentHp());
         assertTrue(combat.getActiveAttacks().isEmpty());
         assertTrue(combat.getElementFields().isEmpty());
@@ -251,7 +265,7 @@ final class CoreGameplayIntegrationTest {
         if (exit.equals("success")) {
             assertEquals(BattleResult.Outcome.SUCCESS, flow.getLastResult().orElseThrow().outcome());
             assertEquals(1, flow.getPendingRewards().size());
-            assertFalse(travel.getPortal("hub-crossroads").enabled());
+            assertFalse(travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
         } else {
             assertTrue(flow.getPendingRewards().isEmpty());
             assertTrue(flow.getActiveEncounter().isPresent());
@@ -351,7 +365,7 @@ final class CoreGameplayIntegrationTest {
      * @param id acceptance identity
      */
     private void admit(String id) {
-        flow.activate(new ActiveEncounter(id, MapCatalog.CROSSROADS, "entry", "hub-crossroads"));
+        flow.activate(new ActiveEncounter(id, MapCatalog.CROSSROADS, "entry", TravelCatalog.QUEST_PORTAL_ID));
         enterQuestPortal();
     }
 
@@ -360,7 +374,7 @@ final class CoreGameplayIntegrationTest {
      */
     private void enterQuestPortal() {
         travel.updatePortals();
-        CollisionBox trigger = travel.getPortal("hub-crossroads").trigger();
+        CollisionBox trigger = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).trigger();
         session.getPlayer().enterArea(session.getCurrentMap(), trigger.x(), trigger.y());
         assertTrue(travel.updatePortals());
         demo.update(0, PlayerCommand.NONE, false);

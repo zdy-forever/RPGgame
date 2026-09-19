@@ -344,20 +344,20 @@ final class PlayerDefeatTest {
     }
 
     /**
-     * Every built-in battle map supports a fresh single-Boss retry after failure.
-     * @param mapId battle map ID
+     * Both named Battle spawns support a fresh single-Boss retry after failure; practice is not a battle.
+     * @param spawnId Battle spawn ID
      */
     @ParameterizedTest
-    @ValueSource(strings = {MapCatalog.TRAINING, MapCatalog.CROSSROADS})
-    void everyBattleMapReturnsAndRebuilds(String mapId) {
-        session.switchMap(mapId);
+    @ValueSource(strings = {"entry", "east"})
+    void everyBattleSpawnReturnsAndRebuilds(String spawnId) {
+        session.switchMap(MapCatalog.CROSSROADS, spawnId);
         demo.update(0, PlayerCommand.NONE, false);
         Boss old = demo.getBoss().orElseThrow();
         session.getPlayer().takeDamage(100);
         demo.update(0, PlayerCommand.NONE, false);
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
-        assertEquals(mapId, demo.getLastDefeat().orElseThrow().mapId());
-        session.switchMap(mapId);
+        assertEquals(MapCatalog.CROSSROADS, demo.getLastDefeat().orElseThrow().mapId());
+        session.switchMap(MapCatalog.CROSSROADS, spawnId);
         demo.update(0, PlayerCommand.NONE, false);
         assertNotSame(old, demo.getBoss().orElseThrow());
         assertEquals(400, demo.getBoss().orElseThrow().getHealth().getCurrentHp());

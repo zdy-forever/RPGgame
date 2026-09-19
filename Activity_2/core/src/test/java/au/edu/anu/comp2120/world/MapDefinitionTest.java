@@ -20,6 +20,20 @@ final class MapDefinitionTest {
     MapDefinitionTest() {
     }
 
+    /** Built-in maps have no temporary walls, while their outer collision boundaries remain enforced. */
+    @Test
+    void builtInMapsHaveOpenInteriorsAndRetainBoundaries() {
+        for (GameMap map : MapCatalog.createMaps()) {
+            CollisionBox bounds = map.getBounds();
+            assertTrue(map.getObstacles().isEmpty(), map.getId());
+            assertTrue(map.isWalkable(bounds), map.getId());
+            assertFalse(map.isWalkable(new CollisionBox(-1, 0, 28, 28)), map.getId());
+            assertFalse(map.isWalkable(new CollisionBox(0, -1, 28, 28)), map.getId());
+            assertFalse(map.isWalkable(new CollisionBox(bounds.width() - 27, 0, 28, 28)), map.getId());
+            assertFalse(map.isWalkable(new CollisionBox(0, bounds.height() - 27, 28, 28)), map.getId());
+        }
+    }
+
     /** All metadata and named spawns remain accessible without loading graphics resources. */
     @Test
     void exposesMetadataAndNamedSpawns() {
@@ -115,6 +129,7 @@ final class MapDefinitionTest {
 
     /** Caller mutation cannot change registered spawn points. */
     @Test
+    @SuppressWarnings("DataFlowIssue") // Intentionally attempts mutation to verify the read-only contract.
     void protectsSpawnData() {
         Map<String, SpawnPoint> source = new HashMap<>();
         source.put("entry", new SpawnPoint(10, 10));

@@ -38,6 +38,8 @@ public final class GameConfig {
     public static final List<CollisionBox> BOSS_PLACEMENTS = List.of(
             new CollisionBox(360, 100, 64, 64), new CollisionBox(840, 400, 64, 64),
             new CollisionBox(840, 100, 64, 64), new CollisionBox(360, 400, 64, 64));
+    /** Fixed stationary practice target, fully inside the Training map and clear of both spawns. */
+    public static final CollisionBox TRAINING_TARGET = new CollisionBox(360, 100, 64, 64);
     /** Provisional two-phase sentinel: shared pursuit, alternating sweep/slam and one material reward. */
     public static final BossConfig SENTINEL = new BossConfig(400,
             new EnemyConfig(70, 500, 650, 96, new AttackSpec("boss-navigation-unused", 0, 0.2, 1)),
@@ -47,6 +49,7 @@ public final class GameConfig {
             List.of(new BossConfig.Pattern(new AttackSpec("boss-heavy-sweep", 20, 0.2, 0.8), 120, AttackShape.FORWARD),
                     new BossConfig.Pattern(new AttackSpec("boss-heavy-slam", 30, 0.3, 1.1), 160, AttackShape.AREA)),
             "sentinel-core", 1);
+    /** Hub merchant granting one placeholder weapon after dialogue. */
     public static final NPC WEAPON_MERCHANT = new NPC(
             "weapon_merchant", "Weapon Merchant",
             600.0, 300.0, 24.0, 24.0,
@@ -60,7 +63,7 @@ public final class GameConfig {
             List.of(
                     "Welcome, adventurer. This is the Hub.",
                     "Press WASD to move, and talk to the merchant for a weapon.",
-                    "Step into a portal to reach the training grounds."),
+                    "Talk to the Portal Guide, then enter the portal."),
             null
     );
     /** Notice board listing the controls; readable any number of times. */
@@ -72,7 +75,7 @@ public final class GameConfig {
                     "WASD - move        E - talk / interact",
                     "B - inventory      U then 1/2/3 - fast travel",
                     "Right-click a weapon in the bag to equip it.",
-                    "Step into a portal to begin a challenge."),
+                    "Talk to the Portal Guide to choose Training or Battle."),
             null
     );
     /** Storage chest that accepts and returns whatever the player carries. */
@@ -82,22 +85,16 @@ public final class GameConfig {
             List.of("A sturdy chest. It holds whatever you leave here."),
             null
     );
+    /** Destination selector beside, but not overlapping, the single Hub portal. */
+    public static final NPC PORTAL_GUIDE = new NPC(
+            "portal_guide", "Portal Guide",
+            128.0, 144.0, 24.0, 24.0,
+            "Choose a destination, then step into the portal.", null
+    );
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
-            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST);
+            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }
-    /** Healing spring that restores HP each time its dialogue finishes. */
-    public static final NPC HEALING_SPRING = new NPC(
-            "healing_spring", "Healing Spring",
-            150.0, 150.0, 28.0, 28.0,
-            List.of(
-                    "Clear water bubbles up from the stone.",
-                    "You drink deeply and feel restored."),
-            null
-    );
-
-
-
 }

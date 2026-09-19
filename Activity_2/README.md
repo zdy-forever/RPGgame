@@ -1,7 +1,7 @@
 # COMP2120 Group Game
 
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
-demonstrates a Hub and multiple Battle Maps, named spawn points, eight-direction
+demonstrates a Hub, a separate Training Ground and a Battle Map, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera using geometric placeholders. Player and
 enemy models share validated integer health and one attack pipeline, independent
@@ -12,12 +12,27 @@ The shared combat pipeline supports the first-version ordered elemental reaction
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 It loads no images, fonts, animation, sound, or music assets.
 
-## Current production flow: externally accepted encounters
+## Current controls: one portal, practice or battle
 
-Task portals now start **closed**. Developer B's adapter calls
+Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
+choose **Training Ground** or **Battle Map** with **Up/Down**, then press **E** to confirm
+(**Escape** cancels). Confirmation configures the portal; walk into it to travel.
+The portal starts closed until a destination is selected. Achievement Wall is not included.
+
+- Training has one stationary, non-attacking target, not a Boss. J/K/L/O use the shared
+  abilities/combat pipeline. The scoreboard shows total delivered damage, last damage and
+  positive-damage hit count, including reaction/field ticks. The target replenishes its HP
+  after each hit so it remains available; it never grants rewards or a BattleResult.
+- **R** resets practice: score, attacks/effects, ability activity/cooldowns and player HP.
+  **1** returns to Hub. Leaving and re-entering creates a fresh training target/score.
+- Battle Map (Crossroads) contains one real Boss and retains the success/failure flow below.
+- F1/F2/F3 select class and F5 selects its O mode **in Hub only**, including before practice.
+
+The small `PortalGuide` adapter uses the existing gameplay boundary; it does not implement
+Quest state or inventory rewards. Choosing Training clears gameplay battle admission only.
+Developer B's future Quest adapter can still call
 `gameScreen.getEncounterFlow().activate(new ActiveEncounter(id, mapId, spawnId, portalId))`
-on the game-loop thread after acceptance in Hub. No NPC, Quest logic or acceptance UI is
-implemented here, so a fresh launch intentionally cannot start a Boss fight by itself.
+on the game-loop thread after acceptance in Hub, using `TravelCatalog.QUEST_PORTAL_ID`.
 
 - The configured portal admits one fresh Boss; there are no ordinary enemies.
 - Player death: FAILURE, automatic Hub return/full HP, same permission available for retry.
@@ -60,7 +75,7 @@ coordinator returns the same Player to Hub's default spawn (64,64), clears old a
 projectiles, elemental/derived effects and ability activity, then calls Health.restoreFull().
 No death callback switches maps. The remainder of the death frame is consumed; R cannot
 revive a dead player in Battle. Class configuration and remaining slot cooldowns are preserved.
-Re-entering either battle map creates a new Boss at full HP, phase 1 and fresh AI/cooldowns.
+Re-entering the admitted battle map creates a new Boss at full HP, phase 1 and fresh AI/cooldowns.
 
 Quick check after external acceptance: select F1/F2/F3 in Hub, enter the enabled task portal,
 approach the large Boss and let it attack. At zero HP you should immediately arrive alive in
@@ -141,7 +156,7 @@ debug map switching. The window title shows the active map and travel feedback.
 | 1 | Fast travel to Hub `entry` | Unlocked |
 | 2 | Fast travel to Training `entry` | Locked |
 | 3 | Fast travel to Crossroads `entry` | Locked |
-| U | Unlock both Battle fast-travel destinations for this session | Debug only |
+| U | Unlock Training and Crossroads fast travel for this session | Debug only |
 
 The old key 4 map-selection shortcut has been removed. Visiting through a portal
 does not automatically unlock fast travel; future quest/discovery code can call
@@ -149,18 +164,15 @@ does not automatically unlock fast travel; future quest/discovery code can call
 independent. Closing/restarting the game restores the initial state.
 
 Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
-are obstacles, gold circles mark spawn anchors, and the green rectangle is the
+are obstacles when configured (built-in test walls have been removed), a gold circle marks
+only the default spawn anchor, and the green rectangle is the
 player. Bright purple rectangles are enabled portals; dark purple rectangles are
-disabled examples. A fixed-size camera view scrolls over maps larger than the
+the closed portal. A fixed-size camera view scrolls over maps larger than the
 view, instead of fitting the entire map into the window.
 
 | Portal | Source trigger (x, y, width, height) | Destination |
 | --- | --- | --- |
-| hub-training | Hub (160, 64, 48, 64) | Training `entry` |
-| hub-crossroads | Hub (160, 400, 48, 64) | Crossroads `entry` |
-| hub-disabled | Hub (220, 64, 48, 64), disabled | Crossroads `east` |
-| training-hub | Training (64, 64, 80, 80) | Hub `entry` |
-| crossroads-hub | Crossroads (64, 64, 80, 80) | Hub `north` |
+| hub-training (stable ID for the single portal) | Hub (160, 64, 48, 64) | NPC-selected Training or Crossroads `entry` |
 
 - Hold W/A/S/D to move up/left/down/right. Releasing keys stops movement.
 - Movement supports eight directions. Opposite keys cancel on each axis. W+D

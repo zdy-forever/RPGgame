@@ -1,0 +1,316 @@
+package au.edu.anu.comp2120.screen;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import au.edu.anu.comp2120.BattleResult;
+import au.edu.anu.comp2120.EncounterFlow;
+import au.edu.anu.comp2120.GameSession;
+import au.edu.anu.comp2120.TravelSystem;
+import au.edu.anu.comp2120.combat.Attack;
+import au.edu.anu.comp2120.combat.AttackSpec;
+import au.edu.anu.comp2120.combat.CombatSystem;
+import au.edu.anu.comp2120.combat.ElementField;
+import au.edu.anu.comp2120.combat.ElementType;
+import au.edu.anu.comp2120.combat.Faction;
+import au.edu.anu.comp2120.enemy.TrainingDummy;
+import au.edu.anu.comp2120.npc.PortalGuide;
+import au.edu.anu.comp2120.player.AbilitySlot;
+import au.edu.anu.comp2120.player.PlayerClass;
+import au.edu.anu.comp2120.player.PlayerClasses;
+import au.edu.anu.comp2120.player.PlayerCommand;
+import au.edu.anu.comp2120.player.UltimateMode;
+import au.edu.anu.comp2120.world.CollisionBox;
+import au.edu.anu.comp2120.world.MapCatalog;
+import au.edu.anu.comp2120.world.MapType;
+import au.edu.anu.comp2120.world.TravelCatalog;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+/**
+ * Verifies single-portal NPC selection, non-hostile training scores and unchanged Boss outcomes.
+ * Exercises real session/travel/combat coordinators without graphics, Quest or Inventory substitutes.
+ * @author Daoyan Zhu (u7782042)
+ */
+final class PortalGuideTrainingTest {
+    /** Real shared player and maps, initially in Hub. */
+    private final GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB, 28, 28, 180);
+    /** Single production portal plus independent fast-travel destinations. */
+    private final TravelSystem travel = new TravelSystem(session, TravelCatalog.createQuestPortals(),
+            TravelCatalog.createDestinations());
+    /** Existing admission/result/reward boundary. */
+    private final EncounterFlow flow = new EncounterFlow(session, travel, List.of(TravelCatalog.QUEST_PORTAL_ID));
+    /** Single damage pipeline, retained for focused reaction arrangements. */
+    private final CombatSystem combat = new CombatSystem();
+    /** Actual production coordinator, not the unrestricted demo. */
+    private final CombatDemo demo = new CombatDemo(session, combat, flow);
+    /** NPC adapter used by GameScreen. */
+    private final PortalGuide guide = new PortalGuide(session, travel, flow);
+
+    /** Creates an independent live-Hub fixture for each test. */
+    PortalGuideTrainingTest() { }
+
+    /** The sole portal starts closed and the guide is registered nearby without covering its trigger. */
+    @Test
+    void onePortalAndAdjacentGuideAreAvailable() {
+        var portals = travel.getPortals(MapCatalog.HUB);
+        assertEquals(1, portals.size());
+        assertFalse(portals.get(0).enabled());
+        var npc = GameConfig.PORTAL_GUIDE;
+        assertTrue(GameConfig.HUB_NPCS.contains(npc));
+        assertFalse(portals.get(0).trigger().overlaps(
+                new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight())));
+        assertTrue(Math.hypot(npc.getX() - portals.get(0).trigger().x(),
+                npc.getY() - portals.get(0).trigger().y()) < 100);
+        assertTrue(flow.getActiveEncounter().isEmpty());
+    }
+
+    /**
+     * Confirmation changes routing without teleporting; crossing the same portal reaches the selected map.
+     * @param destination one of the two visible options
+     */
+    @ParameterizedTest
+    @EnumSource(PortalGuide.Destination.class)
+    void selectionRequiresWalkingIntoTheSinglePortal(PortalGuide.Destination destination) {
+        CollisionBox before = session.getPlayer().getBounds();
+        guide.select(destination);
+        assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
+        assertEquals(before, session.getPlayer().getBounds());
+        assertEquals(destination.mapId(), travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId());
+        enterPortal();
+        assertEquals(destination.mapId(), session.getCurrentMap().getId());
+        assertEquals(new CollisionBox(80, 80, 28, 28), session.getPlayer().getBounds());
+        assertEquals(destination == PortalGuide.Destination.BATTLE, flow.isBattleActive());
+        assertEquals(destination == PortalGuide.Destination.BATTLE, demo.getBoss().isPresent());
+        assertEquals(destination == PortalGuide.Destination.TRAINING, demo.getTrainingDummy().isPresent());
+        assertEquals(2, demo.getCombatants().size());
+        assertTrue(demo.getEnemies().isEmpty());
+        for (int i = 0; i < 20; i++) { assertFalse(travel.updatePortals()); }
+        assertEquals(destination.mapId(), session.getCurrentMap().getId());
+    }
+
+    /** Practice never advances AI, moves the target, attacks the player or emits a result/reward. */
+    @Test
+    void targetStaysStillAndDoesNotAttack() {
+        train();
+        var dummy = dummy();
+        CollisionBox before = dummy.getCombatant().getHurtbox();
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        for (int i = 0; i < 600; i++) { demo.update(0.1, PlayerCommand.NONE, false); }
+        assertEquals(before, dummy.getCombatant().getHurtbox());
+        assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
+        assertEquals(0, dummy.getTotalDamage());
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        assertTrue(flow.getLastResult().isEmpty());
+        assertTrue(flow.getPendingRewards().isEmpty());
+        assertTrue(demo.getDrops().isEmpty());
+    }
+
+    /**
+     * All three professions score real J damage without duplicating any damage calculation.
+     * @param type selected player profession
+     */
+    @ParameterizedTest
+    @EnumSource(PlayerClass.class)
+    void lightAttacksUseSharedDamageAndScoreOnce(PlayerClass type) {
+        demo.update(0, PlayerCommand.NONE, false, type);
+        train();
+        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        demo.update(0.1, new PlayerCommand(1, 0, true, false, false, false), false);
+        int expected = PlayerClasses.get(type).abilities().light().attack().damage();
+        assertEquals(expected, dummy().getTotalDamage());
+        assertEquals(expected, dummy().getLastDamage());
+        assertEquals(1, dummy().getHitCount());
+        for (int i = 0; i < 10; i++) { demo.update(0, PlayerCommand.NONE, false); }
+        assertEquals(expected, dummy().getTotalDamage());
+        assertEquals(1, dummy().getHitCount());
+        assertTrue(dummy().isAlive());
+        assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
+    }
+
+    /** Reaction multipliers and periodic child damage are counted at actual delivery, not cast input. */
+    @Test
+    void reactionsAndFieldsContributeTheirFinalDamage() {
+        train();
+        hit(ElementType.FIRE, 10);
+        hit(ElementType.WATER, 20);
+        assertEquals(50, dummy().getTotalDamage());
+        assertEquals(40, dummy().getLastDamage());
+        assertEquals(2, dummy().getHitCount());
+        hit(ElementType.FIRE, 10);
+        hit(ElementType.WIND, 10);
+        assertEquals(70, dummy().getTotalDamage());
+        assertEquals(1, combat.getElementFields().size());
+        demo.update(0.5, PlayerCommand.NONE, false);
+        assertEquals(76, dummy().getTotalDamage());
+        assertEquals(6, dummy().getLastDamage());
+        assertEquals(5, dummy().getHitCount());
+        assertTrue(flow.getLastResult().isEmpty());
+    }
+
+    /** Knockback is discarded for the fixed target while reaction damage still uses the shared pipeline. */
+    @Test
+    void overloadDoesNotMoveTheTrainingTarget() {
+        train();
+        CollisionBox before = dummy().getCombatant().getHurtbox();
+        hit(ElementType.FIRE, 10);
+        hit(ElementType.LIGHTNING, 10);
+        demo.update(0.1, PlayerCommand.NONE, false);
+        assertEquals(40, dummy().getTotalDamage());
+        assertEquals(before, dummy().getCombatant().getHurtbox());
+        assertEquals(0, dummy().getCombatant().getStatus().getKnockbackX());
+        assertEquals(0, dummy().getCombatant().getStatus().getKnockbackY());
+    }
+
+    /** R creates a clean practice scope, removing pending damage and preserving player choices. */
+    @Test
+    void resetClearsScoreEffectsAndCooldowns() {
+        demo.update(0, PlayerCommand.NONE, false, PlayerClass.ARCHER);
+        assertTrue(demo.getAbilities().selectUltimateMode(UltimateMode.B));
+        train();
+        var old = dummy();
+        var player = session.getPlayer();
+        hit(ElementType.FIRE, 10);
+        hit(ElementType.WIND, 10);
+        demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
+        var attacks = combat.getActiveAttacks();
+        assertFalse(attacks.isEmpty());
+        var fields = combat.getElementFields();
+        assertFalse(fields.isEmpty());
+        demo.update(0.1, new PlayerCommand(1, 1, true, true, true, true), true);
+        assertSame(player, session.getPlayer());
+        assertEquals(PlayerClass.ARCHER, player.getPlayerClass());
+        assertEquals(UltimateMode.B, player.getUltimateMode());
+        assertNotSame(old, dummy());
+        assertFalse(combat.getCombatants().contains(old.getCombatant()));
+        assertEquals(0, dummy().getTotalDamage());
+        assertEquals(0, dummy().getHitCount());
+        assertEquals(0, dummy().getLastDamage());
+        assertEquals(0, demo.getAbilities().getCooldownRemaining(AbilitySlot.LIGHT));
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        assertTrue(combat.getElementFields().isEmpty());
+        assertTrue(attacks.stream().noneMatch(Attack::isActive));
+        assertTrue(fields.stream().noneMatch(ElementField::isActive));
+    }
+
+    /** Leaving practice clears effects and re-entry starts a fresh score, with no fabricated battle result. */
+    @Test
+    void practiceReturnAndBattleSelectionStaySeparate() {
+        train();
+        var old = dummy();
+        hit(ElementType.FIRE, 10);
+        hit(ElementType.WIND, 10);
+        hub();
+        assertTrue(demo.getTrainingDummy().isEmpty());
+        assertFalse(combat.getCombatants().contains(old.getCombatant()));
+        assertTrue(combat.getElementFields().isEmpty());
+        assertTrue(flow.getLastResult().isEmpty());
+        assertTrue(flow.getPendingRewards().isEmpty());
+        enterPortal();
+        assertNotSame(old, dummy());
+        assertEquals(0, dummy().getTotalDamage());
+        hub();
+        guide.select(PortalGuide.Destination.BATTLE);
+        enterPortal();
+        assertEquals(MapType.BATTLE, session.getCurrentMap().getType());
+        assertTrue(demo.getTrainingDummy().isEmpty());
+        assertTrue(demo.getBoss().isPresent());
+    }
+
+    /**
+     * Battle still restores Hub and either retains retry permission or closes it with one reward.
+     * @param success whether the Boss is defeated instead of the player
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void battleOutcomesAndSubsequentNpcSelection(boolean success) {
+        guide.select(PortalGuide.Destination.BATTLE);
+        var accepted = flow.getActiveEncounter().orElseThrow();
+        guide.select(PortalGuide.Destination.BATTLE);
+        assertEquals(accepted, flow.getActiveEncounter().orElseThrow());
+        enterPortal();
+        var oldBoss = demo.getBoss().orElseThrow();
+        if (success) { oldBoss.getHealth().takeDamage(400); }
+        else { session.getPlayer().takeDamage(100); }
+        demo.update(0, PlayerCommand.NONE, false);
+        assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
+        assertEquals(success ? BattleResult.Outcome.SUCCESS : BattleResult.Outcome.FAILURE,
+                flow.getLastResult().orElseThrow().outcome());
+        assertEquals(!success, travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).enabled());
+        assertEquals(success ? 1 : 0, flow.getPendingRewards().size());
+        guide.select(PortalGuide.Destination.BATTLE);
+        if (success) { assertNotEquals(accepted.id(), flow.getActiveEncounter().orElseThrow().id()); }
+        else { assertEquals(accepted, flow.getActiveEncounter().orElseThrow()); }
+        guide.select(PortalGuide.Destination.TRAINING);
+        assertTrue(flow.getActiveEncounter().isEmpty());
+        enterPortal();
+        assertTrue(demo.getBoss().isEmpty());
+        assertTrue(demo.getTrainingDummy().isPresent());
+        assertEquals(success ? 1 : 0, flow.getPendingRewards().size());
+    }
+
+    /**
+     * Neither dialogue destination can change admission outside a living Hub.
+     * @param destination requested route
+     */
+    @ParameterizedTest
+    @EnumSource(PortalGuide.Destination.class)
+    void selectionGuardsAreAtomic(PortalGuide.Destination destination) {
+        guide.select(PortalGuide.Destination.BATTLE);
+        var accepted = flow.getActiveEncounter().orElseThrow();
+        var portal = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID);
+        session.getPlayer().takeDamage(100);
+        assertThrows(IllegalStateException.class, () -> guide.select(destination));
+        assertEquals(portal, travel.getPortal(TravelCatalog.QUEST_PORTAL_ID));
+        assertEquals(accepted, flow.getActiveEncounter().orElseThrow());
+        session.getPlayer().getHealth().restoreFull();
+        enterPortal();
+        assertThrows(IllegalStateException.class, () -> guide.select(destination));
+        assertEquals(portal, travel.getPortal(TravelCatalog.QUEST_PORTAL_ID));
+        assertEquals(accepted, flow.getActiveEncounter().orElseThrow());
+        assertThrows(NullPointerException.class, () -> guide.select(null));
+    }
+
+    /** Tests that the current route reaches a full dummy scope rather than a Boss encounter. */
+    private void train() {
+        guide.select(PortalGuide.Destination.TRAINING);
+        enterPortal();
+        assertTrue(demo.getBoss().isEmpty());
+    }
+
+    /** Travels home using the existing unlocked destination and immediately cleans the old scope. */
+    private void hub() {
+        travel.fastTravel(TravelCatalog.HUB_ENTRY);
+        demo.update(0, PlayerCommand.NONE, false);
+    }
+
+    /** Enters the real route after arrival protection has observed departure from its region. */
+    private void enterPortal() {
+        travel.updatePortals();
+        CollisionBox trigger = travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).trigger();
+        session.getPlayer().enterArea(session.getCurrentMap(), trigger.x(), trigger.y());
+        assertTrue(travel.updatePortals());
+        demo.update(0, PlayerCommand.NONE, false);
+    }
+
+    /**
+     * Returns the current registered practice receiver.
+     * @return current target, failing the test if absent
+     */
+    private TrainingDummy dummy() { return demo.getTrainingDummy().orElseThrow(); }
+
+    /**
+     * Arranges an ordinary elemental hit through the one real combat pipeline.
+     * @param element direct-hit element
+     * @param damage base damage before shared reaction calculation
+     */
+    private void hit(ElementType element, int damage) {
+        var source = combat.getCombatants().stream().filter(actor -> actor.getFaction() == Faction.PLAYER)
+                .findFirst().orElseThrow();
+        var bounds = dummy().getCombatant().getHurtbox();
+        combat.tryAttack(source, new AttackSpec("practice-test", damage, 0.1, 0, element), bounds, bounds).orElseThrow();
+        demo.update(0, PlayerCommand.NONE, false);
+    }
+}

@@ -13,25 +13,23 @@ import au.edu.anu.comp2120.world.SpawnPoint;
 import au.edu.anu.comp2120.world.Portal;
 import java.util.List;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
 /**
- * Draws collision rectangles on a solid floor without textures, fonts, or other assets.
+ * Draws placeholder geometry and built-in debug text without external artwork.
  * Replacing this renderer does not change movement, collision, or combat rules.
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
  */
 public final class PlaceholderRenderer implements Disposable {
-    /** Radius of temporary spawn markers in world units. */
+    /** Radius of the single visible default-spawn marker in world units. */
     private static final float SPAWN_MARKER_RADIUS = 5;
     /** Number of segments in a temporary circular marker. */
     private static final int SPAWN_MARKER_SEGMENTS = 12;
@@ -41,16 +39,9 @@ public final class PlaceholderRenderer implements Disposable {
     private final FitViewport viewport;
     /** LibGDX built-in debug font; requires no external art files. */
     private final BitmapFont debugFont;
-    /** Screen-space batch used only for the optional debug HUD text. */
+    /** World-space batch used for player and NPC name tags. */
     private final SpriteBatch debugBatch;
-    /** Whether the live coordinate overlay is drawn. */
-    private boolean debugCoords;
-    /** Reference window height used to auto-scale the debug HUD text. */
-    private static final float HUD_BASE_HEIGHT = 720f;
-    /** Smallest allowed HUD scale, so text stays readable on tiny windows. */
-    private static final float HUD_MIN_SCALE = 1f;
-    /** Extra size multiplier on top of the auto scale; raise this for bigger text. */
-    private static final float HUD_FONT_SCALE = 1.4f;/** Width of the world-space name tag box in world units. */
+    /** Width of the world-space name tag box in world units. */
     private static final float NAME_TAG_WIDTH = 140f;
     /** Gap between a subject's top edge and its name tag in world units. */
     private static final float NAME_OFFSET = 6f;
@@ -77,12 +68,6 @@ public final class PlaceholderRenderer implements Disposable {
             {90f, 250f}, {120f, 95f}, {270f, 320f}, {390f, 95f},
             {640f, 300f}, {700f, 120f}, {830f, 250f}, {890f, 95f}
     };
-    /** Speaker name shown in the dialogue box. */
-    private String dialogueSpeaker = "";
-    /** Current dialogue line shown in the box. */
-    private String dialogueText = "";
-    /** Prompt text shown at the bottom-left of the box. */
-    private String dialogueHint = "";
     /**
      * Creates drawing resources after LibGDX has initialized its graphics context.
      *
@@ -103,39 +88,15 @@ public final class PlaceholderRenderer implements Disposable {
                 com.badlogic.gdx.graphics.Texture.TextureFilter.Linear,
                 com.badlogic.gdx.graphics.Texture.TextureFilter.Linear);
         debugBatch = new SpriteBatch();
-        debugCoords = false;
-    }
-    /**
-     * Enables or disables the live player-coordinate overlay in the top-left corner.
-     *
-     * @param enabled true to draw the debug HUD
-     */
-    public void setDebugCoords(boolean enabled) {
-        this.debugCoords = enabled;
-    }
-    /**
-     * Shows an in-screen dialogue box at the bottom.
-     *
-     * @param speaker NPC name drawn in the heading colour
-     * @param text    current dialogue line
-     * @param hint    prompt such as "[E] Next"
-     */
-    public void setDialogue(String speaker, String text, String hint) {
-        this.dialogueSpeaker = speaker == null ? "" : speaker;
-        this.dialogueText = text == null ? "" : text;
-        this.dialogueHint = hint == null ? "" : hint;
-    }
-
-    /** Hides the dialogue box. */
-    public void clearDialogue() {
-        dialogueText = "";
     }
     /**
      * Follows the player's centre with map clamping, then draws the placeholder scene.
      * Position is recalculated from current data every frame, including the first frame after travel.
+     * Only the default spawn is marked; alternate test spawns remain usable but are not drawn.
      *
      * @param map        collision world to display
      * @param player     player to display
+     * @param npcs       current-map NPCs to draw, or null when none are supplied
      * @param portals    immutable portal snapshots; only current-map entries are drawn
      * @param combatants current-scope actors for enemy rectangles and hurtbox outlines
      * @param attacks    active current-scope invocations for temporary hitbox outlines
@@ -173,10 +134,9 @@ public final class PlaceholderRenderer implements Disposable {
             }
         }
         shapes.setColor(0.95f, 0.75f, 0.20f, 1);
-        for (SpawnPoint spawn : map.getSpawnPoints().values()) {
-            shapes.circle((float) spawn.x(), (float) spawn.y(),
-                    SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
-        }
+        SpawnPoint spawn = map.getSpawnPoint(map.getDefaultSpawnId());
+        shapes.circle((float) spawn.x(), (float) spawn.y(),
+                SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
         shapes.setColor(0.20f, 0.85f, 0.60f, 1);
         draw(player.getBounds());
 // Draw NPCs, each with its own identifying colour
@@ -227,54 +187,6 @@ public final class PlaceholderRenderer implements Disposable {
         }
         shapes.end();
         drawNames(player, npcs);
-        if (debugCoords) {
-            int screenW = Gdx.graphics.getWidth();
-            int screenH = Gdx.graphics.getHeight();
-            float scale = Math.max(HUD_MIN_SCALE, screenH / HUD_BASE_HEIGHT) * HUD_FONT_SCALE;
-            debugFont.getData().setScale(scale);
-            debugBatch.getProjectionMatrix().setToOrtho2D(0, 0, screenW, screenH);
-            debugBatch.begin();
-            debugFont.setColor(0.20f, 0.95f, 0.55f, 1);
-            debugFont.draw(debugBatch,
-                    "Player x=" + (int) player.getX() + "  y=" + (int) player.getY(),
-                    12f * scale, screenH - 12f * scale);
-            debugBatch.end();
-            drawDialogue();
-        }
-    }
-    /** Draws the dialogue box in screen space above the world. */
-    private void drawDialogue() {
-        if (dialogueText.isEmpty()) {
-            return;
-        }
-        int w = Gdx.graphics.getWidth();
-        int h = Gdx.graphics.getHeight();
-        float boxW = w * 0.7f;
-        float boxH = h * 0.22f;
-        float x = (w - boxW) / 2f;
-        float y = 18f;
-        shapes.getProjectionMatrix().setToOrtho2D(0, 0, w, h);
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0.05f, 0.06f, 0.09f, 0.92f);
-        shapes.rect(x, y, boxW, boxH);
-        shapes.end();
-        shapes.begin(ShapeRenderer.ShapeType.Line);
-        shapes.setColor(0.95f, 0.85f, 0.35f, 1);
-        shapes.rect(x, y, boxW, boxH);
-        shapes.end();
-        float scale = Math.max(HUD_MIN_SCALE, h / HUD_BASE_HEIGHT) * HUD_FONT_SCALE;
-        debugFont.getData().setScale(scale);
-        debugBatch.getProjectionMatrix().setToOrtho2D(0, 0, w, h);
-        debugBatch.begin();
-        float pad = 14f * scale;
-        debugFont.setColor(1f, 0.90f, 0.40f, 1);
-        debugFont.draw(debugBatch, dialogueSpeaker, x + pad, y + boxH - pad);
-        debugFont.setColor(1f, 1f, 1f, 1);
-        debugFont.draw(debugBatch, dialogueText, x + pad, y + boxH - pad - 26f * scale,
-                boxW - 2 * pad, Align.left, true);
-        debugFont.setColor(0.60f, 0.90f, 1f, 1);
-        debugFont.draw(debugBatch, dialogueHint, x + pad, y + pad + 4f);
-        debugBatch.end();
     }
     /**
      * Resizes the screen viewport without recentering the camera or changing its world extent.
@@ -351,14 +263,20 @@ public final class PlaceholderRenderer implements Disposable {
                 (float) top + NAME_OFFSET,
                 NAME_TAG_WIDTH, Align.center, false);
     }
-    /** Draws the main road and the branch leading to the weapon merchant. */
+    /**
+     * Draws the main road and the branch leading to the weapon merchant.
+     * @param bounds map rectangle providing the road's horizontal extent
+     */
     private void drawRoad(CollisionBox bounds) {
         shapes.setColor(0.22f, 0.26f, 0.30f, 1);
         draw(new CollisionBox(bounds.x(), ROAD_Y, bounds.width(), ROAD_HEIGHT));
         draw(new CollisionBox(302f, ROAD_Y, 26f, 80f));
     }
 
-    /** Draws a ring of fence posts just inside the map border. */
+    /**
+     * Draws a ring of fence posts just inside the map border.
+     * @param bounds map rectangle to surround with decorative posts
+     */
     private void drawFence(CollisionBox bounds) {
         float left = (float) bounds.x() + FENCE_INSET;
         float bottom = (float) bounds.y() + FENCE_INSET;
@@ -375,7 +293,13 @@ public final class PlaceholderRenderer implements Disposable {
         }
     }
 
-    /** Draws one hut with a pointed roof and a lit window. */
+    /**
+     * Draws one hut with a pointed roof and a lit window.
+     * @param x left edge in world units
+     * @param y bottom edge in world units
+     * @param w body width in world units
+     * @param h body height in world units, excluding the roof
+     */
     private void drawHut(float x, float y, float w, float h) {
         shapes.setColor(0.30f, 0.26f, 0.22f, 1);
         draw(new CollisionBox(x, y, w, h));
@@ -385,7 +309,11 @@ public final class PlaceholderRenderer implements Disposable {
         draw(new CollisionBox(x + w * 0.35f, y + h * 0.25f, w * 0.3f, h * 0.3f));
     }
 
-    /** Draws one tree with a trunk and a canopy block. */
+    /**
+     * Draws one tree with a trunk and a canopy block.
+     * @param x left edge in world units
+     * @param y trunk base in world units
+     */
     private void drawTree(float x, float y) {
         shapes.setColor(0.32f, 0.22f, 0.14f, 1);
         draw(new CollisionBox(x + 4f, y, 6f, 18f));
