@@ -105,7 +105,8 @@ final class PortalGuideTrainingTest {
         train();
         var dummy = dummy();
         CollisionBox before = dummy.getCombatant().getHurtbox();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                dummy().getCombatant().getHurtbox().x() - 40, dummy().getCombatant().getHurtbox().y());
         for (int i = 0; i < 600; i++) { demo.update(0.1, PlayerCommand.NONE, false); }
         assertEquals(before, dummy.getCombatant().getHurtbox());
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
@@ -125,7 +126,8 @@ final class PortalGuideTrainingTest {
     void lightAttacksUseSharedDamageAndScoreOnce(PlayerClass type) {
         demo.update(0, PlayerCommand.NONE, false, type);
         train();
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                dummy().getCombatant().getHurtbox().x() - 40, dummy().getCombatant().getHurtbox().y());
         demo.update(0.1, new PlayerCommand(1, 0, true, false, false, false), false);
         int expected = PlayerClasses.get(type).abilities().light().attack().damage();
         assertEquals(expected, dummy().getTotalDamage());

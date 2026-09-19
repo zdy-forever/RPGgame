@@ -7,6 +7,8 @@ The asset-free gameplay boundary is retained, but production rendering now compo
 for the current resource inventory, supported animations and remaining content limitations. Older
 placeholder-only rendering notes below describe the earlier foundation, not current visuals.
 MapCatalog centralizes 1600 x 1200 bounds; collision and 640 x 360 camera behavior do not derive from images.
+GameConfig supplies map-centred encounter bodies for Bosses and training targets, with nearby safety
+fallbacks only when collision or player occupancy prevents an exact-centre spawn.
 TrainingAppearance chooses independent arena/Boss artwork per visit; the original stationary
 TrainingDummy remains the only practice target and R preserves the visit's appearance.
 CombatSystem exposes bounded, drain-once HitFeedback after confirmed settlement, with no art references

@@ -64,6 +64,9 @@ separate work. No audio was added. The original pack's provenance filenames are 
 All seven built-in map definitions now use centralized **1600 x 1200** world bounds. Existing spawn IDs,
 NPC/portal positions, empty obstacle lists and world collision remain unchanged. The **640 x 360**
 camera follows/clamps normally, with room to scroll in both axes.
+Boss and training-target collision bodies spawn centred on the current map (800, 600 in built-in maps).
+The centre is calculated from map bounds, not image dimensions or a fixed lower-left coordinate.
+Existing safety checks retain nearby fallback candidates when the centre is blocked/player-occupied.
 
 Training remains `MapType.TRAINING`, with one original TrainingDummy and no Boss AI/reward/outcome.
 On entry, `TrainingAppearance` makes independent random choices for elemental arena and guardian art.

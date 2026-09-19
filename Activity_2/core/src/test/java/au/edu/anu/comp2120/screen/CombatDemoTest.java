@@ -142,7 +142,8 @@ final class CombatDemoTest {
     void commonAbilityCommandsReachDemoCombat() {
         GameSession session = session(MapCatalog.CROSSROADS);
         CombatDemo demo = new CombatDemo(session);
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         enemy(demo).takeDamage(300);
         demo.update(0, new PlayerCommand(0, 0, false, true, false, false), false);
         assertEquals(100, enemy(demo).getHealth().getCurrentHp(), "Mage K selects an element, not damage");
@@ -163,7 +164,8 @@ final class CombatDemoTest {
     void demonstratesBothAttackDirectionsAndExplicitReset() {
         GameSession session = session(MapCatalog.CROSSROADS);
         CombatDemo demo = new CombatDemo(session);
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         Enemy enemy = enemy(demo);
         CollisionBox position = session.getPlayer().getBounds();
         demo.update(0, true, false);
@@ -196,7 +198,8 @@ final class CombatDemoTest {
     void battleDeathAutomaticallyReturnsToHub() {
         GameSession session = session(MapCatalog.CROSSROADS);
         CombatDemo demo = new CombatDemo(session);
-        session.getPlayer().enterArea(session.getCurrentMap(), 320, 100);
+        session.getPlayer().enterArea(session.getCurrentMap(),
+                demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         for (int i = 0; i < 300 && demo.getLastDefeat().isEmpty(); i++) {
             demo.update(0.1, false, false);
         }
