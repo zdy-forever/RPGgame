@@ -60,7 +60,8 @@ public final class EncounterFlow {
     }
 
     /**
-     * Configures/replaces permission from an external Quest adapter, only in a living Hub.
+     * Configures/replaces permission and opens its portal, only in a living Hub.
+     * Portal Guide calls this after confirmation; quest acceptance alone must use prepare instead.
      * Invalid requests leave the previous permission and routes untouched. A completed ID cannot
      * reopen; accepting the same quest again requires a new acceptance ID, not a new map ID.
      * @param encounter externally accepted challenge
@@ -69,6 +70,21 @@ public final class EncounterFlow {
      * @throws IllegalStateException if outside Hub/dead or the acceptance already succeeded
      */
     public void activate(ActiveEncounter encounter) {
+        prepare(encounter);
+        travel.setPortalEnabled(encounter.portalId(), true);
+    }
+
+    /**
+     * Validates and records an accepted encounter while keeping all owned task portals closed.
+     * Replaces any previous route, including an open practice route, without opening the new one.
+     * Invalid requests leave the old permission and portal states untouched. Re-preparing the same
+     * acceptance preserves its identity but requires another explicit Portal Guide confirmation.
+     * @param encounter externally accepted challenge awaiting portal confirmation
+     * @throws NullPointerException if encounter is null
+     * @throws IllegalArgumentException if references, map type, ownership or spawn fit are invalid
+     * @throws IllegalStateException if outside a living Hub or the acceptance already succeeded
+     */
+    public void prepare(ActiveEncounter encounter) {
         Objects.requireNonNull(encounter, "encounter");
         requireHub();
         if (completedIds.contains(encounter.id())) {
@@ -81,7 +97,6 @@ public final class EncounterFlow {
         travel.configurePortalDestination(encounter.portalId(), encounter.mapId(), encounter.spawnId());
         closePortals();
         active = encounter;
-        travel.setPortalEnabled(encounter.portalId(), true);
     }
 
     /**
@@ -95,8 +110,9 @@ public final class EncounterFlow {
     }
 
     /**
-     * Exposes permission independently from mutable Quest state.
-     * @return current permission, or empty when a new acceptance is required
+     * Exposes accepted permission independently from mutable Quest state and portal enabled state.
+     * A prepared encounter is visible here even before the Portal Guide opens its route.
+     * @return current accepted permission, or empty when a new acceptance is required
      */
     public Optional<ActiveEncounter> getActiveEncounter() {
         return Optional.ofNullable(active);
@@ -117,6 +133,7 @@ public final class EncounterFlow {
      * @param candidate session used by combat coordination
      * @return true for this boundary's session
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted") // Keep the positive public ownership query; guards reject mismatches.
     public boolean belongsTo(GameSession candidate) {
         return session == candidate;
     }

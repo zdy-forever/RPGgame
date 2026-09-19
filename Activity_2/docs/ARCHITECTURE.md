@@ -6,8 +6,10 @@ This document defines the module boundaries for the gameplay loop:
 Hub -> accept quest -> portal -> single-Boss battle -> success/failure -> Hub
 ```
 
-Quest/NPC acceptance belongs to Developer B. Gameplay now implements task admission and
-SUCCESS/FAILURE returns without completing, deleting, failing or replacing any Quest.
+The existing module boundary keeps Quest state outside gameplay/combat. The requested minimal
+NPC quest implementation now lives in `quest.BossQuests`; it consumes EncounterFlow results
+without putting quest mutations into Health, CombatSystem or Boss. Future Developer B work
+should extend/replace this owner, not introduce a second independent quest progress store.
 
 ## Current production encounter boundary
 
@@ -15,10 +17,28 @@ The current local entry adapter is `npc.PortalGuide`: Hub contains one initially
 portal (`TravelCatalog.QUEST_PORTAL_ID`) and a nearby destination-selection NPC. E opens
 the choice, Up/Down selects Training or Battle, and E confirms without teleporting.
 Walking into the configured portal performs normal travel. No Achievement Wall is implemented.
-Selecting Battle calls the existing `EncounterFlow.activate`; selecting Training validates
-and reconfigures the same portal, clears gameplay admission and enables ordinary practice travel.
-It does not change external Quest state. Failed Battle acceptance is reused when selecting
-Battle again; a completed acceptance is replaced by a fresh ID. Reward outbox data is preserved.
+Selecting Battle requires an already accepted EncounterFlow permission and re-applies that exact
+route. Portal Guide never constructs acceptance IDs. No task means a locked Battle option.
+Selecting Training reconfigures the same portal without clearing the accepted quest/permission;
+returning and choosing Battle restores its route and retry identity. Reward outbox data is preserved.
+
+`BossChallenge` defines five distinct Boss/map identities. `BossQuests.accept` is the Quest Keeper's
+Hub-only adapter: validate/prepare gameplay first, then store the accepted target and unique
+acceptance. It rejects completed targets and retains identity for an unfinished repeat selection.
+`EncounterFlow.prepare` records this permission while closing all owned portals; accepting,
+replacing or re-accepting a quest never opens a gate. `activate` reuses the same validation/preparation
+and opens the chosen portal only when Portal Guide confirms Battle. Merely viewing its label/menu
+does not activate anything. Invalid preparation preserves previous permission and portal states.
+`synchronize` observes the exact accepted BattleResult after settlement: FAILURE retains the task;
+SUCCESS adds the distinct target to an immutable-exposed completion set and clears the active task.
+Old/unrelated results cannot complete a different task. It never claims material rewards.
+`consumeEnding` emits once after all five distinct completions in a living Hub. GameScreen then
+owns a short modal E-advanced ending dialogue; completed rows use geometric check marks rather
+than depending on Unicode glyph availability. NPC dialogue is drawn above the HUD.
+
+The five arenas reuse the existing Sentinel HP, AI, patterns and material tuning; only identities,
+names and arena routing differ in this first content version. No second damage engine or final
+elemental Boss mechanics are introduced. Progress/ending flags are in-memory only, not saved.
 
 `MapType.TRAINING` is separate from `BATTLE`. It contains one `enemy.TrainingDummy`, with
 no AI, movement, attacks, Boss reward or battle outcome. Damage is delivered by the existing
@@ -40,8 +60,8 @@ only to that harness. The production route creates exactly one Boss and no ordin
 each admitted built-in Battle map/spawn; generic Enemy/EnemyAI remain reusable components.
 
 - `ActiveEncounter(id, mapId, spawnId, portalId)` is an external acceptance permission,
-  not a Quest. `activate`/`clearActiveEncounter` require a living Hub player. Activation
-  validates a Battle map and full-body spawn before disabling old/enabling new task routes.
+  not a Quest. `prepare`/`activate`/`clearActiveEncounter` require a living Hub player. Preparation
+  validates a Battle map and full-body spawn before closing old routes; activation additionally opens it.
   Encounter IDs identify acceptances, not maps; a completed acceptance ID cannot be replayed.
 - Production `TravelCatalog.createQuestPortals()` supplies one initially closed Hub route.
   No ordinary battle return portal is generated. Normal return is driven by settlement.
@@ -81,9 +101,9 @@ See [Quest portal flow report](QUEST_PORTAL_FLOW_REPORT.md) for calls, tests and
 The headless integration suite uses the production EncounterFlow/CombatDemo wiring, real
 TravelSystem and shared CombatSystem. It covers both built-in Battle spawns and both Training spawns,
 exact Player/Boss membership, actual ability-driven victories, failure/retry/replacement,
-reward-once delivery and Hub-only selection. No Quest implementation or automatic acceptance
-is included: the local Portal Guide explicitly selects the route, while Developer B can
-provide Quest-backed acceptance through the same public boundary. Historical multi-Battle
+reward-once delivery and Hub-only selection. BossQuestFlowTest additionally covers the actual
+Quest Keeper acceptance, locked guide, all five distinct Boss routes, failed retries, training
+detours, task replacement, success checks and one-time ending. Historical multi-Battle
 contract tests use explicit fixture maps rather than treating the real Training Ground as a Boss arena.
 
 Cross-scope tests leave 15 concrete skill phases through FAILURE, SUCCESS and normal fast

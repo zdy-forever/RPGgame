@@ -77,7 +77,7 @@ public final class GameConfig {
             List.of(
                     "Welcome, adventurer. This is the Hub.",
                     "Press WASD to move, and talk to the merchant for a weapon.",
-                    "Talk to the Portal Guide, then enter the portal."),
+                    "Accept a Boss quest from the Quest Keeper, then visit the Portal Guide."),
             null
     );
     /** Notice board listing the controls; readable any number of times. */
@@ -89,7 +89,7 @@ public final class GameConfig {
                     "WASD - move        E - talk / interact",
                     "B - inventory      M - map",
                     "Right-click a weapon in the bag to equip it.",
-                    "Talk to the Portal Guide to choose Training or Battle."),
+                    "Quest Keeper - accept Boss tasks. Portal Guide - Training or accepted Battle."),
             null
     );
     /** Storage chest that accepts and returns whatever the player carries. */
@@ -103,7 +103,7 @@ public final class GameConfig {
     public static final NPC PORTAL_GUIDE = new NPC(
             "portal_guide", "Portal Guide",
             128.0, 144.0, 24.0, 24.0,
-            "Choose a destination, then step into the portal.", null
+            "Training is always available. Battle requires a quest from the Quest Keeper.", null
     );
     /** Class and ultimate trainer, clear of the portal and other interaction points. */
     public static final NPC CLASS_MASTER = new NPC(
@@ -113,9 +113,13 @@ public final class GameConfig {
     public static final NPC TRAINING_EXIT = new NPC(
             "training_exit", "Return to Hub", 128.0, 144.0, 24.0, 24.0,
             "Return to Hub? Your practice score and active effects will be cleared.", null);
+    /** Hub quest giver offering the five distinct Boss challenges. */
+    public static final NPC QUEST_KEEPER = new NPC(
+            "quest_keeper", "Quest Keeper", 420.0, 310.0, 24.0, 24.0,
+            "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
-            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER);
+            List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);
     /** Prevents construction of this configuration holder. */
     private GameConfig() {
     }

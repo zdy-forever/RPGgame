@@ -10,6 +10,7 @@ import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.enemy.EnemyAI;
 import au.edu.anu.comp2120.enemy.Boss;
+import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.enemy.TrainingDummy;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.player.PlayerAbilities;
@@ -467,7 +468,10 @@ public final class CombatDemo {
         }
         for (CollisionBox placement : GameConfig.BOSS_PLACEMENTS) {
             if (session.getCurrentMap().isWalkable(placement) && !placement.overlaps(session.getPlayer().getBounds())) {
-                boss = new Boss("sentinel", "Sentinel", placement, session.getCurrentMap(), GameConfig.SENTINEL, combat);
+                var target = BossChallenge.forMap(session.getCurrentMap().getId());
+                boss = new Boss(target.map(BossChallenge::id).orElse("sentinel"),
+                        target.map(BossChallenge::displayName).orElse("Sentinel"),
+                        placement, session.getCurrentMap(), GameConfig.SENTINEL, combat);
                 return;
             }
         }
