@@ -73,7 +73,7 @@ public final class GameConfig {
             List.of(
                     "=== HUB NOTICE BOARD ===",
                     "WASD - move        E - talk / interact",
-                    "B - inventory      U then 1/2/3 - fast travel",
+                    "B - inventory      M - map",
                     "Right-click a weapon in the bag to equip it.",
                     "Talk to the Portal Guide to choose Training or Battle."),
             null
@@ -95,6 +95,10 @@ public final class GameConfig {
     public static final NPC CLASS_MASTER = new NPC(
             "class_master", "Class Master", 320.0, 130.0, 24.0, 24.0,
             "Choose your class and its O ultimate mode. J/K/L remain class-defined.", null);
+    /** Practice-only exit replacing the removed debug fast-travel keys. */
+    public static final NPC TRAINING_EXIT = new NPC(
+            "training_exit", "Return to Hub", 128.0, 144.0, 24.0, 24.0,
+            "Return to Hub? Your practice score and active effects will be cleared.", null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
             List.of(WEAPON_MERCHANT, GUIDE, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER);

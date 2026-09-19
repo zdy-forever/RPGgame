@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Small NPC adapter selecting a challenge for the existing single Hub portal.
+ * Small NPC adapter selecting a route for the single Hub portal and returning from practice.
  * Selection configures admission only: movement into the portal still performs travel.
  * Does not own Quest state, rewards, map transitions or combat rules.
  * All calls run on the game-loop thread.
@@ -111,5 +111,19 @@ public final class PortalGuide {
                 .orElseGet(() -> new ActiveEncounter("portal-guide-" + UUID.randomUUID(),
                         destination.mapId(), "entry", TravelCatalog.QUEST_PORTAL_ID));
         encounters.activate(permission);
+    }
+
+    /**
+     * Returns a living practice player through existing travel validation and arrival protection.
+     * The caller synchronizes the combat scope after this transition, as for every other journey.
+     * Does not create a battle result, consume rewards, heal or change the selected portal route.
+     * @throws IllegalStateException if outside Training, dead or the Hub destination is locked
+     * @throws IllegalArgumentException if the registered Hub destination/spawn is missing or invalid
+     */
+    public void returnFromTraining() {
+        if (session.getCurrentMap().getType() != MapType.TRAINING || !session.getPlayer().isAlive()) {
+            throw new IllegalStateException("Practice return requires a living player in Training");
+        }
+        travel.fastTravel(TravelCatalog.HUB_ENTRY);
     }
 }

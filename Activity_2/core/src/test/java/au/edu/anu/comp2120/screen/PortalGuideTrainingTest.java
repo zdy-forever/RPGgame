@@ -280,10 +280,56 @@ final class PortalGuideTrainingTest {
         assertTrue(demo.getBoss().isEmpty());
     }
 
-    /** Travels home using the existing unlocked destination and immediately cleans the old scope. */
+    /** Uses the production Training NPC return action and immediately cleans the old scope. */
     private void hub() {
-        travel.fastTravel(TravelCatalog.HUB_ENTRY);
+        guide.returnFromTraining();
         demo.update(0, PlayerCommand.NONE, false);
+    }
+
+    /** NPC return preserves HP, identity, class and mode without granting a result or unlocking routes. */
+    @Test
+    void trainingNpcReturnPreservesPlayerAndDoesNotUnlockDebugDestinations() {
+        demo.update(0, PlayerCommand.NONE, false, PlayerClass.MAGE);
+        demo.getAbilities().selectUltimateMode(UltimateMode.B);
+        var player = session.getPlayer();
+        train();
+        player.takeDamage(23);
+        hub();
+        assertSame(player, session.getPlayer());
+        assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
+        assertEquals(77, player.getHealth().getCurrentHp());
+        assertEquals(PlayerClass.MAGE, player.getPlayerClass());
+        assertEquals(UltimateMode.B, player.getUltimateMode());
+        assertTrue(demo.getTrainingDummy().isEmpty());
+        assertTrue(flow.getLastResult().isEmpty());
+        assertTrue(flow.getPendingRewards().isEmpty());
+        assertFalse(travel.getDestination(TravelCatalog.TRAINING_ENTRY).unlocked());
+        assertFalse(travel.getDestination(TravelCatalog.CROSSROADS_ENTRY).unlocked());
+        assertFalse(travel.updatePortals());
+    }
+
+    /**
+     * The practice exit action is not a general battle-escape or Hub teleport shortcut.
+     * @param mapId non-practice map
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {MapCatalog.HUB, MapCatalog.CROSSROADS})
+    void trainingReturnRejectsOtherMaps(String mapId) {
+        session.switchMap(mapId);
+        long version = session.getTransitionVersion();
+        assertThrows(IllegalStateException.class, guide::returnFromTraining);
+        assertEquals(version, session.getTransitionVersion());
+        assertEquals(mapId, session.getCurrentMap().getId());
+    }
+
+    /** Dead practice players cannot use the NPC to bypass normal state guards. */
+    @Test
+    void trainingReturnRejectsDeadPlayer() {
+        train();
+        session.getPlayer().takeDamage(100);
+        assertThrows(IllegalStateException.class, guide::returnFromTraining);
+        assertEquals(MapCatalog.TRAINING, session.getCurrentMap().getId());
+        assertFalse(session.getPlayer().isAlive());
     }
 
     /** Enters the real route after arrival protection has observed departure from its region. */

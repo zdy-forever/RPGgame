@@ -170,7 +170,7 @@ final class CoreGameplayIntegrationTest {
     }
 
     /**
-     * Crosses all important active skill phases with failure, success and ordinary travel cleanup.
+     * Crosses active skill phases with outcomes and programmatic travel, not removed debug keys.
      * @return scenario and exit-path combinations
      */
     private static Stream<Arguments> lifecycleCases() {
@@ -182,7 +182,7 @@ final class CoreGameplayIntegrationTest {
     /**
      * No active weapon/class/reaction object may update or damage the arrival scope.
      * @param skill exact active phase to leave
-     * @param exit failure, success or normal fast travel
+     * @param exit failure, success or an explicit low-level travel API call
      */
     @ParameterizedTest
     @MethodSource("lifecycleCases")

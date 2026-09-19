@@ -25,7 +25,10 @@ no AI, movement, attacks, Boss reward or battle outcome. Damage is delivered by 
 CombatSystem; the dummy records actual positive delivered damage and restores its Health
 after every hit. CombatDemo discards its knockback requests to keep the target stationary.
 GameScreen draws total/last damage and hit count using existing debug text. R clears the
-practice combat scope/cooldowns and restores player HP; 1 returns to Hub through fast travel.
+practice combat scope/cooldowns and restores player HP. The Training-only Return to Hub NPC
+uses `PortalGuide.returnFromTraining()` after E confirmation, reusing validated travel and
+arrival protection without healing or creating BattleResult/rewards. U/1/2/3 debug travel
+bindings are removed; the underlying fast-travel API and its contract tests remain supported.
 Map transitions create a fresh dummy/score and clear old attacks, fields and ability activity.
 Player identity/class/per-class O choices remain unchanged; class/O selection stays Hub-only.
 

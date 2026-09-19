@@ -140,7 +140,7 @@ public final class GameScreen extends ScreenAdapter {
 
     /**
      * Samples input, updates movement/abilities and combat, then checks arrival portals before drawing.
-     * Fast travel consumes commands; portal arrival immediately clears old-map attacks and dash.
+     * NPC returns consume commands; portal arrival immediately clears old-map attacks and dash.
      * Success/failure recovery consumes the rest of the frame before any Hub movement or portal check.
      * Frame stalls are capped and all simulation timers pause with this screen.
      *
@@ -154,7 +154,7 @@ public final class GameScreen extends ScreenAdapter {
         skipNextUpdate = false;
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
-                currentMap.getType() == MapType.HUB ? GameConfig.HUB_NPCS : List.of(),
+                currentNpcs(),
                 travel.getPortals(currentMap.getId()),
                 combatDemo.getCombatants(), combatDemo.getActiveAttacks(), combatDemo.getDrops());
         drawDialogue();
@@ -194,12 +194,11 @@ public final class GameScreen extends ScreenAdapter {
             updateMapView();
             return;
         }
-        boolean travelConsumed;
-        try {
-            travelConsumed = handleTravelInput();
-        } catch (IllegalArgumentException | IllegalStateException failure) {
-            travelStatus = failure.getMessage();
-            travelConsumed = true;
+        if (isTrainingExitDialogueOpen()) {
+            handleTrainingExitInput();
+            combatDemo.update(delta, PlayerCommand.NONE, false);
+            updateMapView();
+            return;
         }
         long beforeCombat = session.getTransitionVersion();
         if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
@@ -219,7 +218,7 @@ public final class GameScreen extends ScreenAdapter {
         if (chestOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
             handleChestRightClick();
         }
-        if (!travelConsumed && Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             if (chestOpen) {
                 chestOpen = false;
             } else if (dialogueOpen) {
@@ -248,11 +247,14 @@ public final class GameScreen extends ScreenAdapter {
                         bigMap = false;
                         trainerChoice = session.getPlayer().getPlayerClass().ordinal();
                         trainerFeedback = "J/K/L follow your class; choose your O mode below.";
+                    } else if (isTrainingExitDialogueOpen()) {
+                        inventoryOpen = false;
+                        bigMap = false;
                     }
                 }
             }
         }
-        boolean frozen = travelConsumed || dialogueOpen || inventoryOpen || bigMap || chestOpen;
+        boolean frozen = dialogueOpen || inventoryOpen || bigMap || chestOpen;
         combatDemo.update(delta,
                 frozen ? PlayerCommand.NONE : input.sample(),
                 !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
@@ -298,6 +300,33 @@ public final class GameScreen extends ScreenAdapter {
     private boolean isTrainerDialogueOpen() {
         return dialogueOpen && activeNpc != null
                 && activeNpc.getId().equals(GameConfig.CLASS_MASTER.getId());
+    }
+
+    /**
+     * Identifies the explicit practice-return confirmation.
+     * @return true while the Training exit NPC is the active speaker
+     */
+    private boolean isTrainingExitDialogueOpen() {
+        return dialogueOpen && activeNpc != null
+                && activeNpc.getId().equals(GameConfig.TRAINING_EXIT.getId());
+    }
+
+    /** Confirms E or cancels Escape without adding any global travel shortcut. */
+    private void handleTrainingExitInput() {
+        if (session.getCurrentMap().getType() != MapType.TRAINING || !session.getPlayer().isAlive()
+                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false;
+            activeNpc = null;
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            try {
+                portalGuide.returnFromTraining();
+                dialogueOpen = false;
+                activeNpc = null;
+                travelStatus = "Practice finished; returned to Hub";
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                travelStatus = failure.getMessage();
+            }
+        }
     }
 
     /** Handles the modal trainer menu before travel, debug keys or combat input. */
@@ -381,18 +410,15 @@ public final class GameScreen extends ScreenAdapter {
         }
     }
     /**
-     * Finds the closest NPC within interaction range on the Hub map.
+     * Finds the closest NPC within interaction range on the current map.
      *
      * @param player the player used as the search origin
      * @return the nearest NPC in range, or null when none is close enough
      */
     private NPC nearestNpc(Player player) {
-        if (session.getCurrentMap().getType() != MapType.HUB) {
-            return null;
-        }
         NPC best = null;
         double bestDistance = Double.MAX_VALUE;
-        for (NPC npc : GameConfig.HUB_NPCS) {
+        for (NPC npc : currentNpcs()) {
             double dx = player.getX() - npc.getX();
             double dy = player.getY() - npc.getY();
             double distance = Math.sqrt(dx * dx + dy * dy);
@@ -402,6 +428,18 @@ public final class GameScreen extends ScreenAdapter {
             }
         }
         return best;
+    }
+
+    /**
+     * Supplies map-local NPCs; real battles continue to contain only the player and one Boss.
+     * @return registered Hub NPCs, one Training exit guide, or no Battle NPCs
+     */
+    private List<NPC> currentNpcs() {
+        return switch (session.getCurrentMap().getType()) {
+            case HUB -> GameConfig.HUB_NPCS;
+            case TRAINING -> List.of(GameConfig.TRAINING_EXIT);
+            case BATTLE -> List.of();
+        };
     }
     /**
      * Draws the player's health bar (red background, green fill) at the top-left corner,
@@ -462,7 +500,7 @@ public final class GameScreen extends ScreenAdapter {
                         + "Total damage: " + dummy.getTotalDamage() + "\n"
                         + "Last damage: " + dummy.getLastDamage() + "\n"
                         + "Damage hits: " + dummy.getHitCount() + "\n"
-                        + "[R] Reset practice   [1] Return Hub",
+                        + "[R] Reset practice\nTalk to Return to Hub NPC [E] to leave",
                 x + 10f * scale, top - 12f * scale, boxW - 20f * scale, Align.left, true);
         dialogueBatch.end();
     }
@@ -530,6 +568,7 @@ public final class GameScreen extends ScreenAdapter {
         String hint = switch (near.getId()) {
             case "portal_guide" -> "[E] Choose portal destination";
             case "class_master" -> "[E] Choose class / O ultimate mode";
+            case "training_exit" -> "[E] Return to Hub";
             case "notice_board" -> "[E] Read " + near.getName();
             case "healing_spring" -> "[E] Drink from " + near.getName();
             case "storage_chest" -> "[E] Open " + near.getName();
@@ -617,7 +656,8 @@ public final class GameScreen extends ScreenAdapter {
                 ? "[E] Close"
                 : "[E] Take reward";
         dialogueFont.draw(dialogueBatch,
-                isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
+                isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
+                        : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
                         : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
                         : last ? closeHint : "[E] Next", x + pad, y + pad + 4f);
         dialogueBatch.end();
@@ -752,14 +792,12 @@ public final class GameScreen extends ScreenAdapter {
                     Math.max((float) trigger.width() * s, 3f),
                     Math.max((float) trigger.height() * s, 3f));
         }
-        if (hub) {
-            for (NPC npc : GameConfig.HUB_NPCS) {
-                dialogueShapes.setColor(1f, 0.85f, 0.20f, 1);
-                dialogueShapes.rect(ox + (float) (npc.getX() - bounds.x()) * s,
-                        oy + (float) (npc.getY() - bounds.y()) * s,
-                        Math.max((float) npc.getWidth() * s, 3f),
-                        Math.max((float) npc.getHeight() * s, 3f));
-            }
+        for (NPC npc : currentNpcs()) {
+            dialogueShapes.setColor(1f, 0.85f, 0.20f, 1);
+            dialogueShapes.rect(ox + (float) (npc.getX() - bounds.x()) * s,
+                    oy + (float) (npc.getY() - bounds.y()) * s,
+                    Math.max((float) npc.getWidth() * s, 3f),
+                    Math.max((float) npc.getHeight() * s, 3f));
         }
         CollisionBox body = session.getPlayer().getBounds();
         dialogueShapes.setColor(0.20f, 0.95f, 0.45f, 1);
@@ -1010,35 +1048,6 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
     }
-    /**
-     * Handles fast-travel shortcuts and an explicit temporary debug unlock key.
-     *
-     * @return true if a travel command consumed this frame's movement update
-     * @throws IllegalArgumentException if a configured destination or spawn is invalid
-     * @throws IllegalStateException if a selected destination is locked
-     */
-    private boolean handleTravelInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.U)) {
-            travel.unlockDestination(TravelCatalog.TRAINING_ENTRY);
-            travel.unlockDestination(TravelCatalog.CROSSROADS_ENTRY);
-            travelStatus = "Fast travel unlocked for this session (debug)";
-            return true;
-        }
-        String destination;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            destination = TravelCatalog.HUB_ENTRY;
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            destination = TravelCatalog.TRAINING_ENTRY;
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-            destination = TravelCatalog.CROSSROADS_ENTRY;
-        } else {
-            return false;
-        }
-        travel.fastTravel(destination);
-        travelStatus = "Fast travel: " + travel.getDestination(destination).name();
-        return true;
-    }
-
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
         GameMap map = session.getCurrentMap();
