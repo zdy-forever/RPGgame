@@ -225,7 +225,7 @@ final class CombatDemoTest {
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
     }
 
-    /** Every built-in battle spawn supports exactly one Boss and no mobs; Hub remains non-hostile. */
+    /** Battle/practice spawns contain one target; Hub and Memorial Hall contain only the player. */
     @Test
     void placesSingleBossSafelyForEveryBuiltInSpawn() {
         GameSession session = session(MapCatalog.HUB);
@@ -235,7 +235,7 @@ final class CombatDemoTest {
                 session.switchMap(map.getId(), spawn);
                 demo.update(0, true, false);
                 assertTrue(demo.getActiveAttacks().isEmpty());
-                assertEquals(map.getType() == MapType.HUB ? 1 : 2,
+                assertEquals(map.getType() == MapType.BATTLE || map.getType() == MapType.TRAINING ? 2 : 1,
                         demo.getCombatants().size());
                 for (Combatant actor : demo.getCombatants()) {
                     assertTrue(map.isWalkable(actor.getHurtbox()));

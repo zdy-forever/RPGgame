@@ -1,6 +1,7 @@
 package au.edu.anu.comp2120.screen;
 
 import au.edu.anu.comp2120.npc.NPC;
+import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.world.CollisionBox;
@@ -9,6 +10,7 @@ import au.edu.anu.comp2120.world.MapType;
 import au.edu.anu.comp2120.world.SpawnPoint;
 import au.edu.anu.comp2120.world.Portal;
 import java.util.List;
+import java.util.Set;
 
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -100,9 +102,11 @@ public final class PlaceholderRenderer implements Disposable {
      * @param demo       existing current-scope gameplay observations
      * @param delta      presentation seconds, zero while paused
      * @param drops      current-map unclaimed material rectangles, independent of inventory icons
+     * @param completed  defeated guardians whose stones are lit in Memorial Hall
      */
     public void render(GameMap map, Player player, List<NPC> npcs, List<Portal> portals,
-                       CombatDemo demo, double delta, List<MaterialDrop> drops) {
+                       CombatDemo demo, double delta, List<MaterialDrop> drops,
+                       Set<BossChallenge> completed) {
         art.update(map, player, demo, delta);
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
@@ -114,6 +118,8 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         if (map.getType() == MapType.HUB) {
             shapes.setColor(0.08f, 0.18f, 0.22f, 1);
+        } else if (map.getType() == MapType.MEMORIAL) {
+            shapes.setColor(0.08f, 0.07f, 0.12f, 1);
         } else {
             shapes.setColor(0.24f, 0.11f, 0.10f, 1);
         }
@@ -132,6 +138,7 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.end();
         debugBatch.begin();
         art.ground(debugBatch, map, demo);
+        art.memorial(debugBatch, completed);
         art.actors(debugBatch, player, npcs, portals, demo, drops);
         debugBatch.end();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -177,12 +184,23 @@ public final class PlaceholderRenderer implements Disposable {
         art.showOutcome(result, playerClass);
     }
     /**
-     * Draws static Hub scenery (road, fence, huts, trees, spring pool) beneath all actors.
+     * Draws static Hub scenery or a tiled Memorial Hall floor beneath all actors.
      * Decorations are geometry only and never affect movement, collision or combat.
      *
-     * @param map current map; only HUB maps receive scenery
+     * @param map current map; only peaceful maps receive procedural scenery
      */
     private void drawDecorations(GameMap map) {
+        if (map.getType() == MapType.MEMORIAL) {
+            CollisionBox bounds = map.getBounds();
+            shapes.setColor(0.15f, 0.13f, 0.22f, 1);
+            for (int x = 16; x < bounds.width() - 16; x += 32) {
+                for (int y = 16; y < bounds.height() - 16; y += 32) {
+                    shapes.rect(x, y, (float) Math.min(30, bounds.width() - 16 - x),
+                            (float) Math.min(30, bounds.height() - 16 - y));
+                }
+            }
+            return;
+        }
         if (map.getType() != MapType.HUB) {
             return;
         }

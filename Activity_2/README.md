@@ -1,7 +1,7 @@
 # COMP2120 Group Game
 
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
-demonstrates a Hub, a separate Training Ground and five Boss arenas, named spawn points, eight-direction
+demonstrates a Hub, Memorial Hall, a separate Training Ground and five Boss arenas, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
 travel, and a map-bounded follow camera with pixel-art presentation. Player and
 enemy models share validated integer health and one attack pipeline, independent
@@ -17,15 +17,19 @@ See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification
 projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions
 in the development notes below are superseded by that document; collision remains geometric.
 
-## Current controls: one portal, practice or battle
+## Current controls: one Hub portal, practice, battle or Memorial Hall
 
 Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
-choose **Training Ground** or **Battle Map** with **Up/Down**, then press **E** to confirm
+choose **Training Ground**, **Battle Map** or **Memorial Hall** with **Up/Down**, then press **E** to confirm
 (**Escape** cancels). Confirmation configures the portal; walk into it to travel.
 The portal starts closed. **Battle requires an accepted Boss quest**; the Portal Guide cannot
-create one. Training remains available without a quest. Achievement Wall is not included.
+create one. Training and Memorial Hall remain available without a quest.
 
-Talk to the **Quest Keeper** at (420,310): **E** opens the quest list, **Up/Down** highlights
+NPC dialogue panels size themselves from the actual wrapped title, body and control-hint text.
+They shrink with small windows, reserve separate control space and cap normal font/panel growth
+at the 960 x 540 reference size. Exceptionally long pages reduce font size to remain inside the window.
+
+Talk to the **Quest Keeper** at (347,240): **E** opens the quest list, **Up/Down** highlights
 one of the five guardians, **E** accepts it, and **Escape** closes the list. Then choose Battle
 at the Portal Guide and walk into the single Hub portal. Its destination is the accepted
 guardian's arena, not a default map. One unfinished task can be replaced with another in Hub.
@@ -37,8 +41,14 @@ press **E** to confirm. Re-accepting the same task also requires confirmation ag
 - A successful return records that target and shows a **green check before its name** next time
   the quest list is opened. Completed targets cannot be accepted again this session.
 - Failure retains the task for retry with a fresh Boss; practice visits also retain the task.
-- Defeating all **five distinct** targets automatically opens a one-time Hub ending dialogue.
-  Press **E** through its three lines, then continue visiting Hub/Training.
+- Memorial Hall fits one camera view: **640 x 360 world units**, displayed at **960 x 540** in the
+  default window. Its lower-left portal returns to Hub; Old Sage stands on the left and a five-slot
+  magic circle occupies the right. Each distinct guardian victory lights its matching elemental stone.
+  The Hall omits the minimap so the stones stay visible; other maps retain their existing HUD.
+- Defeating all **five distinct** targets unlocks, but does not automatically play, the ending.
+  Visit Memorial Hall and speak to **Old Sage [E]** to start the one-time dialogue; advance its
+  three lines with **E**. Repeated conversations do not replay it. Stones reflect quest progress,
+  not inventory items, and remain lit across map visits within the session.
 - This first version reuses the Sentinel's 400 HP, two-phase AI/patterns and material tuning for
   all five identities. Distinct elemental Boss moves, final names and final ending script remain
   future content work. Task progress and ending playback are session-local, without save/load.

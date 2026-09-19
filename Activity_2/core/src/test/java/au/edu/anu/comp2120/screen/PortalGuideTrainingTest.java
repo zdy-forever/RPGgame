@@ -122,18 +122,23 @@ final class PortalGuideTrainingTest {
         if (destination == PortalGuide.Destination.BATTLE) {
             quests.accept(BossChallenge.FIRE);
         }
-        String expectedMap = destination == PortalGuide.Destination.BATTLE ? MapCatalog.CROSSROADS : MapCatalog.TRAINING;
+        String expectedMap = switch (destination) {
+            case BATTLE -> MapCatalog.CROSSROADS;
+            case TRAINING -> MapCatalog.TRAINING;
+            case MEMORIAL -> MapCatalog.MEMORIAL_HALL;
+        };
         guide.select(destination);
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
         assertEquals(before, session.getPlayer().getBounds());
         assertEquals(expectedMap, travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId());
         enterPortal();
         assertEquals(expectedMap, session.getCurrentMap().getId());
-        assertEquals(new CollisionBox(80, 80, 28, 28), session.getPlayer().getBounds());
+        var spawn = session.getCurrentMap().getSpawnPoint("entry");
+        assertEquals(new CollisionBox(spawn.x(), spawn.y(), 28, 28), session.getPlayer().getBounds());
         assertEquals(destination == PortalGuide.Destination.BATTLE, flow.isBattleActive());
         assertEquals(destination == PortalGuide.Destination.BATTLE, demo.getBoss().isPresent());
         assertEquals(destination == PortalGuide.Destination.TRAINING, demo.getTrainingDummy().isPresent());
-        assertEquals(2, demo.getCombatants().size());
+        assertEquals(destination == PortalGuide.Destination.MEMORIAL ? 1 : 2, demo.getCombatants().size());
         assertTrue(demo.getEnemies().isEmpty());
         for (int i = 0; i < 20; i++) { assertFalse(travel.updatePortals()); }
         assertEquals(expectedMap, session.getCurrentMap().getId());

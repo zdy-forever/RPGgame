@@ -6,6 +6,7 @@ import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.GameSession;
 import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.world.MapType;
+import au.edu.anu.comp2120.world.MapCatalog;
 import au.edu.anu.comp2120.world.TravelCatalog;
 import java.util.EnumSet;
 import java.util.List;
@@ -25,8 +26,8 @@ public final class BossQuests {
     /** Replaceable short first-version ending; no artwork or cinematic engine is required. */
     public static final List<String> ENDING_LINES = List.of(
             "The five guardians have fallen. The paths to the Hub are safe once more.",
-            "Quest Keeper: You faced every trial and returned. Our people can rebuild in peace.",
-            "Your journey is complete. Thank you, adventurer. You may continue practising in the Hub.");
+            "Old Sage: The five stones shine together. Their power has restored the ancient seal.",
+            "Your journey is complete. Thank you, adventurer. You may continue exploring and practising.");
     /** Current player/map authority. */
     private final GameSession session;
     /** Existing admission/outcome authority. */
@@ -114,11 +115,13 @@ public final class BossQuests {
     public Set<BossChallenge> getCompleted() { return Set.copyOf(completed); }
 
     /**
-     * Starts the one-time ending only after return to a living Hub.
+     * Starts the one-time ending when called by the Memorial Hall Sage conversation.
+     * Merely completing the fifth quest or entering the hall does not call this method.
      * @return true once when the screen should open the ending dialogue
      */
     public boolean consumeEnding() {
-        if (!endingPending || endingStarted || session.getCurrentMap().getType() != MapType.HUB
+        synchronize();
+        if (!endingPending || endingStarted || !session.getCurrentMap().getId().equals(MapCatalog.MEMORIAL_HALL)
                 || !session.getPlayer().isAlive()) {
             return false;
         }

@@ -6,7 +6,10 @@
 - Moved the pack README and manifest into `assets/art/`.
 - Removed only `maps/hub/hub_main.png` and `maps/hub/achievement_corridor.png` from runtime assets.
   Recoverable originals are in `/Users/zdy/.Trash/comp6120-unused-map-art-20260919/`.
-- The remaining **220 PNGs** matched their pre-move SHA-256 hashes. The manifest now lists those 220.
+- The original pack's remaining **220 PNGs** matched their pre-move SHA-256 hashes.
+- Six additional Memorial Hall images were renamed into `art/memorial/`: `magic_circle.png` and
+  `fire_stone.png`, `water_stone.png`, `lightning_stone.png`, `ice_stone.png`, `wind_stone.png`.
+  The manifest retains each original UUID filename and 1254 x 1254 dimensions; it now lists **226 PNGs**.
 - `assets/art_resources/` remains empty. Existing assets outside that import were not overwritten.
 - Hub gameplay, NPCs, quest acceptance, class selection and return-to-Hub are retained.
 
@@ -17,7 +20,7 @@ the runtime classpath and desktop JAR, which is included in the generated distri
 remain `art/...`; there is no hard-coded machine path or required working-directory override. Reload
 the Gradle project in IDEA after this build-configuration change. Generated macOS distribution scripts
 also carry the first-thread/native-access JVM options. RuntimeAssetsTest checks LibGDX's actual
-internal-file lookup outside the asset directory, including all 220 manifest images.
+internal-file lookup outside the asset directory, including all 226 manifest images.
 
 `ArtAssets` lazily owns textures, uses nearest-neighbour filtering, splits horizontal animation strips
 and disposes its GPU cache. Filename frame counts distinguish character strips; documented 256-pixel
@@ -61,6 +64,13 @@ separate work. No audio was added. The original pack's provenance filenames are 
 
 ## Larger maps and practice
 
+Memorial Hall is a separate 640 x 360 world-unit room matching the camera's one-screen view.
+Its floor uses simple geometry; the imported five-slot circle sits on the right. Guardian completion
+lights the corresponding stone at its socket, while unearned stones remain dim. Old Sage has moved
+from Hub to the hall's left side. The return portal sits at (32, 32); arrival at (100, 48) is outside
+its trigger, preserving the existing arrival protection. These pictures do not change collision.
+The Hall-only minimap is hidden and the circle fits beneath the weapon panel, keeping every stone visible.
+
 Battle/training maps use centralized **1600 x 1200** world bounds; Hub uses **1080 x 400**.
 The **640 x 360** camera follows/clamps normally, with room to scroll in both axes.
 Hub positions (bottom-left world coordinates): Storage Chest (590, 120), Quest Keeper (347, 240),
@@ -78,6 +88,20 @@ is possible). The dummy stays still, does not attack, refills HP and scores deli
 The random selector accepts a seeded Random in tests and does not share the Mage ability RNG.
 
 ## Verification
+
+### Memorial Hall follow-up
+
+- `./gradlew test build javadocAudit`: **53 suites, 983 tests, zero failures/errors/skips**;
+  build and JavaDoc audit passed.
+- A temporary LWJGL check loaded all **226** manifest images on the GPU and exercised the actual
+  GameScreen menu inputs, Memorial Hall entry, five simulated Boss defeats through the existing
+  settlement/quest flow, and an explicit E interaction with Old Sage. The ending stayed closed
+  until that interaction. Unlit/lit stones and the ending dialogue were inspected in framebuffer images.
+- Regression tests cover quest-free travel, return/arrival protection, preserved class/O selection,
+  retained accepted tasks, each guardian's distinct stone, no stones on defeat, one-time ending,
+  preserved reward outbox and empty import staging. No save/load was added.
+
+### Original import verification
 
 - `./gradlew test build javadocAudit`
   Final result: **51 suites, 961 tests, zero failures/errors/skips**; build and JavaDoc audit passed.

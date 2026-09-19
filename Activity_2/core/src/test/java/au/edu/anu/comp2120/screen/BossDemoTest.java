@@ -39,7 +39,7 @@ final class BossDemoTest {
     @Test
     void builtInBossAndPracticeTargetsSpawnAtMapCentre() {
         for (GameMap map : MapCatalog.createMaps()) {
-            if (map.getType() == MapType.HUB) { continue; }
+            if (map.getType() != MapType.BATTLE && map.getType() != MapType.TRAINING) { continue; }
             GameSession current = new GameSession(List.of(map),map.getId(),28,28,180);
             CombatDemo encounter = new CombatDemo(current);
             CollisionBox body = map.getType() == MapType.TRAINING
