@@ -3,9 +3,6 @@ package au.edu.anu.comp2120.screen;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
-import au.edu.anu.comp2120.combat.Attack;
-import au.edu.anu.comp2120.combat.Combatant;
-import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
 import au.edu.anu.comp2120.world.MapType;
@@ -22,13 +19,15 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
 /**
- * Draws placeholder geometry and built-in debug text without external artwork.
- * Replacing this renderer does not change movement, collision, or combat rules.
+ * Composes pixel art with the retained procedural Hub and geometry-only world collision.
+ * The historical class name is retained; animation does not control gameplay.
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
  */
 public final class PlaceholderRenderer implements Disposable {
+    /** Read-only artwork presentation owned with this screen's GPU resources. */
+    private final SceneArt art = new SceneArt();
     /** Radius of the single visible default-spawn marker in world units. */
     private static final float SPAWN_MARKER_RADIUS = 5;
     /** Number of segments in a temporary circular marker. */
@@ -90,7 +89,7 @@ public final class PlaceholderRenderer implements Disposable {
         debugBatch = new SpriteBatch();
     }
     /**
-     * Follows the player's centre with map clamping, then draws the placeholder scene.
+     * Follows the player's centre with map clamping, then draws the art-backed scene.
      * Position is recalculated from current data every frame, including the first frame after travel.
      * Only the default spawn is marked; alternate test spawns remain usable but are not drawn.
      *
@@ -98,12 +97,13 @@ public final class PlaceholderRenderer implements Disposable {
      * @param player     player to display
      * @param npcs       current-map NPCs to draw, or null when none are supplied
      * @param portals    immutable portal snapshots; only current-map entries are drawn
-     * @param combatants current-scope actors for enemy rectangles and hurtbox outlines
-     * @param attacks    active current-scope invocations for temporary hitbox outlines
+     * @param demo       existing current-scope gameplay observations
+     * @param delta      presentation seconds, zero while paused
      * @param drops      current-map unclaimed material rectangles, independent of inventory icons
      */
     public void render(GameMap map, Player player, List<NPC> npcs, List<Portal> portals,
-                       List<Combatant> combatants, List<Attack> attacks, List<MaterialDrop> drops) {
+                       CombatDemo demo, double delta, List<MaterialDrop> drops) {
+        art.update(map, player, demo, delta);
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
                 viewport.getWorldWidth(), viewport.getWorldHeight());
@@ -119,72 +119,25 @@ public final class PlaceholderRenderer implements Disposable {
         }
         draw(map.getBounds());
         drawDecorations(map);
+        shapes.end();
+        debugBatch.setProjectionMatrix(viewport.getCamera().combined);
+        debugBatch.begin();
+        art.background(debugBatch, map, demo);
+        debugBatch.end();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0.55f, 0.58f, 0.65f, 1);
         for (CollisionBox obstacle : map.getObstacles()) {
             draw(obstacle);
         }
-        for (Portal portal : portals) {
-            if (portal.sourceMapId().equals(map.getId())) {
-                if (portal.enabled()) {
-                    shapes.setColor(0.65f, 0.25f, 0.85f, 1);
-                } else {
-                    shapes.setColor(0.28f, 0.22f, 0.32f, 1);
-                }
-                draw(portal.trigger());
-            }
-        }
+        shapes.end();
+        debugBatch.begin();
+        art.ground(debugBatch, map, demo);
+        art.actors(debugBatch, player, npcs, portals, demo, drops);
+        debugBatch.end();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0.95f, 0.75f, 0.20f, 1);
         SpawnPoint spawn = map.getSpawnPoint(map.getDefaultSpawnId());
-        shapes.circle((float) spawn.x(), (float) spawn.y(),
-                SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
-        shapes.setColor(0.20f, 0.85f, 0.60f, 1);
-        draw(player.getBounds());
-// Draw NPCs, each with its own identifying colour
-        if (npcs != null) {
-            for (NPC npc : npcs) {
-                switch (npc.getId()) {
-                    case "notice_board" -> shapes.setColor(1f, 1f, 1f, 1);        // white
-                    case "storage_chest" -> shapes.setColor(0.90f, 0.72f, 0.20f, 1); // gold
-                    case "healing_spring" -> shapes.setColor(0.35f, 0.75f, 0.95f, 1); // blue
-                    default -> {
-                        boolean grantsReward = npc.getRewardItemId() != null;
-                        shapes.setColor(grantsReward ? 1f : 0.30f,
-                                grantsReward ? 1f : 0.90f,
-                                grantsReward ? 0f : 0.95f, 1);
-                    }
-                }
-                draw(new CollisionBox(npc.getX(), npc.getY(), npc.getWidth(), npc.getHeight()));
-
-            }
-        }
-        for (Combatant actor : combatants) {
-            if (actor.getFaction() == Faction.ENEMY) {
-                if (actor.getEntity().isAlive()) {
-                    shapes.setColor(0.85f, 0.25f, 0.20f, 1);
-                } else {
-                    shapes.setColor(0.30f, 0.30f, 0.30f, 1);
-                }
-                draw(actor.getHurtbox());
-            }
-        }
-        shapes.setColor(1.0f, 0.7f, 0.1f, 1);
-        for (MaterialDrop drop : drops) {
-            if (drop.mapId().equals(map.getId())) {
-                draw(drop.bounds());
-            }
-        }
-        shapes.end();
-        shapes.begin(ShapeRenderer.ShapeType.Line);
-        shapes.setColor(0.20f, 0.90f, 1.0f, 1);
-        for (Combatant actor : combatants) {
-            draw(actor.getHurtbox());
-        }
-        shapes.setColor(1.0f, 0.85f, 0.10f, 1);
-        for (Attack attack : attacks) {
-            if (attack.isActive()) {
-                draw(attack.getHitbox());
-            }
-        }
+        shapes.circle((float) spawn.x(), (float) spawn.y(), SPAWN_MARKER_RADIUS, SPAWN_MARKER_SEGMENTS);
         shapes.end();
         drawNames(player, npcs);
     }
@@ -199,6 +152,29 @@ public final class PlaceholderRenderer implements Disposable {
         if (width > 0 && height > 0) {
             viewport.update(width, height, false);
         }
+    }
+
+    /**
+     * Draws shared class/ability icons using the caller's screen-space batch and capped HUD policy.
+     * @param batch active HUD batch
+     * @param font existing HUD font
+     * @param player current player
+     * @param demo existing ability observations
+     * @param hud size/visibility policy
+     * @param width window width
+     * @param height window height
+     */
+    public void drawSkillHud(SpriteBatch batch, BitmapFont font, Player player, CombatDemo demo, HudLayout hud, int width, int height) {
+        art.hud(batch, font, player, demo.getAbilities(), hud, width, height);
+    }
+
+    /**
+     * Latches a non-blocking HUD replay after automatic gameplay return, without retaining actors.
+     * @param result settled immutable outcome
+     * @param playerClass class at settlement
+     */
+    public void showOutcome(au.edu.anu.comp2120.BattleResult result, au.edu.anu.comp2120.player.PlayerClass playerClass) {
+        art.showOutcome(result, playerClass);
     }
     /**
      * Draws static Hub scenery (road, fence, huts, trees, spring pool) beneath all actors.
@@ -237,12 +213,12 @@ public final class PlaceholderRenderer implements Disposable {
             for (NPC npc : npcs) {
                 debugFont.setColor(1f, 0.90f, 0.40f, 1);
                 drawNameTag(npc.getName(), npc.getX(),
-                        npc.getY() + npc.getHeight(), npc.getWidth());
+                        npc.getY() + 54, npc.getWidth());
             }
         }
         debugFont.setColor(0.60f, 0.95f, 1f, 1);
         CollisionBox body = player.getBounds();
-        drawNameTag(PLAYER_NAME, body.x(), body.y() + body.height(), body.width());
+        drawNameTag(PLAYER_NAME, body.x(), body.y() + 54, body.width());
         debugBatch.end();
     }
 
@@ -334,6 +310,7 @@ public final class PlaceholderRenderer implements Disposable {
     /** Releases the shape renderer's GPU resources. */
     @Override
     public void dispose() {
+        art.dispose();
         shapes.dispose();
         debugFont.dispose();
         debugBatch.dispose();

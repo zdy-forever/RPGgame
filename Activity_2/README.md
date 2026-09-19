@@ -3,14 +3,19 @@
 Java and LibGDX foundation for COMP2120 Assignment 3. The current application
 demonstrates a Hub, a separate Training Ground and five Boss arenas, named spawn points, eight-direction
 player movement, static rectangle collision, automatic portals, and unlocked fast
-travel, and a map-bounded follow camera using geometric placeholders. Player and
+travel, and a map-bounded follow camera with pixel-art presentation. Player and
 enemy models share validated integer health and one attack pipeline, independent
-of the demonstration view. Each built-in Battle Map contains one two-phase placeholder
+of the view. Each built-in Battle Map contains one two-phase
 Boss and no ordinary enemies. Player defeat automatically returns to Hub, restores full
 HP and clears the encounter while retaining player identity and selected class/ultimate configuration.
 The shared combat pipeline supports the first-version ordered elemental reactions, finite
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
-It loads no images, fonts, animation, sound, or music assets.
+The imported pixel-art pack now supplies characters, arenas, portals, skills and icons; no audio is loaded.
+Hub keeps its procedural background. All maps are 1600 x 1200; Training randomly selects an elemental
+background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
+See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification and the five Boss
+projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions
+in the development notes below are superseded by that document; collision remains geometric.
 
 ## Current controls: one portal, practice or battle
 
@@ -484,8 +489,8 @@ Placeholder controls (current first-version skills; numeric tuning is provisiona
    Resize still uses the existing camera.
 
 Class tuning is in `PlayerClasses`; scene/enemy tuning remains in `GameConfig`. Neither combat models nor detection import rendering
-or asset APIs. `PlaceholderRenderer` only draws rectangles/outlines; HP feedback uses
-the native title rather than loading fonts. `CombatDemo` delegates common movement/ability
+or asset APIs. `PlaceholderRenderer` now composes `SceneArt`/`ArtAssets`, retaining camera/procedural
+Hub geometry; HUD icons follow the existing responsive size policy. `CombatDemo` delegates common movement/ability
 execution to `PlayerAbilities`, coordinates placement and reset/transition policy,
 updates the Boss, then advances the shared CombatSystem exactly once before processing failure.
 

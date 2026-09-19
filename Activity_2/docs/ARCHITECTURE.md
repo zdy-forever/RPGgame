@@ -1,5 +1,19 @@
 # Stage 2 Architecture
 
+## Current art presentation
+
+The asset-free gameplay boundary is retained, but production rendering now composes `SceneArt` and
+`ArtAssets` through the historical `PlaceholderRenderer`. See [Art integration](ART_INTEGRATION.md)
+for the current resource inventory, supported animations and remaining content limitations. Older
+placeholder-only rendering notes below describe the earlier foundation, not current visuals.
+MapCatalog centralizes 1600 x 1200 bounds; collision and 640 x 360 camera behavior do not derive from images.
+TrainingAppearance chooses independent arena/Boss artwork per visit; the original stationary
+TrainingDummy remains the only practice target and R preserves the visit's appearance.
+CombatSystem exposes bounded, drain-once HitFeedback after confirmed settlement, with no art references
+or damage callbacks into presentation. Fields, attachments, facing and skill state are read-only inputs
+to the view. World visuals clear on transition; short immutable result HUD replays cannot retain an
+old Boss, delay return, alter Quest state or claim rewards.
+
 This document defines the module boundaries for the gameplay loop:
 
 ```text
@@ -112,9 +126,9 @@ checked after return, then retry must create a fresh full-HP, phase-one, idle Bo
 fast travel is not a task outcome: abandoning a living encounter clears its runtime scope
 without inventing SUCCESS/FAILURE, restoring HP or consuming its permission.
 
-These are JUnit integration fixtures, not the separate gameplay smoke-tester feature. Rendering
-still uses only placeholder geometry/native debug text. Domain tests require no art files or
-graphics context; desktop startup/resize remain separate visual checks.
+These are JUnit integration fixtures, not the separate gameplay smoke-tester feature. Domain tests
+require no graphics context. ArtIntegrationTest separately validates PNG files/metadata without a GPU;
+desktop art playback/resize remain separate graphics checks.
 
 ## 1. Current package structure
 
