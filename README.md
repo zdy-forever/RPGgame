@@ -3,6 +3,7 @@
 Group repository for COMP2120 Assignment 3.
 
 The runnable LibGDX game skeleton is located in [`Activity_2`](Activity_2/README.md).
+See [`Activity_0/Activity_0.md`](Activity_0/Activity_0.md) for a note on where Activity 0's requirements are satisfied in the project history.
 
 ## Author
 
