@@ -878,20 +878,52 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `TravelCatalog`: built-in portal routes and initial destination states.
 - `CollisionBox`: immutable geometry with finite, positive extents.
 - `WalkableArea`: point/body occupancy and collision-resolved movement.
-- `Inventory`: future item storage and item operations.
+- `Faction`, `DamageType`, `ElementType`: shared combat/damage classification enums.
+- `ElementRules`: the fixed attached-to-triggering reaction table and its results.
+- `ElementField`: a fixed-geometry ground/charged effect with a finite `ReactionTimer`.
+- `ElementStatus`: one Combatant's current attachment and reaction bookkeeping.
+- `ReactionTimer` / `ReactionTuning`: periodic-tick scheduling and reaction damage/count tuning.
+- `CombatStatus`: freeze/stagger/vulnerability and queued displacement for one Combatant.
+- `HitInterceptor` / `HitFeedback`: defensive-hit interception boundary and its resolution.
+- `Boss`: two-phase Sentinel encounter composing `Enemy` and `EnemyAI`, with pattern cycles and drops.
+- `BossConfig` / `BossScaling`: validated Boss tuning and phase-threshold scaling.
+- `BossState`: CHASE/ATTACK/TRANSITION/DEAD Boss lifecycle diagnostics.
+- `BossChallenge`: one admitted Boss encounter's outcome/reward bookkeeping for `EncounterFlow`.
+- `TrainingDummy`: the stationary, non-hostile, self-healing Training Ground practice target.
+- `Inventory`: stackable material storage keyed by material type, in acquisition order.
+- `MaterialDrop`: one immutable claimable Boss reward instance.
+- `NPC`: shared identity/interaction-range base for Hub non-player characters.
+- `PortalGuide`: Hub NPC adapter that selects and opens the shared Hub portal's destination.
+- `ClassTrainer`: Hub NPC (Class Master) adapter for profession/ultimate-mode selection.
+- `ClassSkills`: composes each class's stateful K/O execution into `PlayerAbilities`.
+- `SkillKind` / `SkillTuning`: stateful skill identifiers and their validated numeric tuning.
+- `UltimateMode`: a class's selectable A/B ultimate configuration.
+- `ActiveEncounter` / `BattleResult`: an admitted encounter request and its settled outcome.
+- `EncounterFlow`: the external-adapter boundary for admitting encounters and claiming results.
+- `BossQuests`: this session's NPC guardian-task acceptance, completion and reward tracking.
+- `DialogueLayout`: shared self-sizing NPC dialogue panel presentation.
+- `CreditsDialogue`: the one-time Old Sage ending dialogue shown in Memorial Hall.
+- `HudLayout`: responsive HP/position/minimap/weapon HUD sizing and visibility thresholds.
+- `SceneArt` / `ArtAssets`: imported pixel-art texture lookup used by `PlaceholderRenderer`.
+- `TrainingAppearance`: randomized Training background/Boss-appearance selection per visit.
+- `BackgroundMusic`: map- and guardian-progress-driven background music playback.
 - `Lwjgl3Launcher`: desktop window configuration and application entry point.
 
 ## Scope
 
-This is intentionally a small foundation. Movement currently supports static,
-axis-aligned rectangles and three built-in maps. It does not include dynamic entity
-collision, external map-file loading, crowd navigation, elemental map rules,
-saved map state, final character skills, or final artwork. Collision uses X-then-Y
-axis separation rather than a continuous diagonal sweep, so large diagonal steps
-can take a different route around corners than many smaller steps. Normal screen
-updates cap delta to keep this effect limited; each axis still cannot tunnel.
-Player/world model code is independent of LibGDX graphics and asset APIs; future
-artwork can replace the renderer without changing movement or collision rules.
+Movement supports static, axis-aligned rectangles across eight built-in maps
+(Hub, Memorial Hall, Training Ground and five guardian Battle arenas). The
+first-version elemental reactions, class skills and imported pixel-art
+presentation described above are implemented; this section only tracks what
+remains out of scope. It does not include dynamic entity-to-entity collision,
+external map-file loading, crowd navigation, saved/persisted map or quest
+state, or final (post-balance) character skill numbers and artwork. Collision
+uses X-then-Y axis separation rather than a continuous diagonal sweep, so large
+diagonal steps can take a different route around corners than many smaller
+steps. Normal screen updates cap delta to keep this effect limited; each axis
+still cannot tunnel. Player/world model code is independent of LibGDX graphics
+and asset APIs; future artwork changes can replace the renderer without
+changing movement or collision rules.
 
 Portal triggers sample overlap once per update, not a continuous swept trigger
 path; a custom very large movement that crosses an entire portal between updates

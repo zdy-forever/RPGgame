@@ -193,6 +193,8 @@ core/src/main/java/au/edu/anu/comp2120/
 ├── ActiveEncounter.java
 ├── BattleResult.java
 ├── EncounterFlow.java
+├── audio/
+│   └── BackgroundMusic.java
 ├── combat/
 │   ├── Attack.java
 │   ├── AttackSpec.java
@@ -207,6 +209,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── ElementField.java
 │   ├── Faction.java
 │   ├── Health.java
+│   ├── HitFeedback.java
 │   ├── HitInterceptor.java
 │   ├── Projectile.java
 │   ├── ProjectileSpec.java
@@ -214,16 +217,22 @@ core/src/main/java/au/edu/anu/comp2120/
 │   └── ReactionTuning.java
 ├── enemy/
 │   ├── Boss.java
+│   ├── BossChallenge.java
 │   ├── BossConfig.java
+│   ├── BossScaling.java
 │   ├── BossState.java
 │   ├── Enemy.java
 │   ├── EnemyAI.java
 │   ├── EnemyConfig.java
-│   └── EnemyState.java
+│   ├── EnemyState.java
+│   └── TrainingDummy.java
 ├── inventory/
 │   ├── Inventory.java
 │   └── MaterialDrop.java
-├── npc/NPC.java
+├── npc/
+│   ├── ClassTrainer.java
+│   ├── NPC.java
+│   └── PortalGuide.java
 ├── player/
 │   ├── AbilityLoadout.java
 │   ├── AbilitySlot.java
@@ -240,12 +249,20 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── SkillKind.java
 │   ├── SkillTuning.java
 │   └── UltimateMode.java
+├── quest/
+│   └── BossQuests.java
 ├── screen/
+│   ├── ArtAssets.java
 │   ├── CameraFollow.java
 │   ├── CombatDemo.java
+│   ├── CreditsDialogue.java
+│   ├── DialogueLayout.java
 │   ├── GameConfig.java
 │   ├── GameScreen.java
-│   └── PlaceholderRenderer.java
+│   ├── HudLayout.java
+│   ├── PlaceholderRenderer.java
+│   ├── SceneArt.java
+│   └── TrainingAppearance.java
 └── world/
     ├── AStarPathfinder.java
     ├── CollisionBox.java
@@ -263,9 +280,11 @@ lwjgl3/src/main/java/au/edu/anu/comp2120/lwjgl3/
 └── Lwjgl3Launcher.java
 ```
 
-Dialogue remains part of `npc`, and Equipment remains part of `inventory` until
-either area contains enough behaviour to justify another package. Quest and UI
-are documented boundaries but do not have empty packages yet.
+Dialogue rendering (`DialogueLayout`, `CreditsDialogue`) remains part of `screen`,
+and equipment/crafting remain part of `inventory` until either area contains
+enough behaviour to justify another package. `quest` and `audio` now exist as
+small, single-class packages (`BossQuests` and `BackgroundMusic`); UI beyond
+`screen`/`HudLayout` is still a documented boundary without its own package.
 
 ## 2. Module boundaries
 
@@ -973,7 +992,69 @@ This integration stage adds regression coverage and hardens lifecycle contracts,
 - Use stable events/read-only interfaces for quest, achievement, save, minimap,
   and UI integration instead of depending on private fields.
 
-## 7. Shared Core
+## 7. Actual division of labor (from git history)
+
+Sections 5 and 6 above record the **planned** three-developer split, written
+before implementation started. This section records the **actual** split, read
+directly from `git shortlog` / `git log --pretty=format:'%an <%ae>' -- <path>`
+against the full repository history as of this update. It is descriptive, not
+a revision of the plan: the plan is kept above so the gap is visible.
+
+Git history contains commits from exactly two identities that are the same
+person under two `git config user.name` values (`Daoyan Zhu` and `u7782042`,
+both `u7782042@anu.edu.au`), plus one further person (`Jiaqi Chen`,
+`u7851266@anu.edu.au`). Neither `u7998420` (planned Developer B) nor
+`u8350466` has any commit in this repository's history to date; per Section 5,
+`u8350466` was already excluded from the active allocation, and `u7998420`'s
+planned scope was in practice absorbed by Daoyan Zhu and Jiaqi Chen below.
+
+| Package / area | Daoyan Zhu (`u7782042`) commits | Jiaqi Chen (`u7851266`) commits |
+| --- | --- | --- |
+| `player` | 16 | 0 |
+| `combat` | 11 | 0 |
+| `world` | 15 | 0 |
+| `enemy` | 12 | 0 |
+| `npc` | 6 | 4 |
+| `inventory` | 2 | 2 |
+| `quest` | 3 | 0 |
+| `audio` | 1 | 0 |
+| `screen` | 28 | 15 |
+| Root gameplay classes (`GameSession`, `TravelSystem`, `EncounterFlow`, `MainGame`, `ActiveEncounter`, `BattleResult`) | 7 | 0 |
+| `core/src/test` | 41 | 0 |
+| `lwjgl3` (source and tests) | 10 | 0 |
+| `docs/` | 34 | 0 |
+
+Reading this against the planned split:
+
+- **Developer A's planned scope (`player`, `combat`, `world`, `enemy`, portals)**
+  matches what actually happened: every commit in these packages is from
+  Daoyan Zhu.
+- **Developer B's planned scope (`npc`, dialogue, `quest`, achievements,
+  save/load)** was never picked up by a distinct `u7998420` identity.
+  Achievements and save/load were not started. `npc` and `quest` were built by
+  Daoyan Zhu, with `npc/NPC.java` (base interaction/range) also carrying 4
+  commits from Jiaqi Chen. Dialogue rendering (`DialogueLayout`,
+  `CreditsDialogue`) was built by Daoyan Zhu as part of `screen`, not as a
+  separate developer's package.
+- **Developer C's planned scope (`inventory`, equipment, crafting, UI,
+  settings/debug UI)** was partly realized: `inventory/Inventory.java` has
+  contributions from both Daoyan Zhu and Jiaqi Chen, and Jiaqi Chen also
+  contributed to the shared `screen` files (`GameConfig`, `GameScreen`,
+  `PlaceholderRenderer`). Equipment, crafting, a dedicated UI package, and the
+  gameplay smoke tester listed under Developer C in Section 6 were not built.
+- Testing (`core/src/test`), build/CI-facing setup, and documentation were
+  written entirely by Daoyan Zhu; no test or docs commit is attributed to
+  Jiaqi Chen in this history.
+
+In short: the project was implemented mainly by two contributors instead of
+three, with Daoyan Zhu covering nearly all of Developer A's and Developer B's
+planned scope plus testing/build/docs, and Jiaqi Chen contributing to `npc`,
+`inventory`, and shared `screen` files that overlap Developer B's and
+Developer C's planned scope. This is stated from the repository's own commit
+log, not inferred about anyone's actual effort outside of Git (for example,
+non-code contributions are not visible in `git log`).
+
+## 8. Shared Core
 
 - `core/src/main/java/au/edu/anu/comp2120/MainGame.java`
 - `core/src/main/java/au/edu/anu/comp2120/screen/GameScreen.java`
@@ -984,7 +1065,7 @@ This integration stage adds regression coverage and hardens lifecycle contracts,
 Changes to these files must be minimal and state the integration reason in the
 commit message.
 
-## 8. Git collaboration rules
+## 9. Git collaboration rules
 
 1. Branch from the same up-to-date integration point and keep commits focused.
 2. Do not mix package moves or unrelated refactors into a feature commit.
