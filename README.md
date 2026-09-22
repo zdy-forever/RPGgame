@@ -19,3 +19,9 @@ cd Activity_2
 
 See [`Activity_2/README.md`](Activity_2/README.md) for the project structure,
 build instructions, and class responsibilities.
+
+## License
+
+The source code of this project is proprietary. See `LICENSE.md`.
+
+AI-generated visual and audio assets are excluded from the source code license and are documented separately in [`Activity_2/assets/README.md`](Activity_2/assets/README.md).
