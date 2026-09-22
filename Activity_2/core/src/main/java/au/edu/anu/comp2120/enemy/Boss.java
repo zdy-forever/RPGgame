@@ -1,13 +1,17 @@
 package au.edu.anu.comp2120.enemy;
 
+import au.edu.anu.comp2120.combat.Attack;
 import au.edu.anu.comp2120.combat.Combatant;
 import au.edu.anu.comp2120.combat.CombatSystem;
+import au.edu.anu.comp2120.combat.DamageType;
 import au.edu.anu.comp2120.combat.Health;
 import au.edu.anu.comp2120.combat.AttackSpec;
 import au.edu.anu.comp2120.combat.ElementType;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.GameMap;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,18 +20,30 @@ import java.util.UUID;
 /**
  * One Boss encounter composed of existing Enemy health, EnemyAI navigation and shared combat.
  * The canonical damage receiver is the composed Enemy, never a second HP model or adapter.
+ * The arena's guardian identity also selects one BossTrait, whose signature effect is layered on
+ * top of these shared rules; arenas outside the campaign use the no-op trait and are unchanged.
  * Call update before the arena's single combat step, then synchronizeOutcome afterwards.
  * Defeat is terminal for this encounter; explicit debug respawn creates a new Boss instance.
  * All methods belong on the game-loop thread, outside damage receiver callbacks.
  * @author Daoyan Zhu (u7782042)
  */
 public final class Boss {
+    /** Bound on retained own attacks, so a stalled observer cannot grow this list without limit. */
+    private static final int MAX_AWAITING_IMPACT = 16;
+    /** Active window of one trait affliction pulse, matching the shared reaction pulse length. */
+    private static final double AFFLICTION_ACTIVE = 0.05;
     /** Reusable non-blank Boss identity, distinct from a reward instance ID. */
     private final String id;
     /** Debug display name, independent of artwork. */
     private final String name;
-    /** Immutable encounter tuning. */
+    /** Immutable encounter tuning, already adjusted by this guardian's trait. */
     private final BossConfig config;
+    /** This arena's signature behaviour; stateful for one encounter and never shared. */
+    private final BossTrait trait;
+    /** Own attacks whose landed hits the trait has not observed yet; pruned every decision step. */
+    private final List<Attack> awaitingImpact = new ArrayList<>();
+    /** Health seen at the previous decision step, used to derive the trait's damage signal. */
+    private int observedHp;
     /** Ranged cooldown derived once from this guardian's previous wins, never from its current HP. */
     private final double boltCooldown;
     /** Fixed map owning this encounter and its loot. */
@@ -89,7 +105,9 @@ public final class Boss {
         this.id = Objects.requireNonNull(id, "Boss ID");
         this.name = Objects.requireNonNull(name, "Boss name");
         this.map = Objects.requireNonNull(map, "map");
-        this.config = BossScaling.apply(config, successes);
+        trait = BossTraits.forMap(map.getId());
+        this.config = BossScaling.apply(trait.tune(Objects.requireNonNull(config, "config")), successes);
+        observedHp = this.config.maxHp();
         boltCooldown = BossConfig.BOLT_COOLDOWN / BossScaling.attackRate(successes);
         this.combat = Objects.requireNonNull(combat, "combat");
         if (id.isBlank() || name.isBlank()) {
@@ -107,6 +125,8 @@ public final class Boss {
      * Captures the pattern-selected origin; combat-core rechecks wall occlusion when each target settles.
      * Transition frames consume time without attacks/movement, discarding any excess frame time.
      * Generic freeze/stagger pauses decisions; navigation still resolves queued collision-safe knockback.
+     * A living attached encounter then advances its guardian trait, before those same suppression
+     * rules apply, so afflictions already delivered continue while this Boss itself cannot act.
      * @param target eligible canonical hostile target, or null
      * @param delta finite non-negative simulation seconds with representable movement
      * @throws IllegalArgumentException if time or resulting geometry is invalid
@@ -119,8 +139,10 @@ public final class Boss {
         synchronizeOutcome();
         if (defeated || !registered()) {
             cancelWindup();
+            awaitingImpact.clear();
             return;
         }
+        advanceTrait(target, delta);
         if (getCombatant().getStatus().blocksActions()) {
             cancelWindup();
             navigation.update(null, delta, false);
@@ -145,7 +167,10 @@ public final class Boss {
             }
             windupRemaining = Math.max(0, windupRemaining - delta);
             if (windupRemaining == 0) {
-                if (combat.tryAttack(getCombatant(), pendingPattern.attack(), pendingHitbox, pendingOrigin).isPresent()) {
+                Optional<Attack> submitted =
+                        combat.tryAttack(getCombatant(), pendingPattern.attack(), pendingHitbox, pendingOrigin);
+                if (submitted.isPresent()) {
+                    retainForTrait(submitted.get());
                     nextPattern = (nextPattern + 1) % (phase == 1 ? config.phaseOne() : config.phaseTwo()).size();
                 }
                 cancelWindup();
@@ -199,7 +224,116 @@ public final class Boss {
         };
         combat.tryProjectiles(getCombatant(), new AttackSpec("boss-element-bolt", BossConfig.BOLT_DAMAGE,
                 BossConfig.BOLT_ACTIVE_SECONDS, boltCooldown, element), BossConfig.ELEMENT_BOLT,
-                BossConfig.BOLT_RANGE, dx, dy, map);
+                BossConfig.BOLT_RANGE, dx, dy, map).forEach(this::retainForTrait);
+    }
+
+    /**
+     * Feeds this guardian's trait the events it reacts to, then advances its own timers.
+     * Impacts are reported one decision step after the shared pipeline settled them, so no trait
+     * runs inside damage settlement. The damage signal is derived from settled health rather than
+     * a callback, which also covers reaction pulses, fields and explicit debug damage.
+     * @param target current eligible target, or null when none is present
+     * @param delta validated finite non-negative seconds
+     */
+    private void advanceTrait(Combatant target, double delta) {
+        if (!awaitingImpact.isEmpty()) {
+            // Collect first and report afterwards, so a trait is free to clear this list itself.
+            List<Attack> landed = new ArrayList<>(awaitingImpact.size());
+            for (Iterator<Attack> pending = awaitingImpact.iterator(); pending.hasNext();) {
+                Attack own = pending.next();
+                if (target != null && own.hasLandedHit(target.getEntity())) {
+                    landed.add(own);
+                    pending.remove();
+                } else if (!own.isActive()) {
+                    pending.remove();
+                }
+            }
+            for (Attack own : landed) {
+                trait.onLandedHit(this, target, own);
+            }
+        }
+        int taken = Math.max(0, observedHp - getHealth().getCurrentHp());
+        observedHp = getHealth().getCurrentHp();
+        if (taken > 0) {
+            trait.onDamageTaken(this, target, taken);
+        }
+        trait.update(this, target, delta);
+    }
+
+    /**
+     * Retains one accepted own attack until its impact is observed or its window closes.
+     * The oldest entry is discarded at capacity; retention is observational and never damages.
+     * @param attack invocation the shared pipeline accepted for this Boss
+     */
+    private void retainForTrait(Attack attack) {
+        if (trait == BossTrait.NONE) {
+            return;
+        }
+        if (awaitingImpact.size() >= MAX_AWAITING_IMPACT) {
+            awaitingImpact.remove(0);
+        }
+        awaitingImpact.add(attack);
+    }
+
+    /**
+     * Submits one trait affliction on the target's own hurtbox through the shared pipeline.
+     * Traits must use this rather than a health model, so faction, life, hit-ledger and occlusion
+     * rules still apply. It never consumes this Boss's melee or ranged cooldown.
+     * @param target current registered receiver
+     * @param type non-blank diagnostic label
+     * @param damage non-negative affliction damage
+     * @param element damage tag; derived provenance prevents attachment and further reactions
+     * @return true when the pipeline accepted the pulse
+     */
+    boolean afflict(Combatant target, String type, int damage, ElementType element) {
+        return combat.tryAffliction(getCombatant(), new AttackSpec(type, damage, AFFLICTION_ACTIVE,
+                0, element, false, DamageType.ELEMENTAL), target.getHurtbox()).isPresent();
+    }
+
+    /**
+     * Relocates this encounter for an evasive trait, dropping its prepared strike and route.
+     * Own active attacks are cancelled so no hitbox is left behind, exactly as a phase change does.
+     * Health, registration, phase, cooldowns and the pending reward are unchanged.
+     * @param x destination left edge
+     * @param y destination bottom edge
+     * @return true only when the destination accepted the full body
+     */
+    boolean blinkTo(double x, double y) {
+        if (!navigation.teleportTo(x, y)) {
+            return false;
+        }
+        cancelWindup();
+        navigation.resetAwareness();
+        combat.cancelAttacks(getCombatant());
+        awaitingImpact.clear();
+        return true;
+    }
+
+    /**
+     * Reports whether this encounter may currently start a new action of its own.
+     * Traits representing Boss agency, rather than an already delivered effect, must check this.
+     * @return true while alive, attached, not control-suppressed and not in a phase transition
+     */
+    boolean canAct() {
+        return isAlive() && registered() && !getCombatant().getStatus().blocksActions()
+                && transitionRemaining == 0;
+    }
+
+    /**
+     * Describes this guardian's trait state for the existing diagnostics line.
+     * @return short trait label, or empty for arenas without a signature behaviour
+     */
+    public String getTraitStatus() {
+        return trait.status();
+    }
+
+    /**
+     * Names the affliction this guardian currently maintains on its target, for display above it.
+     * Shared control and vulnerability statuses are read from the target's own CombatStatus instead.
+     * @return prominent uppercase label, or empty when no trait affliction is running
+     */
+    public String getAfflictionLabel() {
+        return isAlive() && registered() ? trait.afflictionLabel() : "";
     }
 
     /** Clears preparation without creating damage or altering the shared cooldown. */

@@ -199,6 +199,32 @@ public final class EnemyAI {
     }
 
     /**
+     * Relocates the whole body to a fully walkable destination, keeping health and registration.
+     * Cached routes and queued displacement are discarded, so the next decision replans from the
+     * new position. A blocked, unrepresentable or non-finite destination leaves the enemy in place.
+     * This grants no immunity and never changes shared cooldowns or existing attack geometry.
+     * @param x destination left edge in world units
+     * @param y destination bottom edge in world units
+     * @return true only when the destination accepted the full body
+     */
+    public boolean teleportTo(double x, double y) {
+        CollisionBox destination;
+        try {
+            destination = new CollisionBox(x, y, bounds.width(), bounds.height());
+        } catch (IllegalArgumentException unrepresentableDestination) {
+            return false;
+        }
+        if (!area.isWalkable(destination)) {
+            return false;
+        }
+        bounds = destination;
+        combatant.setHurtbox(bounds);
+        combatant.getStatus().clearKnockback();
+        clearPath();
+        return true;
+    }
+
+    /**
      * Uses direct pursuit when clear, otherwise reuses/replans a bounded A* route.
      * @param target eligible player target
      * @param budget non-negative finite travel distance available this step

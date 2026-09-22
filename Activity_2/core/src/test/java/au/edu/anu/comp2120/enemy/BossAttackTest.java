@@ -38,8 +38,11 @@ final class BossAttackTest {
         f.boss.update(f.target, BossConfig.MELEE_WINDUP / 2);
         assertTrue(f.boss.getMeleeWarning().isEmpty());
         assertEquals(warning, f.combat.getActiveAttacks().get(0).getHitbox());
+        // Read the submitted pattern's own damage: each guardian trait may tune it, and this test
+        // is about settling the strike exactly once rather than about one particular damage value.
+        int sweep = f.combat.getActiveAttacks().get(0).getSpecification().damage();
         for (int i = 0; i < 20; i++) { f.combat.update(0); }
-        assertEquals(985, f.victim.getHealth().getCurrentHp());
+        assertEquals(1000 - sweep, f.victim.getHealth().getCurrentHp());
         f.boss.update(f.target, 0);
         assertEquals(1, f.combat.getActiveAttacks().size());
     }

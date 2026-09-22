@@ -1,6 +1,9 @@
 package au.edu.anu.comp2120.screen;
 
+import au.edu.anu.comp2120.combat.Combatant;
+import au.edu.anu.comp2120.combat.Faction;
 import au.edu.anu.comp2120.npc.NPC;
+import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.player.Player;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
@@ -46,6 +49,18 @@ public final class PlaceholderRenderer implements Disposable {
     private static final float NAME_SCALE = 0.45f;
     /** Display name shown above the player. */
     private static final String PLAYER_NAME = "Adventurer";
+    /** Font scale for negative-status labels; larger than a name tag so it reads at a glance. */
+    private static final float STATUS_SCALE = 0.62f;
+    /** Vertical spacing between stacked status labels in world units. */
+    private static final float STATUS_LINE = 11f;
+    /** Height of the player's artwork, matching the scene's own visual body. */
+    private static final float PLAYER_ART_HEIGHT = 54f;
+    /** Height of a guardian's artwork, matching the scene's own visual body. */
+    private static final float ENEMY_ART_HEIGHT = 92f;
+    /** Gap above the player's artwork that clears its existing name tag. */
+    private static final float PLAYER_STATUS_GAP = 18f;
+    /** Gap above a guardian's artwork, which carries no name tag. */
+    private static final float ENEMY_STATUS_GAP = 6f;
     /** Half-size of each decorative fence post in world units. */
     private static final float FENCE_POST = 4f;
     /** Spacing between decorative fence posts in world units. */
@@ -141,6 +156,42 @@ public final class PlaceholderRenderer implements Disposable {
         drawBossWarnings(demo);
         shapes.end();
         drawNames(player, npcs);
+        drawStatusTags(player, demo);
+    }
+
+    /**
+     * Stacks prominent negative-status labels above every actor in the current arena.
+     * Uses the same world-space batch and camera projection as the name tags, so labels follow
+     * their subject without projecting coordinates by hand. Labels are read from shared combat
+     * state and from the guardian's own affliction, and require no new artwork.
+     * Anchors match the scene's visual bodies, so text clears the artwork rather than the hitbox.
+     *
+     * @param player player whose collision body anchors its own labels
+     * @param demo read-only current-scope combat observations
+     */
+    private void drawStatusTags(Player player, CombatDemo demo) {
+        String affliction = demo.getBoss().map(Boss::getAfflictionLabel).orElse("");
+        debugFont.getData().setScale(STATUS_SCALE);
+        debugBatch.setProjectionMatrix(viewport.getCamera().combined);
+        debugBatch.begin();
+        for (Combatant actor : demo.getCombatants()) {
+            boolean isPlayer = actor.getFaction() == Faction.PLAYER;
+            List<StatusLabels.Tag> tags = StatusLabels.forActor(actor.getStatus(),
+                    isPlayer ? affliction : "");
+            if (tags.isEmpty()) {
+                continue;
+            }
+            CollisionBox anchor = isPlayer ? player.getBounds() : actor.getHurtbox();
+            double baseline = anchor.y() + (isPlayer ? PLAYER_ART_HEIGHT + PLAYER_STATUS_GAP
+                    : ENEMY_ART_HEIGHT + ENEMY_STATUS_GAP);
+            for (int line = 0; line < tags.size(); line++) {
+                StatusLabels.Tag tag = tags.get(line);
+                debugFont.setColor(tag.red(), tag.green(), tag.blue(), 1);
+                drawNameTag(tag.text(), anchor.x(), baseline + line * STATUS_LINE, anchor.width());
+            }
+        }
+        debugBatch.end();
+        debugFont.getData().setScale(NAME_SCALE);
     }
 
     /**

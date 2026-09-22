@@ -240,6 +240,7 @@ public final class CombatDemo {
         if (returnToHubIfBattleEnded() || syncMap()) {
             return;
         }
+        resolvePlayerDisplacement();
         player.setHurtbox(playerHurtbox());
         if (reset && (encounterFlow == null || session.getCurrentMap().getType() != MapType.BATTLE)) {
             combat.clear();
@@ -261,7 +262,8 @@ public final class CombatDemo {
             abilities.selectClass(session.getPlayer().getClassDefinition()
                     .withElement(elements[(current.ordinal() + 1) % elements.length]));
         }
-        abilities.update(delta, classSelection != null || cycleElement || cycleUltimateMode ? PlayerCommand.NONE : command);
+        abilities.update(delta, classSelection != null || cycleElement || cycleUltimateMode
+                || player.getStatus().blocksActions() ? PlayerCommand.NONE : command);
         if (boss != null) {
             boss.update(player, delta);
         }
@@ -427,6 +429,9 @@ public final class CombatDemo {
             status.append(" | ").append(boss.getName()).append(' ').append(boss.getHealth().getCurrentHp())
                     .append('/').append(boss.getHealth().getMaxHp()).append(" P").append(boss.getPhase())
                     .append(' ').append(boss.getState()).append(elementLabel(boss.getCombatant()));
+            if (!boss.getTraitStatus().isEmpty()) {
+                status.append(' ').append(boss.getTraitStatus());
+            }
             boss.getDrop().ifPresent(drop -> status.append(" Drop ").append(drop.materialId())
                     .append(" x").append(drop.quantity()));
         }
@@ -519,6 +524,20 @@ public final class CombatDemo {
                         encounterFlow == null ? 0 : encounterFlow.getSuccessCount(session.getCurrentMap().getId()));
                 return;
             }
+        }
+    }
+
+    /**
+     * Consumes queued displacement on the player through the same swept collision as ordinary movement.
+     * Reaction knockback and a shoving guardian's push are both latched during combat settlement and
+     * resolved here, outside any damage callback, so walls and map boundaries still stop the movement.
+     * This coordinator owns the player's resolution exactly as EnemyAI owns its own.
+     */
+    private void resolvePlayerDisplacement() {
+        var status = player.getStatus();
+        if (status.getKnockbackX() != 0 || status.getKnockbackY() != 0) {
+            session.getPlayer().moveBy(status.getKnockbackX(), status.getKnockbackY());
+            status.clearKnockback();
         }
     }
 

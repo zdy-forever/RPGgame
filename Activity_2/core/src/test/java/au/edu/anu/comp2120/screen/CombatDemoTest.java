@@ -177,11 +177,14 @@ final class CombatDemoTest {
         // immediately expired by that same frame's combat resolution.
         demo.update(0.7, false, false);
         demo.update(0.11, false, false);
-        assertEquals(85, session.getPlayer().getHealth().getCurrentHp());
+        // Read the landed pattern's own damage: the Crossroads guardian trades direct melee damage
+        // for burning stacks, and this test is about both attack directions, not one damage value.
+        int sweep = demo.getActiveAttacks().get(0).getSpecification().damage();
+        assertEquals(100 - sweep, session.getPlayer().getHealth().getCurrentHp());
         assertEquals(1, demo.getActiveAttacks().size());
         demo.update(0.65, false, false);
         assertEquals(375, enemy.getHealth().getCurrentHp());
-        assertEquals(85, session.getPlayer().getHealth().getCurrentHp());
+        assertEquals(100 - sweep, session.getPlayer().getHealth().getCurrentHp());
         demo.update(0, true, false);
         List<Attack> beforeReset = demo.getActiveAttacks();
         demo.update(0, true, true);
