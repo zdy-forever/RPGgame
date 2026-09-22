@@ -79,6 +79,7 @@ final class PlayerDefeatTest {
                 demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         health.takeDamage(99);
         demo.update(0, PlayerCommand.NONE, false);
+        demo.update(au.edu.anu.comp2120.enemy.BossConfig.MELEE_WINDUP, PlayerCommand.NONE, false);
         assertEquals(MapCatalog.HUB, session.getCurrentMap().getId());
         assertSame(player, session.getPlayer());
         assertSame(health, player.getHealth());
@@ -258,6 +259,11 @@ final class PlayerDefeatTest {
         assertEquals(2, old.getPhase());
         demo.update(0.75, PlayerCommand.NONE, false);
         demo.update(0, PlayerCommand.NONE, false);
+        // Split the windup wait so the final delta is smaller than the pattern's own cooldown
+        // (boss-heavy-sweep is exactly BossConfig.MELEE_WINDUP); a single 0.8s jump would submit
+        // the attack and immediately consume its whole cooldown in the same combat resolution pass.
+        demo.update(0.7, PlayerCommand.NONE, false);
+        demo.update(0.11, PlayerCommand.NONE, false);
         assertTrue(combat.getCooldownRemaining(old.getCombatant()) > 0);
         session.getPlayer().takeDamage(100);
         demo.update(0, PlayerCommand.NONE, false);
