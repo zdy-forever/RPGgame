@@ -6,6 +6,7 @@ import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.npc.PortalGuide;
 import au.edu.anu.comp2120.npc.ClassTrainer;
+import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.quest.BossQuests;
 import au.edu.anu.comp2120.player.Player;
@@ -1000,6 +1001,8 @@ public final class GameScreen extends ScreenAdapter {
      * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
      * Screen-space only; both panels and text stop growing at the reference window size.
      * Memorial Hall fits one view and omits the minimap so that all five stones remain visible.
+     * A living Boss is marked with a red square so battle maps show where the guardian currently is;
+     * the green player square is drawn last so the two never hide each other while closing in.
      * @param hud current size and visibility policy
      */
     private void drawMinimap(HudLayout hud) {
@@ -1053,6 +1056,14 @@ public final class GameScreen extends ScreenAdapter {
                     Math.max((float) npc.getWidth() * s, 3f),
                     Math.max((float) npc.getHeight() * s, 3f));
         }
+        combatDemo.getBoss().filter(Boss::isAlive).ifPresent(boss -> {
+            CollisionBox bossBody = boss.getBounds();
+            dialogueShapes.setColor(0.95f, 0.16f, 0.16f, 1);
+            dialogueShapes.rect(ox + (float) (bossBody.x() - bounds.x()) * s,
+                    oy + (float) (bossBody.y() - bounds.y()) * s,
+                    Math.max((float) bossBody.width() * s, 5f),
+                    Math.max((float) bossBody.height() * s, 5f));
+        });
         CollisionBox body = session.getPlayer().getBounds();
         dialogueShapes.setColor(0.20f, 0.95f, 0.45f, 1);
         dialogueShapes.rect(ox + (float) (body.x() - bounds.x()) * s,
