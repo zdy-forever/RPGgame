@@ -9,6 +9,7 @@ public final class CombatStatus {
     /** Remaining frozen seconds. */ private double frozen;
     /** Remaining stagger action-lock seconds. */ private double stagger;
     /** Remaining physical vulnerability seconds. */ private double resistance;
+    /** Remaining seconds during which every confirmed hit is negated. */ private double invulnerable;
     /** Reduction from baseline zero physical resistance. */ private double reduction;
     /** Configurable poise capacity. */ private double maxPoise = ReactionTuning.MAX_POISE;
     /** Current poise, replenished on a break. */ private double poise = maxPoise;
@@ -43,6 +44,17 @@ public final class CombatStatus {
      * @return non-negative seconds
      */
     public double getResistanceRemaining() { return resistance; }
+    /**
+     * Reports total damage immunity, which also suppresses elements, reactions and hit follow-ups.
+     * Unlike untargetability this does stop existing attack geometry from landing.
+     * @return true while an invulnerability window is running
+     */
+    public boolean isInvulnerable() { return invulnerable > 0; }
+    /**
+     * Observes invulnerability expiry.
+     * @return non-negative seconds
+     */
+    public double getInvulnerableRemaining() { return invulnerable; }
     /**
      * Returns the multiplier applied only to physical damage at the shared boundary.
      * @return one normally, one plus reduction while vulnerable
@@ -80,6 +92,65 @@ public final class CombatStatus {
     public double getKnockbackY() { return knockbackY; }
     /** Clears displacement after the movement owner resolves it against its world. */
     public void clearKnockback() { knockbackX = 0; knockbackY = 0; }
+    /**
+     * Queues one bounded displacement for the movement owner, without poise loss or an action lock.
+     * Used by attacker-specific behaviour such as a shoving guardian; the latest displacement
+     * replaces any pending displacement, so repeated hits cannot accumulate a movement budget.
+     * The owner resolves it against its own world collision, so walls still stop the movement.
+     * @param directionX finite horizontal component of a nonzero direction
+     * @param directionY finite vertical component of a nonzero direction
+     * @param distance positive finite displacement length in world units
+     * @throws IllegalArgumentException if the direction is zero or the geometry is not finite
+     */
+    public void applyPush(double directionX, double directionY, double distance) {
+        double length = Math.hypot(directionX, directionY);
+        if (!Double.isFinite(length) || length == 0 || !Double.isFinite(distance) || distance <= 0
+                || !Double.isFinite(distance / length)) {
+            throw new IllegalArgumentException("Push needs a nonzero finite direction and positive distance");
+        }
+        knockbackX = directionX / length * distance;
+        knockbackY = directionY / length * distance;
+    }
+    /**
+     * Applies an externally chosen freeze, keeping whichever remaining duration is longer.
+     * Refreshing never stacks, so a short reaction freeze cannot cut an ongoing longer one short.
+     * @param seconds positive finite freeze duration
+     * @throws IllegalArgumentException if the duration is not positive and finite
+     */
+    public void applyFreeze(double seconds) {
+        frozen = Math.max(frozen, requireDuration(seconds));
+    }
+    /**
+     * Applies an externally chosen action lock without consuming poise.
+     * @param seconds positive finite stagger duration
+     * @throws IllegalArgumentException if the duration is not positive and finite
+     */
+    public void applyStagger(double seconds) {
+        stagger = Math.max(stagger, requireDuration(seconds));
+    }
+    /**
+     * Opens a total damage-immunity window, keeping whichever remaining duration is longer.
+     * The shared damage boundary negates every confirmed hit while this runs, including
+     * non-blockable reaction pulses and ground ticks, and consumes each attack's hit ledger so a
+     * negated attack cannot land again later in its own active window.
+     * @param seconds positive finite immunity duration
+     * @throws IllegalArgumentException if the duration is not positive and finite
+     */
+    public void applyInvulnerability(double seconds) {
+        invulnerable = Math.max(invulnerable, requireDuration(seconds));
+    }
+    /**
+     * Rejects unusable externally supplied control durations before any state changes.
+     * @param seconds candidate duration
+     * @return the same duration once validated
+     * @throws IllegalArgumentException if the duration is not positive and finite
+     */
+    private static double requireDuration(double seconds) {
+        if (!Double.isFinite(seconds) || seconds <= 0) {
+            throw new IllegalArgumentException("Control duration must be positive and finite");
+        }
+        return seconds;
+    }
     /** Refreshes, rather than stacks, the short configured freeze. */
     void freeze() { frozen = ReactionTuning.FREEZE_SECONDS; }
     /** Refreshes finite physical vulnerability, without changing elemental damage. */
@@ -115,6 +186,7 @@ public final class CombatStatus {
         frozen = Math.max(0, frozen - delta);
         stagger = Math.max(0, stagger - delta);
         resistance = Math.max(0, resistance - delta);
+        invulnerable = Math.max(0, invulnerable - delta);
         return charged == null ? 0 : charged.advance(delta);
     }
     /**
@@ -134,7 +206,7 @@ public final class CombatStatus {
     }
     /** Clears temporary state on death/detachment while retaining configured poise capacity. */
     public void clear() {
-        frozen = 0; stagger = 0; resistance = 0; reduction = 0; poise = maxPoise;
+        frozen = 0; stagger = 0; resistance = 0; reduction = 0; invulnerable = 0; poise = maxPoise;
         clearKnockback(); clearCharge();
     }
 }

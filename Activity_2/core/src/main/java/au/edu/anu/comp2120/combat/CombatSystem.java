@@ -464,11 +464,14 @@ public final class CombatSystem {
 
     /**
      * Delivers a geometrically confirmed hit through the one shared damage/health pipeline.
+     * An invulnerable receiver negates the hit exactly as a defensive interception does: its ledger
+     * is consumed, no damage, element, reaction or landed-hit follow-up occurs, and presentation
+     * still observes a blocked hit.
      * @param attack invocation whose target filtering and detection succeeded
      * @param target valid receiver
      */
     private void deliverDamage(Attack attack, Combatant target) {
-        if (target.intercepts(attack)) {
+        if (target.getStatus().isInvulnerable() || target.intercepts(attack)) {
             recordFeedback(new HitFeedback(target.getHurtbox(), attack.getSpecification().element(), "", true));
             attack.recordHit(target.getEntity());
             return;
@@ -539,6 +542,40 @@ public final class CombatSystem {
         AttackSpec specification = new AttackSpec("reaction-" + reaction.id(), effect.damage(), effect.activeSeconds(),
                 0, effect.element(), false, DamageType.ELEMENTAL);
         attacks.add(new Attack(++lastAttackId, parent.getSource(), specification, hitbox, null, parent.getId(), hitbox));
+    }
+
+    /**
+     * Submits one bounded affliction pulse for a registered source without charging its cooldown.
+     * Attacker-specific behaviour, such as a burning or punishing guardian, uses this so its extra
+     * damage still passes the shared faction, life, hit-ledger, overlap and occlusion rules instead
+     * of touching a health model directly. The pulse carries its own identifier as its provenance,
+     * so like every derived invocation it can neither attach an element nor create reactions or
+     * children, and it therefore cannot chain into further afflictions. It is sampled by the next
+     * combat update, including a zero-time update, and expires after its short active window.
+     * The specification's cooldown is ignored; the source's melee/ranged pacing is unaffected.
+     * @param source registered canonical actor owning this effect
+     * @param specification validated damage, element and active-window tuning
+     * @param box fixed world geometry for the pulse, normally the afflicted target's own hurtbox
+     * @return accepted pulse, or empty for a dead source or exhausted derived capacity
+     * @throws NullPointerException if any argument is null
+     * @throws IllegalArgumentException if the source is not registered in this scope
+     * @throws IllegalStateException if the system has exhausted its identifier range
+     */
+    public Optional<Attack> tryAffliction(Combatant source, AttackSpec specification, CollisionBox box) {
+        Objects.requireNonNull(specification, "specification");
+        Objects.requireNonNull(box, "box");
+        getCooldownRemaining(source);
+        if (!source.getEntity().isAlive() || attacks.stream()
+                .filter(attack -> attack.isActive() && attack.isDerived()).count() >= MAX_DERIVED_ATTACKS) {
+            return Optional.empty();
+        }
+        if (lastAttackId == Long.MAX_VALUE) {
+            throw new IllegalStateException("Attack identifier range exhausted");
+        }
+        long id = ++lastAttackId;
+        Attack pulse = new Attack(id, source, specification, box, null, id, box);
+        attacks.add(pulse);
+        return Optional.of(pulse);
     }
 
     /**

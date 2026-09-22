@@ -6,7 +6,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Five distinct campaign targets; their first version shares the existing Sentinel combat tuning.
+ * Five distinct campaign targets sharing the Sentinel health, reward and attack template.
+ * Each identity also selects one {@link BossTraits} behaviour and its movement tuning, so the
+ * guardians differ in play without a separate encounter class or a second combat pipeline.
  * Identity and map routing do not depend on graphics or quest progress.
  * @author Daoyan Zhu (u7782042)
  */

@@ -56,9 +56,12 @@ press **E** to confirm. Re-accepting the same task also requires confirmation ag
   Visit Memorial Hall and speak to **Old Sage [E]** to start the one-time dialogue; advance its
   three lines with **E**. Repeated conversations do not replay it. Stones reflect quest progress,
   not inventory items, and remain lit across map visits within the session.
-- This first version reuses the Sentinel's 400 HP, two-phase AI/patterns and material tuning for
-  all five identities. Distinct elemental Boss moves, final names and final ending script remain
-  future content work. Task progress and ending playback are session-local, without save/load.
+- All five identities share the Sentinel's 400 HP, two-phase pattern geometry and material tuning.
+  Each now also owns one signature mechanic and its own movement speed, so the fights differ in
+  play without a separate Boss class: see [Guardian traits](#guardian-traits) below and the
+  [Boss trait report](docs/BOSS_TRAIT_REPORT.md). Final names, per-guardian art/audio cues, the
+  final ending script and final balance remain future content work. Task progress and ending
+  playback are session-local, without save/load.
 
 - Training has one stationary, non-attacking target, not a Boss. J/K/L/O use the shared
   abilities/combat pipeline. The scoreboard shows total delivered damage, last damage and
@@ -505,7 +508,8 @@ Placeholder controls (current first-version skills; numeric tuning is provisiona
 4. Press J with at least 0.5 seconds between successful Mage shots. A defeated Boss
    becomes grey, reports DEAD and produces one material placeholder. If the player
    dies instead, the encounter is cleared and the player returns to Hub at full HP.
-5. Run away (player speed 180, Boss speed 70). Beyond the loss radius, hostiles
+5. Run away (player speed 180; guardian speed 54-104 depending on the arena, 70 elsewhere).
+   Beyond the loss radius, hostiles
    become IDLE and stop where they are. Re-enter the detection radius to reacquire.
    Use map obstacles to verify that pursuit routes around walls rather than crossing them.
    J bolts stop at walls; Mage K cycles elements and O executes its selected mode.
@@ -648,6 +652,8 @@ false)` performs normal detection, cached full-body A* chase, wall clearance and
 attack readiness without submitting a basic attack. Boss selects its pattern instead.
 The original two-argument EnemyAI update still performs normal enemy attacks.
 
+The shared template's pattern cycles, used unchanged by four of the five guardians:
+
 | Phase | Ordered pattern cycle | Damage | Reach | Active / cooldown |
 | --- | --- | --- | --- | --- |
 | 1 | Forward sweep | 15 | 96 | 0.2 s / 1.2 s |
@@ -658,8 +664,10 @@ The original two-argument EnemyAI update still performs normal enemy attacks.
 - Configuration is centralized in `GameConfig.SENTINEL` using validated `BossConfig`
   and immutable pattern lists. Patterns reuse AttackSpec and AttackShape, not animation
   events. A successful cast advances the cycle; rejected cooldown attempts do not.
-- Navigation speed is 70, detection radius 500, loss radius 650 and attack stopping
-  distance 96 (centre-to-centre). The existing conservative clear-corridor rule gates
+- Template navigation speed is 70; each campaign guardian overrides only its speed and replan
+  interval, listed under [Guardian traits](#guardian-traits). Detection radius 500, loss radius 650
+  and attack stopping distance 96 (centre-to-centre) are shared by all arenas. The fire guardian
+  also scales the damage column above to 60%. The existing conservative clear-corridor rule gates
   attacks at the chosen target. Position/hurtbox updates use the current GameMap.
 - At HP <= 50%, phase changes from 1 to 2 exactly once. A 0.75-second transition
   pauses navigation/new attacks and cancels existing Boss attacks **without resetting
@@ -690,6 +698,31 @@ title. Check that the second phase starts once at 200 HP and has a short pause.
 Defeat it and verify one gold drop remains after further updates. Try attacking then
 travelling with 1, or pressing R, to confirm cancellation and fresh encounter state.
 Boss bodies and attacks remain simple rectangles; no formal Boss UI or art is added.
+
+### Guardian traits
+
+Each campaign arena also selects one signature behaviour, composed into the same `Boss` class
+through `BossTrait`; arenas outside the campaign keep the template's behaviour exactly.
+
+| Guardian | Arena | Signature mechanic | Numbers |
+| --- | --- | --- | --- |
+| Fire | Crossroads | Connected attacks add burning stacks that keep dealing damage | 2 s per tick, 5 ticks, 5 stacks, 2 damage per stack per tick |
+| Water | Water Arena | Connected attacks shove you outward through your own collision | 120 units, no action lock |
+| Lightning | Lightning Arena | Dealing it no damage for ten seconds calls down a strike | 10 s, 10 damage, 0.6 s lock |
+| Ice | Ice Arena | Its third connected attack freezes you | 3 hits, 2 s freeze |
+| Wind | Wind Arena | Burst damage makes it blink to a random nearby spot, arriving immune | 45 damage in 1.5 s, 4 s cooldown, 120-320 units, 2 s immunity |
+
+Movement speed also differs: fire 78, water 62, lightning 92, ice 54, wind 104. Health, detection
+and loss radii, stopping distance, pattern geometry, pacing, phase threshold and reward stay shared,
+so one balance change still reaches all five. The fire guardian is the one exception on damage: it
+keeps 60% of the template's direct pattern damage and returns the difference as burning, so its
+total output stays comparable while the fight rewards breaking contact.
+
+Negative statuses are named in large text above the actor they affect: `BURNING xN`, `FROZEN`,
+`STAGGERED`, `CHARGED`, `VULNERABLE` and `INVULNERABLE`. These read from shared combat state, so
+a guardian you freeze with a water-plus-ice reaction is labelled as well. Burning stacks, the
+lightning countdown, the frostbite counter and the blink cooldown also appear in the window title.
+A living Boss is a red square on the minimap and on the expanded `[M]` map.
 
 Limitations: two fixed-rectangle pattern cycles, no projectile Boss pattern, cutscene,
 animation or phase immunity. Shared elemental reactions can affect Boss health. The full-body navigation corridor can be
