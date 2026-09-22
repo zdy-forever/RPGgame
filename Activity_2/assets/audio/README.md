@@ -14,4 +14,4 @@ The same track continues across map changes; map transitions do not own or dispo
 Switching to a different track starts that song from the beginning. No crossfade or volume UI is added.
 
 The existing desktop resources configuration includes this folder for IDEA, Gradle and distributions.
-Audio authorship/licensing was not supplied; these filenames are not a claim of authorship or licence.
+All tracks were generated using Suno during an active paid subscription with commercial-use rights; see `../README.md` for licensing/attribution details.
