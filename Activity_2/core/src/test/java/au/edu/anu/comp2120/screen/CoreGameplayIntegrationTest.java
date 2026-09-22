@@ -212,7 +212,8 @@ final class CoreGameplayIntegrationTest {
         assertTrue(oldBoss.getCombatant().getStatus().getChargedRemaining() > 0);
         assertTrue(oldBoss.getCombatant().getStatus().getResistanceRemaining() > 0);
         assertFalse(combat.getElementFields().isEmpty());
-        if (combat.getActiveAttacks().stream().noneMatch(a -> a.getSource() == oldBoss.getCombatant())) {
+        if (combat.getCooldownRemaining(oldBoss.getCombatant()) == 0
+                && combat.getActiveAttacks().stream().noneMatch(a -> a.getSource() == oldBoss.getCombatant())) {
             combat.tryAttack(oldBoss.getCombatant(), new AttackSpec("old-boss-area", 0, 10, 0),
                     oldSource.getHurtbox(), oldSource.getHurtbox()).orElseThrow();
         }
@@ -314,6 +315,14 @@ final class CoreGameplayIntegrationTest {
             session.getPlayer().enterArea(session.getCurrentMap(),
                 demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         }
+        if (skill.equals("counter-dash")) {
+            // Start the Boss's melee windup before the PARRY window opens: the telegraph is
+            // far longer than the parry, so it must already be most of the way through for the
+            // short parry window to still be open when the hit actually lands.
+            demo.update(0, PlayerCommand.NONE, false);
+            demo.update(au.edu.anu.comp2120.enemy.BossConfig.MELEE_WINDUP - SkillTuning.PARRY_SECONDS,
+                    PlayerCommand.NONE, false);
+        }
         boolean light = skill.equals("arrow") || skill.equals("slash");
         boolean special = List.of("volley", "parry", "recovery", "counter-dash").contains(skill);
         boolean dash = skill.equals("dash");
@@ -324,6 +333,7 @@ final class CoreGameplayIntegrationTest {
                 for (int i = 0; i < 16; i++) { demo.update(0.1, PlayerCommand.NONE, false); }
             }
             case "recovery" -> demo.update(SkillTuning.PARRY_SECONDS, PlayerCommand.NONE, false);
+            case "counter-dash" -> demo.update(SkillTuning.PARRY_SECONDS, PlayerCommand.NONE, false);
             case "rapid" -> {
                 demo.update(0, new PlayerCommand(0, 0, true, false, false, false), false);
                 assertEquals(2, combat.getActiveAttacks().stream().filter(a -> a.getProjectile() != null).count());

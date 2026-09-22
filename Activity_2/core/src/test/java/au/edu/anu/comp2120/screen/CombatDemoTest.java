@@ -170,8 +170,15 @@ final class CombatDemoTest {
         CollisionBox position = session.getPlayer().getBounds();
         demo.update(0, true, false);
         assertEquals(400, enemy.getHealth().getCurrentHp());
+        // The Boss now telegraphs its melee for BossConfig.MELEE_WINDUP before submitting the hit; the
+        // player's own attack has already resolved and expired well before that windup completes, so only
+        // the Boss's attack remains active once it lands. Splitting the wait into two updates (rather than
+        // one 0.8s step) keeps the final delta small enough that the freshly submitted attack is not itself
+        // immediately expired by that same frame's combat resolution.
+        demo.update(0.7, false, false);
+        demo.update(0.11, false, false);
         assertEquals(85, session.getPlayer().getHealth().getCurrentHp());
-        assertEquals(2, demo.getActiveAttacks().size());
+        assertEquals(1, demo.getActiveAttacks().size());
         demo.update(0.65, false, false);
         assertEquals(375, enemy.getHealth().getCurrentHp());
         assertEquals(85, session.getPlayer().getHealth().getCurrentHp());

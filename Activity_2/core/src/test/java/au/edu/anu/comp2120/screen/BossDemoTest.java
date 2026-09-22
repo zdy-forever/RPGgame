@@ -108,6 +108,7 @@ final class BossDemoTest {
                 demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         boss.getHealth().takeDamage(180);
         demo.update(0, new PlayerCommand(0, 0, false, false, false, true), false);
+        demo.update(au.edu.anu.comp2120.enemy.BossConfig.MELEE_WINDUP, PlayerCommand.NONE, false);
         demo.update(0, PlayerCommand.NONE, false);
         assertEquals(120, boss.getHealth().getCurrentHp());
         assertEquals(2, boss.getPhase());
@@ -150,6 +151,11 @@ final class BossDemoTest {
         session.getPlayer().enterArea(session.getCurrentMap(),
                 demo.getBoss().orElseThrow().getBounds().x() - 40, demo.getBoss().orElseThrow().getBounds().y());
         demo.update(0, false, false);
+        // Split the windup wait so the final delta is smaller than the attack's own active window;
+        // a single 0.8s jump would submit the melee attack and immediately expire it in the same
+        // combat resolution pass, leaving nothing in getActiveAttacks().
+        demo.update(0.7, false, false);
+        demo.update(0.11, false, false);
         List<Attack> attacks = demo.getActiveAttacks();
         assertTrue(attacks.stream().anyMatch(attack -> attack.getSource() == old.getCombatant()));
         CollisionBox before = old.getBounds();
