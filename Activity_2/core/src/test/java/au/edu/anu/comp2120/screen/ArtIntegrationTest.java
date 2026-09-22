@@ -93,10 +93,15 @@ final class ArtIntegrationTest {
 
     /**
      * The import staging directory is empty and only the two requested map pictures are excluded.
-     * @throws IOException if staging cannot be listed
+     * Git cannot track an empty directory, so a fresh checkout legitimately omits it entirely;
+     * that absence is treated the same as an empty directory rather than as a missing-staging error.
+     * @throws IOException if staging exists but cannot be listed
      */
     @Test void stagingEmptyAndHubGameplayRetained() throws IOException {
-        try (var contents = Files.list(ASSETS.resolve("art_resources"))) { assertEquals(0, contents.count()); }
+        Path staging = ASSETS.resolve("art_resources");
+        if (Files.exists(staging)) {
+            try (var contents = Files.list(staging)) { assertEquals(0, contents.count()); }
+        }
         assertFalse(Files.exists(ASSETS.resolve("art/maps/hub/hub_main.png")));
         assertFalse(Files.exists(ASSETS.resolve("art/maps/hub/achievement_corridor.png")));
         assertTrue(MapCatalog.createMaps().stream().anyMatch(map -> map.getType() == MapType.HUB));
