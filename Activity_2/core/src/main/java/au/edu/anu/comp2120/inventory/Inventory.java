@@ -10,6 +10,7 @@ import java.util.Objects;
  * Asset-free item storage that groups stackable materials by type.
  * Insertion order is preserved so the display stays stable between frames.
  *
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
  */
@@ -29,6 +30,7 @@ public final class Inventory {
      * @param materialId non-blank material type
      * @param quantity positive quantity to add
      * @throws NullPointerException if materialId is null
+     * @throws ArithmeticException if the stack quantity would overflow
      * @throws IllegalArgumentException if materialId is blank or quantity is not positive
      */
     public void addItem(String materialId, int quantity) {
@@ -36,7 +38,7 @@ public final class Inventory {
         if (materialId.isBlank() || quantity <= 0) {
             throw new IllegalArgumentException("Item requires non-blank ID and positive quantity");
         }
-        stacks.merge(materialId, quantity, Integer::sum);
+        stacks.merge(materialId, quantity, Math::addExact);
     }
     /**
      * Removes a quantity of one material type from its stack.

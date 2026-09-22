@@ -23,6 +23,10 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Align;
 import au.edu.anu.comp2120.inventory.Inventory;
+import au.edu.anu.comp2120.inventory.Equipment;
+import au.edu.anu.comp2120.inventory.EquipmentSlot;
+import au.edu.anu.comp2120.inventory.ItemCatalog;
+import au.edu.anu.comp2120.inventory.InventoryRewards;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +36,7 @@ import java.util.List;
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
+ * @author Hao Liu (u7998420)
  */
 public final class GameScreen extends ScreenAdapter {
 
@@ -93,6 +98,16 @@ public final class GameScreen extends ScreenAdapter {
     private final ShapeRenderer dialogueShapes;
     /** Player item storage owned by this screen; survives map changes. */
     private final Inventory inventory;
+    /** Persistent player equipment shared with combat. */
+    private final Equipment equipment;
+    /** At-most-once adapter for settled Boss rewards. */
+    private final InventoryRewards inventoryRewards;
+    /** Zero-based bag page. */
+    private int inventoryPage;
+    /** Zero-based shared page for the two chest columns. */
+    private int chestPage;
+    /** Last item operation shown inside the bag. */
+    private String inventoryFeedback = "Right-click: equip, unequip or use";
     /** Whether the inventory panel is open; freezes movement while true. */
     private boolean inventoryOpen;
     /** Whether the enlarged map panel is open; freezes movement while true. */
@@ -140,8 +155,14 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch = new SpriteBatch();
         dialogueFont = new BitmapFont();
         dialogueShapes = new ShapeRenderer();
-        inventory = new Inventory();
+        inventory = session.getPlayer().getInventory();
+        equipment = session.getPlayer().getEquipment();
+        inventoryRewards = new InventoryRewards(encounterFlow, inventory);
         chestStorage = new Inventory();
+        for (var item : ItemCatalog.equipment()) {
+            if (item.slot() != EquipmentSlot.WEAPON) { chestStorage.addItem(item.id()); }
+        }
+        chestStorage.addItem(ItemCatalog.POTION, 3);
     }
 
     /**
@@ -175,6 +196,10 @@ public final class GameScreen extends ScreenAdapter {
             updateGameplay(Math.min(delta, GameConfig.MAX_FRAME_DELTA));
         }
         skipNextUpdate = false;
+        int rewards = inventoryRewards.collect();
+        if (rewards > 0) { inventoryFeedback = "Boss rewards added to your bag"; }
+        equipment.reconcile();
+        equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
         quests.synchronize();
         music.update(session.getCurrentMap().getType(), quests.getCompleted().size() == BossChallenge.values().length);
         GameMap currentMap = session.getCurrentMap();
@@ -282,15 +307,26 @@ public final class GameScreen extends ScreenAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
             inventoryOpen = !inventoryOpen;
             if (inventoryOpen) {
+                bigMap = false;
                 dialogueOpen = false;
                 chestOpen = false;
                 activeNpc = null;
             }
         }
-        if (session.getCurrentMap().getType() != MapType.MEMORIAL
+        if (!inventoryOpen && !chestOpen && session.getCurrentMap().getType() != MapType.MEMORIAL
                 && HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()).detailsVisible()
                 && Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             bigMap = !bigMap;
+        }
+        if (inventoryOpen || chestOpen) {
+            int pageDelta = (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT) ? 1 : 0)
+                    - (Gdx.input.isKeyJustPressed(Input.Keys.LEFT) ? 1 : 0);
+            if (inventoryOpen) { inventoryPage = Math.max(0, Math.min(pageCount(false) - 1, inventoryPage + pageDelta)); }
+            if (chestOpen) { chestPage = Math.max(0, Math.min(pageCount(true) - 1, chestPage + pageDelta)); }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                inventoryOpen = false;
+                chestOpen = false;
+            }
         }
         if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
             handleInventoryRightClick();
@@ -970,30 +1006,38 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
-        dialogueFont.draw(dialogueBatch, "INVENTORY", p.x, p.y + p.boxH - p.pad);
+        dialogueFont.draw(dialogueBatch, "BAG " + (inventoryPage + 1) + "/" + pageCount(false), p.x, p.y + p.boxH - p.pad);
         float cursor = p.y + p.boxH - p.pad - p.lineH * 1.6f;
         if (inventory.isEmpty()) {
             dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
             dialogueFont.draw(dialogueBatch, "(empty)", p.x + p.pad, cursor);
         } else {
-            for (Inventory.ItemStack stack : inventory.entries()) {
-                boolean equipped = stack.materialId().equals(equippedWeapon);
+            for (Inventory.ItemStack stack : visibleEntries(inventory, false)) {
+                boolean equipped = equipment.isEquipped(stack.materialId());
                 if (equipped) {
                     dialogueFont.setColor(0.40f, 1f, 0.55f, 1);
-                } else if (isWeapon(stack.materialId())) {
+                } else if (isWeapon(stack.materialId()) || ItemCatalog.gear(stack.materialId()).isPresent()) {
                     dialogueFont.setColor(0.95f, 0.90f, 0.55f, 1);
                 } else {
                     dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
                 }
                 String label = prettyName(stack.materialId()) + "  x" + stack.quantity()
-                        + (equipped ? "  [Equipped]" : "");
+                        + (equipped ? " [Worn]" : "") + "  " + ItemCatalog.effect(stack.materialId());
                 dialogueFont.draw(dialogueBatch, label, p.x + p.pad, cursor);
                 cursor -= p.lineH;
             }
         }
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, "[B] Close   [Right-click] Equip/Unequip",
+        dialogueFont.draw(dialogueBatch, "[B/Esc] Close  [Left/Right] Page",
                 p.x + p.pad, p.y + p.pad + 4f);
+        dialogueFont.setColor(0.9f, 0.85f, 0.6f, 1);
+        dialogueFont.draw(dialogueBatch, "ATK +" + equipment.attackPercent() + "%  DEF "
+                + equipment.defencePercent() + "%  Set " + equipment.setPieces() + "/4",
+                p.x + p.pad, p.y + p.pad + p.lineH * 3);
+        dialogueFont.draw(dialogueBatch, "Set: 2 = DEF +5%; 4 = ATK +10%",
+                p.x + p.pad, p.y + p.pad + p.lineH * 2);
+        dialogueFont.draw(dialogueBatch, inventoryFeedback,
+                p.x + p.pad, p.y + p.pad + p.lineH);
         dialogueBatch.end();
     }
     /**
@@ -1003,6 +1047,7 @@ public final class GameScreen extends ScreenAdapter {
      * @param hud current size and visibility policy
      */
     private void drawMinimap(HudLayout hud) {
+        if (inventoryOpen || chestOpen) { return; }
         if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
             return;
         }
@@ -1099,9 +1144,9 @@ public final class GameScreen extends ScreenAdapter {
     private ChestLayout chestLayout() {
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
-        float boxW = Math.min(w * 0.75f, 760f * scale);
-        float boxH = h * 0.6f;
+        float scale = Math.max(0.1f, Math.min(1.2f, Math.min(w / 900f, h / 600f)));
+        float boxW = Math.min(w * 0.94f, 860f * scale);
+        float boxH = h * 0.8f;
         float pad = 16f * scale;
         float lineH = 26f * scale;
         return new ChestLayout((w - boxW) / 2f, (h - boxH) / 2f,
@@ -1138,15 +1183,19 @@ public final class GameScreen extends ScreenAdapter {
         float mouseX = Gdx.input.getX();
         float mouseY = h - Gdx.input.getY();
         ChestLayout p = chestLayout();
-        float firstLine = p.y + p.boxH - p.pad - p.lineH * 1.6f;
+        float firstLine = p.y + p.boxH - p.pad - p.lineH * 2.5f;
 
-        var bag = inventory.entries();
+        var bag = visibleEntries(inventory, true);
         int row = hitRow(mouseX, mouseY, p.x + p.pad, p.colW, firstLine, p.lineH, bag.size());
         if (row >= 0) {
             Inventory.ItemStack stack = bag.get(row);
+            if ((long) chestStorage.quantityOf(stack.materialId()) + stack.quantity() > Integer.MAX_VALUE) {
+                travelStatus = "Chest stack is full";
+                return;
+            }
             int moved = inventory.removeItem(stack.materialId(), stack.quantity());
             chestStorage.addItem(stack.materialId(), moved);
-            if (stack.materialId().equals(equippedWeapon)) {
+            if (equipment.isEquipped(stack.materialId())) {
                 equippedWeapon = "";
             }
             travelStatus = "Stored: " + prettyName(stack.materialId()) + " x" + moved;
@@ -1154,10 +1203,14 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
 
-        var stored = chestStorage.entries();
+        var stored = visibleEntries(chestStorage, true);
         row = hitRow(mouseX, mouseY, p.x + p.pad * 2 + p.colW, p.colW, firstLine, p.lineH, stored.size());
         if (row >= 0) {
             Inventory.ItemStack stack = stored.get(row);
+            if ((long) inventory.quantityOf(stack.materialId()) + stack.quantity() > Integer.MAX_VALUE) {
+                travelStatus = "Bag stack is full";
+                return;
+            }
             int moved = chestStorage.removeItem(stack.materialId(), stack.quantity());
             inventory.addItem(stack.materialId(), moved);
             travelStatus = "Taken: " + prettyName(stack.materialId()) + " x" + moved;
@@ -1175,7 +1228,7 @@ public final class GameScreen extends ScreenAdapter {
         ChestLayout p = chestLayout();
         float top = p.y + p.boxH - p.pad;
         float rightCol = p.x + p.pad * 2 + p.colW;
-        float firstLine = top - p.lineH * 1.6f;
+        float firstLine = top - p.lineH * 2.5f;
 
         dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -1191,7 +1244,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(0.85f, 0.65f, 0.30f, 1);
-        dialogueFont.draw(dialogueBatch, "STORAGE CHEST", p.x + p.pad, top);
+        dialogueFont.draw(dialogueBatch, "STORAGE " + (chestPage + 1) + "/" + pageCount(true), p.x + p.pad, top);
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
         dialogueFont.draw(dialogueBatch, "INVENTORY", p.x + p.pad, top - p.lineH * 1.2f);
         dialogueFont.setColor(0.95f, 0.80f, 0.40f, 1);
@@ -1202,8 +1255,8 @@ public final class GameScreen extends ScreenAdapter {
             dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
             dialogueFont.draw(dialogueBatch, "(empty)", p.x + p.pad, cursor);
         } else {
-            for (Inventory.ItemStack stack : inventory.entries()) {
-                boolean equipped = stack.materialId().equals(equippedWeapon);
+            for (Inventory.ItemStack stack : visibleEntries(inventory, true)) {
+                boolean equipped = equipment.isEquipped(stack.materialId());
                 dialogueFont.setColor(equipped ? 0.40f : 0.85f,
                         equipped ? 1f : 0.85f, equipped ? 0.55f : 0.85f, 1);
                 dialogueFont.draw(dialogueBatch, prettyName(stack.materialId())
@@ -1218,7 +1271,7 @@ public final class GameScreen extends ScreenAdapter {
             dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
             dialogueFont.draw(dialogueBatch, "(empty)", rightCol, cursor);
         } else {
-            for (Inventory.ItemStack stack : chestStorage.entries()) {
+            for (Inventory.ItemStack stack : visibleEntries(chestStorage, true)) {
                 dialogueFont.setColor(0.95f, 0.90f, 0.55f, 1);
                 dialogueFont.draw(dialogueBatch, prettyName(stack.materialId())
                         + "  x" + stack.quantity(), rightCol, cursor);
@@ -1227,7 +1280,7 @@ public final class GameScreen extends ScreenAdapter {
         }
 
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, "[Right-click] move item    [E/B] Close",
+        dialogueFont.draw(dialogueBatch, "Right-click: move  Left/Right: page  E/Esc: close",
                 p.x + p.pad, p.y + p.pad + 4f);
         dialogueBatch.end();
     }
@@ -1238,6 +1291,9 @@ public final class GameScreen extends ScreenAdapter {
      * @throws NullPointerException if materialId is null
      */
     private String prettyName(String materialId) {
+        if (ItemCatalog.gear(materialId).isPresent() || ItemCatalog.POTION.equals(materialId)) {
+            return ItemCatalog.name(materialId);
+        }
         String cleaned = materialId.replace("weapon_", "").replace('_', ' ').trim();
         if (cleaned.isEmpty()) {
             return materialId;
@@ -1253,9 +1309,9 @@ public final class GameScreen extends ScreenAdapter {
     private PanelLayout inventoryLayout() {
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f) * 1.4f;
-        float boxW = Math.min(w * 0.5f, 420f * scale);
-        float boxH = h * 0.5f;
+        float scale = Math.max(0.1f, Math.min(1.2f, Math.min(w / 720f, h / 600f)));
+        float boxW = Math.min(w * 0.94f, 680f * scale);
+        float boxH = h * 0.88f;
         return new PanelLayout((w - boxW) / 2f, (h - boxH) / 2f,
                 boxW, boxH, 16f * scale, 26f * scale, scale);
     }
@@ -1280,7 +1336,7 @@ public final class GameScreen extends ScreenAdapter {
         float mouseY = h - Gdx.input.getY();
         PanelLayout p = inventoryLayout();
         float firstLine = p.y + p.boxH - p.pad - p.lineH * 1.6f;
-        var entries = inventory.entries();
+        var entries = visibleEntries(inventory, false);
         for (int i = 0; i < entries.size(); i++) {
             float baseline = firstLine - i * p.lineH;
             boolean insideRow = mouseX >= p.x && mouseX <= p.x + p.boxW
@@ -1289,21 +1345,66 @@ public final class GameScreen extends ScreenAdapter {
                 continue;
             }
             String id = entries.get(i).materialId();
-            if (!isWeapon(id)) {
+            if (ItemCatalog.POTION.equals(id)) {
+                inventoryFeedback = session.getPlayer().useHealthPotion() ? "Recovered up to 30 HP"
+                        : "Potion requires a living, injured player";
+                updateMapView();
+                return;
+            }
+            if (ItemCatalog.gear(id).isEmpty()) {
                 travelStatus = prettyName(id) + " cannot be equipped";
-            } else if (id.equals(equippedWeapon)) {
+            } else if (equipment.isEquipped(id)) {
+                equipment.toggle(id);
                 equippedWeapon = "";
                 travelStatus = "Unequipped: " + prettyName(id);
             } else {
+                equipment.toggle(id);
                 equippedWeapon = id;
                 travelStatus = "Equipped: " + prettyName(id);
             }
+            inventoryFeedback = travelStatus;
             updateMapView();
             return;
         }
     }
+    /** Calculates rows that fit above the panel footer.
+     * @param chest whether the two-column chest layout is active
+     * @return positive number of visible rows
+     */
+    private int rowsPerPage(boolean chest) {
+        if (chest) {
+            ChestLayout p = chestLayout();
+            return Math.max(1, (int) ((p.boxH - 2 * p.pad) / p.lineH - 4));
+        }
+        PanelLayout p = inventoryLayout();
+        return Math.max(1, (int) ((p.boxH - 2 * p.pad) / p.lineH - 6));
+    }
+
+    /** Counts pages including one page for empty storage.
+     * @param chest whether both chest columns participate
+     * @return positive page count
+     */
+    private int pageCount(boolean chest) {
+        int count = chest ? Math.max(inventory.distinctTypes(), chestStorage.distinctTypes()) : inventory.distinctTypes();
+        return Math.max(1, (count + rowsPerPage(chest) - 1) / rowsPerPage(chest));
+    }
+
+    /** Selects identical rows for rendering and mouse hit testing.
+     * @param storage bag or chest being displayed
+     * @param chest whether the chest layout is active
+     * @return immutable slice of the current stack snapshot
+     */
+    private List<Inventory.ItemStack> visibleEntries(Inventory storage, boolean chest) {
+        int page = Math.min(chest ? chestPage : inventoryPage, pageCount(chest) - 1);
+        if (chest) { chestPage = page; } else { inventoryPage = page; }
+        var entries = storage.entries();
+        int from = Math.min(entries.size(), page * rowsPerPage(chest));
+        return entries.subList(from, Math.min(entries.size(), from + rowsPerPage(chest)));
+    }
+
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
+        if (equipment != null) { equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON); }
         GameMap map = session.getCurrentMap();
         combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());

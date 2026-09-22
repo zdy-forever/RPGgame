@@ -2,6 +2,10 @@ package au.edu.anu.comp2120.player;
 
 import au.edu.anu.comp2120.combat.Damageable;
 import au.edu.anu.comp2120.combat.Health;
+import au.edu.anu.comp2120.combat.EquipmentModifiers;
+import au.edu.anu.comp2120.inventory.Inventory;
+import au.edu.anu.comp2120.inventory.Equipment;
+import au.edu.anu.comp2120.inventory.ItemCatalog;
 import au.edu.anu.comp2120.world.CollisionBox;
 import au.edu.anu.comp2120.world.WalkableArea;
 import java.util.Objects;
@@ -12,9 +16,50 @@ import au.edu.anu.comp2120.combat.ElementType;
  * Holds player geometry and health, with time-based eight-direction movement independent of graphics.
  * Damage delegates to the shared health model; death consequences are a future gameplay policy.
  *
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
-public final class Player implements Damageable {
+public final class Player implements Damageable, EquipmentModifiers {
+    /** Persistent item storage, shared with the existing screen UI. */
+    private final Inventory inventory = new Inventory();
+    /** Equipment survives map transitions with this player. */
+    private final Equipment equipment = new Equipment(inventory);
+
+    /** Returns this player's bag.
+     * @return persistent inventory
+     */
+    public Inventory getInventory() { return inventory; }
+
+    /** Returns worn items backed by this player's bag.
+     * @return persistent equipment owner
+     */
+    public Equipment getEquipment() { return equipment; }
+
+    /** Reads attack amplification from equipped items.
+     * @return equipment damage multiplier
+     */
+    @Override
+    public double equipmentAttackMultiplier() { return 1 + equipment.attackPercent() / 100.0; }
+
+    /** Reads damage reduction from equipped items.
+     * @return remaining damage multiplier
+     */
+    @Override
+    public double equipmentDefenceMultiplier() { return 1 - equipment.defencePercent() / 100.0; }
+
+    /** Uses a potion only when alive and injured; full health never consumes an item.
+     * @return whether one potion was consumed and health restored
+     */
+    public boolean useHealthPotion() {
+        String id = ItemCatalog.POTION;
+        if (!isAlive() || health.getCurrentHp() >= health.getMaxHp() || inventory.quantityOf(id) == 0) {
+            return false;
+        }
+        inventory.removeItem(id, 1);
+        health.heal(ItemCatalog.POTION_HEAL);
+        return true;
+    }
+
     /** Default player HP capacity; callers can override it with the explicit-capacity constructor. */
     public static final int DEFAULT_MAX_HP = 100;
     /** Per-player health retained during movement and map transitions. */
