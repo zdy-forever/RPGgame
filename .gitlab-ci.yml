@@ -16,6 +16,27 @@ include:
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-cache"
 
 secret_detection:
   stage: secret-detection
+
+gradle-build:
+  stage: test
+  image: eclipse-temurin:25-jdk
+  cache:
+    key:
+      files:
+        - Activity_2/gradle/wrapper/gradle-wrapper.properties
+        - Activity_2/build.gradle
+    paths:
+      - .gradle-cache/caches
+      - .gradle-cache/wrapper
+  script:
+    - cd Activity_2
+    - ./gradlew clean build javadocAudit --no-daemon
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "Activity_2/*/build/test-results/test/*.xml"
