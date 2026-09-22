@@ -16,6 +16,7 @@ import java.util.Optional;
  * Uses deterministic insertion order and simulation time, not rendering or wall-clock APIs.
  * Call on one game-loop thread; receivers must not re-enter or mutate this system during damage.
  *
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
 public final class CombatSystem {
@@ -497,7 +498,7 @@ public final class CombatSystem {
 
     /**
      * Central damage calculation boundary for ordinary, elemental and derived hits.
-     * Applies ordered reaction amplification then physical vulnerability; floors once and saturates.
+     * Applies reactions, physical vulnerability and equipment multipliers; floors once and saturates.
      * Baseline physical resistance is zero; only PHYSICAL damage receives the temporary reduction.
      * Health remains responsible for saturating lethal damage at zero.
      * @param attack invocation that passed detection
@@ -510,6 +511,12 @@ public final class CombatSystem {
                 + (reaction == null ? 0 : reaction.bonusDamage());
         if (attack.getSpecification().damageType() == DamageType.PHYSICAL) {
             total *= target.getStatus().physicalMultiplier();
+        }
+        if (attack.getSource().getEntity() instanceof EquipmentModifiers equipment) {
+            total *= equipment.equipmentAttackMultiplier();
+        }
+        if (target.getEntity() instanceof EquipmentModifiers equipment) {
+            total *= equipment.equipmentDefenceMultiplier();
         }
         return (int) Math.min(Integer.MAX_VALUE, total);
     }
