@@ -69,8 +69,10 @@ Melee attacks have a fixed red hitbox warning and accelerating exclamation flash
 0.8-second preparation. The supplied image is `art/boss/common/attack_warning.png`, rendered
 above the Boss with its square source aspect ratio preserved; the geometric fallback is removed.
 Animation selection is presentation-only; short gameplay windows can finish before all frames play.
-Balance, five unique elemental Boss movesets, art authorship/licensing review and final UI polish remain
-separate work. That original art import added no audio; the later three-track BGM integration is
+Each guardian now owns one signature mechanic and its own movement speed through `BossTrait`, so the
+five fights differ in play, but they still share one pattern set and one sprite pipeline: distinct
+per-guardian movesets, art and audio cues are still separate work, as are balance and final UI
+polish. See [Boss trait report](BOSS_TRAIT_REPORT.md). That original art import added no audio; the later three-track BGM integration is
 documented in `assets/audio/README.md`. The original pack's provenance filenames are retained in its manifest.
 
 ## Larger maps and practice
@@ -82,6 +84,8 @@ on the hall's left side for progress/ending dialogue and separately in Hub at (1
 beginner guide, using the same existing artwork. The return portal sits at (32, 32); arrival at (100, 48) is outside
 its trigger, preserving the existing arrival protection. These pictures do not change collision.
 The Hall-only minimap is hidden and the circle fits beneath the weapon panel, keeping every stone visible.
+Elsewhere the minimap and the expanded `[M]` map mark a living Boss with a red square, drawn after the
+NPC markers and before the green player marker so neither hides the other.
 
 Battle/training maps use centralized **1600 x 1200** world bounds; Hub uses **1080 x 400**.
 The **640 x 360** camera follows/clamps normally, with room to scroll in both axes.
@@ -98,6 +102,21 @@ On entry, `TrainingAppearance` makes independent random choices for elemental ar
 Selection stays fixed during the visit and an R reset, while leaving/re-entering samples again (a repeat
 is possible). The dummy stays still, does not attack, refills HP and scores delivered damage as before.
 The random selector accepts a seeded Random in tests and does not share the Mage ability RNG.
+
+## Status overlay without new assets
+
+Negative statuses are named above the actor they affect, in large uppercase text, using the built-in
+bitmap font and the world-space name-tag batch that already labels the player and NPCs. `FROZEN`,
+`STAGGERED`, `CHARGED`, `VULNERABLE` and `INVULNERABLE` come from shared combat state, so both the
+player and a guardian report them; `BURNING xN` comes from the fire guardian's own trait because only
+the trait holds its stack count. Control effects sort first and the immunity window is included so
+that negated hits read as a mechanic rather than a missing hit. Anchors match the scene's visual
+bodies rather than hitboxes, and the player's labels sit above its existing name tag.
+
+No asset was added for this: the existing `art/status/frozen.png` overlay and status icons stay as
+they are, and burning has text only. A dedicated burning icon remains optional future art work.
+Edges are slightly soft at large window sizes because the font is scaled in world units, matching
+the existing name tags. Up to five labels can stack above one actor.
 
 ## Verification
 

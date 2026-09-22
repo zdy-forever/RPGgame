@@ -221,6 +221,8 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── BossConfig.java
 │   ├── BossScaling.java
 │   ├── BossState.java
+│   ├── BossTrait.java
+│   ├── BossTraits.java
 │   ├── Enemy.java
 │   ├── EnemyAI.java
 │   ├── EnemyConfig.java
@@ -262,6 +264,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── HudLayout.java
 │   ├── PlaceholderRenderer.java
 │   ├── SceneArt.java
+│   ├── StatusLabels.java
 │   └── TrainingAppearance.java
 └── world/
     ├── AStarPathfinder.java
@@ -506,6 +509,21 @@ small, single-class packages (`BossQuests` and `BackgroundMusic`); UI beyond
   GameScreen routes requests. PlaceholderRenderer draws hurtbox/hitbox rectangles;
   HP, AI and ability states use native window-title text. All AI updates precede exactly one
   shared combat update per simulation step.
+- `CombatSystem.tryAffliction` submits one bounded pulse for attacker-owned damage-over-time or
+  punishment effects, so they still pass the shared faction, life, hit-ledger, overlap and occlusion
+  rules instead of touching a health model. The pulse is self-provenanced and therefore derived: it
+  attaches no element and creates no reaction or child, so afflictions cannot chain. Its
+  specification's cooldown is ignored, leaving the source's own melee/ranged pacing untouched.
+- `CombatStatus` also carries externally applied control and immunity: push, freeze and stagger with
+  explicit durations, and a total invulnerability window. All refresh rather than stack, are
+  validated before mutation, age in the same `advance` call and clear with the rest of the status.
+  An invulnerable receiver has every confirmed hit negated at the single damage boundary exactly as
+  a defensive interception does, consuming the attack's ledger and suppressing damage, element,
+  reaction and landed-hit follow-up. Unlike untargetability, which the contract limits to AI target
+  selection, this does stop existing attack geometry, including non-blockable pulses and ground ticks.
+- Displacement and control locks are applied by movement owners, never inside settlement: `EnemyAI`
+  resolves its own queued displacement, and `CombatDemo` resolves the player's through
+  `Player.moveBy` and substitutes an empty command while the player's status blocks actions.
 - No equipment armour, animation-driven combos or visual damage effects are implemented.
   First-version skills and reactions already use this pipeline. Future class/AI code supplies tuning and
   geometry to this pipeline instead of applying Health damage separately. Receivers
@@ -710,6 +728,35 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
   world occlusion at settlement. A defeated encounter stays stopped even if its Health is restored;
   a deliberate new encounter/reset is needed to fight and reward it again.
 
+### Guardian traits
+
+- `BossTrait` is a strategy interface with all-default methods, composed into the shared `Boss`
+  instead of subclassed from it. `Boss` resolves one trait from the arena's `BossChallenge`, the
+  same lookup `tryElementBolt` already used for its element, so no caller changed and every
+  non-campaign arena, including all test maps, receives `BossTrait.NONE` and is unchanged.
+- Traits are stateful for exactly one encounter; the factory returns a new instance per Boss, so
+  stacks, counters, countdowns and cooldowns never survive travel, defeat or a debug reset.
+- Health, damage settlement, collision, navigation, phases, death, rewards, admission and travel
+  remain owned by `Boss`, `CombatSystem` and `EncounterFlow`. A trait only observes and adds.
+- Observation is deferred, never a damage callback. Landed impacts are read from the existing public
+  `Attack.hasLandedHit` one decision step after settlement, the pattern `ClassSkills` already uses,
+  from a bounded list of the Boss's own submitted attacks. Damage taken is derived from settled
+  `Health`, which needs no callback and also covers reaction pulses, ground ticks and debug damage.
+- `tune(BossConfig)` adjusts the shared template before rematch scaling and is restricted to
+  navigation speed and the replan interval, plus the fire guardian's direct pattern damage. Health,
+  detection and loss radii, attack stopping distance, pattern geometry, pacing, elements, phase
+  threshold, transition duration and reward stay at the template's values, so a single balance
+  change still reaches all five guardians.
+- Effects that represent Boss agency, rather than an already delivered affliction, additionally
+  check `Boss.canAct()`, so a frozen or transitioning guardian cannot act while a burn it already
+  applied keeps running. Traits apply damage only through `CombatSystem.tryAffliction` and reposition
+  only through `Boss.blinkTo`, which drops the prepared strike, the cached route and its own attacks.
+- The fire guardian keeps 60% of the template's direct pattern damage and returns the difference as
+  burning stacks, so its total output stays comparable while the fight rewards breaking contact.
+  See [Boss trait report](BOSS_TRAIT_REPORT.md) for the per-guardian tuning and measured balance.
+- Limitations: one behaviour per arena, no trait composition or runtime replacement, no persistence,
+  and no per-guardian art or audio cue. Final balance across all five arenas remains open.
+
 ### Enemy
 
 - Owns enemy health, per-enemy decision state, and collision-constrained pursuit.
@@ -821,6 +868,16 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 - Will not mutate feature internals or implement gameplay rules.
 - Will read public APIs from Player, Quest, Inventory, and NPC.
 - No separate package exists until there are reusable UI classes.
+- `screen/StatusLabels` is the graphics-free mapping from a `CombatStatus`, plus an optional
+  attacker-owned label, to ordered uppercase status labels and colours. `PlaceholderRenderer`
+  stacks them above every actor through the existing world-space name-tag batch and camera
+  projection. Shared statuses are read per actor, so a guardian frozen by the player's own reaction
+  is labelled as well; only burning arrives through the trait channel because the trait owns its
+  stack count. Control effects sort first and the immunity window is included, so negated hits read
+  as a mechanic. No new asset is loaded.
+- `GameScreen.drawMinimap` marks a living Boss with a red square on both the corner minimap and the
+  expanded `[M]` map, using the same world-to-minimap conversion as its obstacle, portal, NPC and
+  player markers, drawn before the player so the two never hide each other.
 
 ### Save / Game State
 
@@ -1087,4 +1144,9 @@ commit message.
   shared damage, world-collision, Hub-only selection and one-generation reaction contracts.
 - Agree on the first save-file version and snapshot fields before implementing
   save/load; do not serialize complete LibGDX objects directly.
+- Agree on final guardian balance. Scripted fights show mobile classes winning every arena, while
+  a deliberately stationary caster loses to the ice and wind guardians; measurements and the
+  single-constant levers are recorded in [Boss trait report](BOSS_TRAIT_REPORT.md).
+- Decide whether burning deserves its own status icon; the overlay currently uses text only and
+  adds no asset.
 - Decide which P2 features will be dropped if the P0/P1 schedule slips.
