@@ -25,6 +25,7 @@ import au.edu.anu.comp2120.combat.ProjectileSpec;
  * Slot cooldowns replace the pipeline's per-source delay for these attacks: submissions use zero
  * source delay, preserving one canonical player receiver and all existing hit/death rules.
  * Use one controller per player, called only on the game-loop thread.
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlayerAbilities {
@@ -449,4 +450,28 @@ public final class PlayerAbilities {
         source.setHurtbox(new CollisionBox(player.getX() + insetX, player.getY() + insetY,
                 hurtWidth, hurtHeight));
     }
+
+    /** Checks active actions and projectiles independently of cooldowns.
+     * @return true only when a snapshot can omit transient combat execution
+     */
+    public boolean isIdleForSave() {
+        return available() && !skills.busy() && dashRemaining <= 0
+                && Arrays.stream(launchWindows).noneMatch(value -> value > 0)
+                && combat.getActiveAttacks().isEmpty();
+    }
+
+    /** Restores all slot timers after the coordinator clears and rebinds the combat scope.
+     * @param saved complete immutable or detached cooldown map
+     * @throws IllegalArgumentException if a timer is missing, negative or non-finite
+     * @throws NullPointerException if saved contains null
+     */
+    public void restoreCooldowns(java.util.Map<AbilitySlot, Double> saved) {
+        var copy = java.util.Map.copyOf(saved);
+        if (copy.size() != AbilitySlot.values().length
+                || copy.values().stream().anyMatch(value -> !Double.isFinite(value) || value < 0)) {
+            throw new IllegalArgumentException("Invalid saved cooldowns");
+        }
+        for (var slot : AbilitySlot.values()) { cooldowns[slot.ordinal()] = copy.get(slot); }
+    }
+
 }

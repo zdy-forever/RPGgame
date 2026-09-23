@@ -881,6 +881,8 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 
 ### Save / Game State
 
+**Implementation update (Hao Liu, u7998420):** The two-slot save/load system is now implemented. See [SAVE_LOAD_REPORT.md](SAVE_LOAD_REPORT.md) for controls, snapshot coverage, validation and tests. The future-tense bullets below describe the original architecture plan.
+
 - Will own save-file creation, loading, validation, and versioning.
 - Will coordinate immutable snapshots supplied by gameplay modules rather than
   reaching into their private fields.

@@ -6,6 +6,7 @@ import java.util.List;
  * Non-player character with a position, one or more dialogue lines and a one-time item reward.
  * World coordinates use a bottom-left origin; x points right and y points up.
  *
+ * @author Hao Liu (u7998420)
  * @author Jiaqi Chen (u7851266)
  */
 public final class NPC {
@@ -189,4 +190,10 @@ public final class NPC {
     public boolean isAdjacent(double px, double py, double range) {
         return Math.abs(px - x) <= range && Math.abs(py - y) <= range;
     }
+
+    /** Restores the one-time reward flag, including rollback to an earlier timeline.
+     * @param claimed whether this save has consumed the reward
+     */
+    public void restoreInteracted(boolean claimed) { interacted = claimed; }
+
 }
