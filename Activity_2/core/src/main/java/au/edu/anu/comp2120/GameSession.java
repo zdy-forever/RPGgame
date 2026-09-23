@@ -15,6 +15,7 @@ import java.util.Objects;
  * World classes remain independent of concrete player types and screens.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Hao Liu (u7998420)
  */
 public final class GameSession {
     /** Immutable catalogue, indexed by unique map ID. */
@@ -79,6 +80,22 @@ public final class GameSession {
      */
     public long getTransitionVersion() {
         return transitionVersion;
+    }
+
+    /** Restores an exact saved location while keeping session and player collision maps aligned.
+     * Validates the full body before changing any state. This low-level operation grants no
+     * permission to load during combat; the save coordinator must enforce that separately.
+     * @param mapId registered destination map
+     * @param x saved bottom-left horizontal coordinate
+     * @param y saved bottom-left vertical coordinate
+     * @throws NullPointerException if mapId is null
+     * @throws IllegalArgumentException if the map or position is invalid
+     */
+    public void restoreLocation(String mapId, double x, double y) {
+        GameMap target = getMap(mapId);
+        player.enterArea(target, x, y);
+        currentMap = target;
+        transitionVersion++;
     }
 
     /**

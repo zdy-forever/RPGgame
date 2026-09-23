@@ -14,6 +14,7 @@ import java.util.Objects;
  * Owns only travel state; map lookup, full-body spawn validation, and switching remain in
  * GameSession. Calls are made on the game-loop thread, independently of graphics/input APIs.
  *
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
 public final class TravelSystem {
@@ -266,4 +267,21 @@ public final class TravelSystem {
         return portal.sourceMapId().equals(session.getCurrentMap().getId())
                 && portal.trigger().overlaps(session.getPlayer().getBounds());
     }
+
+    /** Restores validated routes and unlocks; forces exit-before-entry to prevent instant travel.
+     * @param routes complete portal snapshots validated against this catalogue
+     * @param unlocks complete destination unlock map
+     */
+    public void restoreProgress(java.util.List<Portal> routes, Map<String, Boolean> unlocks) {
+        routes.forEach(route -> portals.put(route.id(), route));
+        unlocks.forEach((id, unlocked) -> {
+            var old = destinations.get(id);
+            destinations.put(id, new FastTravelDestination(old.id(), old.name(), old.mapId(), old.spawnId(), unlocked));
+        });
+        arrivalPortalId = null;
+        portalArrivalVersion = Long.MIN_VALUE;
+        observedTransition = session.getTransitionVersion();
+        waitingForExit = true;
+    }
+
 }

@@ -31,6 +31,7 @@ import java.util.Optional;
  * Owns encounter placement/cleanup and post-settlement outcomes, not AI or damage rules.
  * Screen input supplies commands; common abilities own execution while rendering reads geometry.
  *
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
 public final class CombatDemo {
@@ -550,6 +551,13 @@ public final class CombatDemo {
         double inset = Math.min(GameConfig.COMBAT_HURTBOX_INSET, Math.min(body.width(), body.height()) / 4);
         return new CollisionBox(body.x() + inset, body.y() + inset,
                 body.width() - 2 * inset, body.height() - 2 * inset);
+    }
+
+
+    /** Rebuilds the combat scope after a validated load, cancelling all transient effects. */
+    public void synchronizeAfterLoad() {
+        syncMap();
+        lastDefeat = null;
     }
 
 }

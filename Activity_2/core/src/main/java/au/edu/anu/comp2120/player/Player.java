@@ -313,4 +313,33 @@ public final class Player implements Damageable, EquipmentModifiers {
     public WalkableArea getCollisionArea() {
         return area;
     }
+
+    /** Reads every profession's remembered mode for persistence.
+     * @return immutable complete selection map
+     */
+    public java.util.Map<PlayerClass, UltimateMode> savedModes() {
+        var result = new EnumMap<PlayerClass, UltimateMode>(PlayerClass.class);
+        for (var type : PlayerClass.values()) { result.put(type, ultimateModes.getOrDefault(type, UltimateMode.A)); }
+        return java.util.Map.copyOf(result);
+    }
+
+    /** Restores validated selections without invoking interactive Hub controls.
+     * @param type saved profession
+     * @param element saved Mage element
+     * @param modes complete profession selections
+     * @throws IllegalArgumentException if a selection is incomplete or invalid
+     * @throws NullPointerException if a required value is null
+     */
+    public void restoreSelections(PlayerClass type, ElementType element,
+            java.util.Map<PlayerClass, UltimateMode> modes) {
+        Objects.requireNonNull(type); Objects.requireNonNull(element);
+        var copy = java.util.Map.copyOf(modes);
+        if (element == ElementType.NONE || copy.size() != PlayerClass.values().length) {
+            throw new IllegalArgumentException("Invalid saved player selections");
+        }
+        classDefinition = PlayerClasses.get(type);
+        mageElement = element;
+        ultimateModes.clear(); ultimateModes.putAll(copy);
+    }
+
 }

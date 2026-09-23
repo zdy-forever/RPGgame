@@ -15,6 +15,7 @@ import java.util.Set;
  * Game-loop-thread boundary between external challenge acceptance and gameplay outcomes.
  * Owns admission and an in-memory reward outbox, not Quest progress or Inventory storage.
  * Combat coordination calls complete only after normal settlement, never from damage callbacks.
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
 public final class EncounterFlow {
@@ -240,4 +241,26 @@ public final class EncounterFlow {
             throw new IllegalStateException("Encounter selection requires a living player in Hub");
         }
     }
+
+    /** Replaces persistent encounter data after complete save validation.
+     * Last-result polling is cleared so loading cannot replay a victory or trigger autosave.
+     * @param permission saved active permission, or null
+     * @param counts validated win counts by arena
+     * @param completed validated completed acceptance IDs
+     * @param rewards validated unclaimed rewards
+     */
+    public void restoreProgress(ActiveEncounter permission, Map<String, Integer> counts,
+            Set<String> completed, Map<BattleResult, MaterialDrop> rewards) {
+        active = permission;
+        successCounts.clear(); successCounts.putAll(counts);
+        pendingRewards.clear(); pendingRewards.putAll(rewards);
+        completedIds.clear(); completedIds.addAll(completed);
+        lastResult = null;
+    }
+
+    /** Reads completed acceptance identities to preserve replay protection across loading.
+     * @return immutable completed acceptance IDs
+     */
+    public Set<String> getCompletedEncounterIds() { return Set.copyOf(completedIds); }
+
 }

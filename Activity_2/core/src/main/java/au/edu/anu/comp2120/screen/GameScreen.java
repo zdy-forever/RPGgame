@@ -43,6 +43,10 @@ public final class GameScreen extends ScreenAdapter {
 
     /** Current-map and player coordination, independent of this screen's lifecycle. */
     private final GameSession session;
+    /** Full gameplay persistence coordinator, confined to the render thread. */
+    private final au.edu.anu.comp2120.save.GameSaves saves;
+    /** Confirmation and two-slot selection overlay. */
+    private final SaveMenu saveMenu;
     /** Portal trigger/unlock state; delegates every map transition to the existing session. */
     private final TravelSystem travel;
     /** Graphics-independent debug adapter; all damage goes through the shared combat pipeline. */
@@ -164,6 +168,14 @@ public final class GameScreen extends ScreenAdapter {
             if (item.slot() != EquipmentSlot.WEAPON) { chestStorage.addItem(item.id()); }
         }
         chestStorage.addItem(ItemCatalog.POTION, 3);
+        var savedNpcs = new java.util.ArrayList<NPC>(GameConfig.HUB_NPCS);
+        savedNpcs.add(GameConfig.GUIDE);
+        savedNpcs.add(GameConfig.TRAINING_EXIT);
+        saves = new au.edu.anu.comp2120.save.GameSaves(session, travel, encounterFlow, quests,
+                combatDemo, chestStorage, savedNpcs,
+                new au.edu.anu.comp2120.save.SaveStore(java.nio.file.Path.of(
+                        System.getProperty("user.home"), ".comp2120-game", "saves")));
+        saveMenu = new SaveMenu(saves);
     }
 
     /**
@@ -202,12 +214,13 @@ public final class GameScreen extends ScreenAdapter {
         equipment.reconcile();
         equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
         quests.synchronize();
+        saves.afterSettlement();
         music.update(session.getCurrentMap().getType(), quests.getCompleted().size() == BossChallenge.values().length);
         GameMap currentMap = session.getCurrentMap();
         renderer.render(currentMap, session.getPlayer(),
                 currentNpcs(),
                 travel.getPortals(currentMap.getId()),
-                combatDemo, paused || dialogueOpen || inventoryOpen || chestOpen || bigMap
+                combatDemo, paused || saveMenu.isOpen() || dialogueOpen || inventoryOpen || chestOpen || bigMap
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
                 combatDemo.getDrops(), quests.getCompleted());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
@@ -222,6 +235,7 @@ public final class GameScreen extends ScreenAdapter {
         drawSkillHud(hud);
         drawDialogue();
         drawOutcome(delta);
+        saveMenu.draw(dialogueBatch, dialogueFont, dialogueShapes);
     }
 
     /**
@@ -258,6 +272,12 @@ public final class GameScreen extends ScreenAdapter {
      * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
      */
     private void updateGameplay(double delta) {
+        if (saveMenu.update(dialogueOpen || inventoryOpen || chestOpen || bigMap || endingOpen || credits.isOpen())) {
+            equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
+            inventoryPage = 0; chestPage = 0;
+            updateMapView();
+            return;
+        }
         if (combatDemo.returnToHubIfBattleEnded()) {
             showBattleReturn();
             return;

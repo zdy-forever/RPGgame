@@ -20,6 +20,7 @@ import java.util.UUID;
  * One quest is active at a time; failure retains it, success marks its distinct target complete.
  * Rewards remain in EncounterFlow's outbox for the inventory owner. No save/load is performed.
  * Call synchronize on the game-loop thread after combat settlement and before accepting a quest.
+ * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
  */
 public final class BossQuests {
@@ -146,4 +147,24 @@ public final class BossQuests {
             throw new IllegalStateException("Accept quests from the Quest Keeper in Hub");
         }
     }
+
+    /** Reads whether the one-time ending has already started.
+     * @return ending consumption flag
+     */
+    public boolean hasEndingStarted() { return endingStarted; }
+
+    /** Replaces validated progress, deriving the pending ending from completed guardians.
+     * @param done distinct completed guardians
+     * @param target active quest, or null
+     * @param started saved ending consumption flag
+     */
+    public void restoreProgress(Set<BossChallenge> done, BossChallenge target, boolean started) {
+        completed.clear(); completed.addAll(done);
+        active = target;
+        permission = encounters.getActiveEncounter().orElse(null);
+        observed = null;
+        endingStarted = started;
+        endingPending = done.size() == BossChallenge.values().length && !started;
+    }
+
 }

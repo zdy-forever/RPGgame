@@ -7,6 +7,7 @@ package au.edu.anu.comp2120.combat;
  * Mutations belong on the game-loop thread; this model is not thread-safe.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Hao Liu (u7998420)
  */
 public final class Health implements Damageable {
     /** Positive hit-point limit, fixed for this health instance. */
@@ -115,6 +116,19 @@ public final class Health implements Damageable {
      */
     public void restoreFull() {
         currentHp = maxHp;
+    }
+
+    /** Restores an exact saved HP value without treating loading as a combat hit.
+     * May explicitly revive, like restoreFull. The coordinator must discard active combat
+     * actions before loading; damageVersion remains a counter of actual damage events.
+     * @param savedHp saved hit points from zero through this instance's maximum
+     * @throws IllegalArgumentException if savedHp is outside the valid range
+     */
+    public void restoreSavedHp(int savedHp) {
+        if (savedHp < 0 || savedHp > maxHp) {
+            throw new IllegalArgumentException("Saved HP is outside health capacity");
+        }
+        currentHp = savedHp;
     }
 
     /**
