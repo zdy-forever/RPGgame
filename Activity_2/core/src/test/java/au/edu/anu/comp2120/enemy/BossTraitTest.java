@@ -13,9 +13,12 @@ import au.edu.anu.comp2120.world.SpawnPoint;
 import au.edu.anu.comp2120.world.TestMaps;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -233,7 +236,9 @@ final class BossTraitTest {
         assertNotEquals(start, escaped);
         assertTrue(f.map.isWalkable(escaped), "A blink must land on a fully walkable body");
         assertEquals(escaped, f.boss.getCombatant().getHurtbox());
+        assertBlinkDistance(escaped, f.target.getHurtbox());
         assertTrue(f.boss.getMeleeWarning().isEmpty(), "A blink must drop its prepared strike");
+        assertTrue(f.combat.getActiveAttacks().isEmpty(), "Arrival must not create a new ranged attack either");
         assertTrue(f.boss.getTraitStatus().contains("(1)"));
         f.boss.getHealth().takeDamage(BossTraits.BLINK_DAMAGE);
         f.boss.update(f.target, 0);
@@ -267,11 +272,141 @@ final class BossTraitTest {
                             && landed.right() <= arena.right() && landed.top() <= arena.top(),
                     "Random destinations must stay inside the arena");
             assertFalse(landed.overlaps(f.target.getHurtbox()), "A blink must not land on the target");
+            assertBlinkDistance(landed, f.target.getHurtbox());
             assertEquals(landed, f.boss.getCombatant().getHurtbox());
             seen.add(landed);
             previous = landed;
         }
         assertTrue(seen.size() > 1, "Destinations must not be a single fixed spot");
+    }
+
+    /**
+     * The arrival frame consumes its entire decision even with enough delta to chase back into melee.
+     * @param delta decision step containing the burst-triggered blink
+     */
+    @ParameterizedTest @ValueSource(doubles = {0, 0.016, 0.5, 4})
+    void blinkArrivalCannotChaseOrStartAnotherAttack(double delta) {
+        Fixture f = fixture(BossChallenge.WIND);
+        f.boss.update(f.target, 0);
+        assertTrue(f.boss.getMeleeWarning().isPresent());
+        CollisionBox old = f.boss.getBounds();
+        f.boss.getHealth().takeDamage(BossTraits.BLINK_DAMAGE);
+        f.boss.update(f.target, delta);
+        assertNotEquals(old, f.boss.getBounds());
+        assertBlinkDistance(f.boss.getBounds(), f.target.getHurtbox());
+        assertEquals(BossState.IDLE, f.boss.getState());
+        assertTrue(f.boss.getMeleeWarning().isEmpty());
+        assertTrue(f.combat.getActiveAttacks().isEmpty());
+        assertEquals(0, f.combat.getCooldownRemaining(f.boss.getCombatant()));
+        assertEquals(1000, f.victim.getHealth().getCurrentHp());
+    }
+
+    /**
+     * Seeded placements near every edge/corner retain the full body inside an obstructed arena.
+     * Distance is measured from the player's current centre, never the old Boss position.
+     * @param x target left edge
+     * @param y target bottom edge
+     */
+    @ParameterizedTest
+    @CsvSource({"0,0", "980,0", "0,780", "980,780", "0,400", "980,400", "480,0", "480,780"})
+    void seededBlinksRespectPlayerDistanceWallsAndMapEdges(double x, double y) {
+        for (int seed = 0; seed < 32; seed++) {
+            Fixture f = windFixture(1000, 800, List.of(new CollisionBox(500, 0, 30, 800)),
+                    new CollisionBox(200, 200, 64, 64), new CollisionBox(x, y, 20, 20));
+            assertTrue(BossTraits.tryBlink(f.boss, f.target, new Random(seed)), "seed=" + seed);
+            assertTrue(f.map.isWalkable(f.boss.getBounds()));
+            assertFalse(f.boss.getBounds().overlaps(f.target.getHurtbox()));
+            assertEquals(f.boss.getBounds(), f.boss.getCombatant().getHurtbox());
+            assertBlinkDistance(f.boss.getBounds(), f.target.getHurtbox());
+        }
+    }
+
+    /** Repeated out-of-bounds random rolls still find a legal fallback rather than flaky failure. */
+    @Test void unluckyRandomRollsUseBoundedFallback() {
+        Fixture f = windFixture(1000, 800, List.of(), new CollisionBox(700, 300, 64, 64),
+                new CollisionBox(980, 400, 20, 20));
+        Random outward = new Random(0) {
+            /** Every sampled bearing is east and every radius is the minimum: outside this map. */
+            @Override public double nextDouble() { return 0; }
+        };
+        assertTrue(BossTraits.tryBlink(f.boss, f.target, outward));
+        assertTrue(f.map.isWalkable(f.boss.getBounds()));
+        assertBlinkDistance(f.boss.getBounds(), f.target.getHurtbox());
+    }
+
+    /** A map too small for the distance band leaves position, warning, cooldown and immunity unchanged. */
+    @Test void noSafeLandingDoesNotForceBlinkOrConsumeDodge() {
+        Fixture f = windFixture(128, 128, List.of(), new CollisionBox(0, 0, 64, 64),
+                new CollisionBox(80, 80, 20, 20));
+        f.boss.update(f.target, 0);
+        CollisionBox before = f.boss.getBounds();
+        var warning = f.boss.getMeleeWarning();
+        assertTrue(warning.isPresent());
+        for (int seed = 0; seed < 8; seed++) {
+            assertFalse(BossTraits.tryBlink(f.boss, f.target, new Random(seed)));
+            assertEquals(before, f.boss.getBounds());
+            assertEquals(warning, f.boss.getMeleeWarning());
+        }
+        f.boss.getHealth().takeDamage(BossTraits.BLINK_DAMAGE);
+        f.boss.update(f.target, 0);
+        assertEquals(before, f.boss.getBounds());
+        assertEquals("Dodge ready (0)", f.boss.getTraitStatus());
+        assertFalse(f.boss.getCombatant().getStatus().isInvulnerable());
+        assertEquals(0, f.combat.getCooldownRemaining(f.boss.getCombatant()));
+    }
+
+    /** Random rolls into a solid wall are rejected before the bounded fallback finds clear ground. */
+    @Test void wallBlockedRandomRollsUseSafeFallback() {
+        Fixture f = windFixture(1000, 800, List.of(new CollisionBox(430, 0, 80, 800)),
+                new CollisionBox(200, 200, 64, 64), new CollisionBox(280, 220, 20, 20));
+        Random intoWall = new Random(0) {
+            /** Selects east at the minimum radius, placing the Boss body inside the wall. */
+            @Override public double nextDouble() { return 0; }
+        };
+        assertTrue(BossTraits.tryBlink(f.boss, f.target, intoWall));
+        assertTrue(f.map.isWalkable(f.boss.getBounds()));
+        assertBlinkDistance(f.boss.getBounds(), f.target.getHurtbox());
+    }
+
+    /** Identical seeds and geometry produce identical accepted destinations. */
+    @Test void seededBlinkPlacementIsReproducible() {
+        Fixture first = fixture(BossChallenge.WIND), second = fixture(BossChallenge.WIND);
+        assertTrue(BossTraits.tryBlink(first.boss, first.target, new Random(2026)));
+        assertTrue(BossTraits.tryBlink(second.boss, second.target, new Random(2026)));
+        assertEquals(first.boss.getBounds(), second.boss.getBounds());
+    }
+
+    /**
+     * Asserts the exact public centre-distance contract rather than only non-overlap.
+     * @param boss destination body
+     * @param target player's current hurtbox
+     */
+    private static void assertBlinkDistance(CollisionBox boss, CollisionBox target) {
+        double distance = Math.hypot(boss.x() + boss.width() / 2 - target.x() - target.width() / 2,
+                boss.y() + boss.height() / 2 - target.y() - target.height() / 2);
+        assertTrue(distance >= BossTraits.BLINK_MIN_DISTANCE, "Too close: " + distance);
+        assertTrue(distance <= BossTraits.BLINK_MAX_DISTANCE, "Too far: " + distance);
+    }
+
+    /**
+     * Builds a wind encounter on custom geometry while retaining production collision and trait wiring.
+     * @param width arena width
+     * @param height arena height
+     * @param walls static blockers
+     * @param body initial Boss bounds
+     * @param targetBounds target hurtbox
+     * @return isolated wind encounter
+     */
+    private Fixture windFixture(double width, double height, List<CollisionBox> walls,
+                                CollisionBox body, CollisionBox targetBounds) {
+        GameMap map = new GameMap(BossChallenge.WIND.mapId(), "Blink test", MapType.BATTLE, width, height,
+                walls, Map.of("entry", new SpawnPoint(0, 0)), "entry");
+        CombatSystem combat = new CombatSystem();
+        Boss boss = new Boss("wind", "Wind Boss", body, map, GameConfig.SENTINEL, combat);
+        Enemy victim = new Enemy(1000);
+        Combatant target = new Combatant(victim, Faction.PLAYER, targetBounds);
+        combat.register(target);
+        return new Fixture(map, combat, boss, victim, target);
     }
 
     /** The arrival is briefly untouchable, which ends the burst instead of only relocating it. */

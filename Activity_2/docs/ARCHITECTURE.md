@@ -751,6 +751,13 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
   check `Boss.canAct()`, so a frozen or transitioning guardian cannot act while a burn it already
   applied keeps running. Traits apply damage only through `CombatSystem.tryAffliction` and reposition
   only through `Boss.blinkTo`, which drops the prepared strike, the cached route and its own attacks.
+- Wind blink destinations are sampled 180–320 world units from the current player hurtbox centre,
+  not from the Boss's old position, with at least 120 units of displacement from its old centre.
+  Both distance limits, target non-overlap and existing full-body world collision must pass.
+  Twenty-four random candidates are followed by a bounded 48-bearing, three-radius fallback;
+  no safe candidate means no blink, no immunity and no dodge cooldown consumption. Candidates
+  are never clamped outside the distance band. A successful trait relocation consumes that entire
+  Boss decision step, so pursuit or a new melee/ranged attack cannot resume in the arrival frame.
 - The fire guardian keeps 60% of the template's direct pattern damage and returns the difference as
   burning stacks, so its total output stays comparable while the fight rewards breaking contact.
   See [Boss trait report](BOSS_TRAIT_REPORT.md) for the per-guardian tuning and measured balance.
