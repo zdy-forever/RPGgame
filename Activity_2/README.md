@@ -17,6 +17,51 @@ See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification
 projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions
 in the development notes below are superseded by that document; collision remains geometric.
 
+## Inventory, equipment and save/load
+
+These features are integrated into the production game. See the
+[documentation index](docs/README.md) for implementation reports and dated verification.
+
+| Action | Control and result |
+| --- | --- |
+| Obtain a weapon | Talk to Weapon Merchant in Hub at (650,250), press E to advance the dialogue and collect the Lightning staff once. |
+| Equip / unequip | B opens the bag; right-click a wearable. Equipped rows show `[Worn]`; the footer shows attack, defence and set bonuses. |
+| Use a potion | Right-click a health potion in the bag, or P during gameplay. Heals up to 30 HP; full-health or dead players do not consume it. |
+| Transfer items | E near Storage Chest opens STORAGE; right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
+| Page / close | Left/Right changes pages; B/Escape closes the bag, E/Escape closes storage. |
+| Save manually | F5 in a safe Hub or Memorial Hall; Enter confirms an overwrite, Escape cancels. |
+| Load | F9, then 1 for automatic or 2 for manual, then Enter to replace current progress; Escape cancels. |
+
+On macOS, function keys may require Fn. Close dialogue, bag, chest, enlarged map,
+ending and credits before saving/loading. A living player with no active skills,
+dash, launch window or projectile is required; Training and Battle are excluded.
+Remaining cooldowns are allowed and restored. F5 is reserved for saving in the
+production screen; choose O mode A/B through the **Class Master** in Hub.
+
+The chest initially contains four guardian armour pieces and three potions. Wearables
+stay in bag counts; storing the last copy removes its equipment bonus. The WEAPON panel
+shows only the weapon slot, so `No weapon equipped` is correct when only armour is worn.
+The staff gives +20% attack; two guardian pieces add 5% defence and four add 10% attack.
+Individual armour values and the shared damage calculation are documented in the
+[inventory/equipment report](docs/INVENTORY_EQUIPMENT_REPORT.md).
+
+Boss success automatically returns to Hub, restores HP, settles rewards and quest progress,
+then writes the automatic checkpoint without waiting for an NPC interaction. Failure does
+not autosave. Manual and automatic slots never overwrite each other. Loading replaces live
+state without writing either file; a later victory can replace the automatic slot from the
+loaded timeline, even if that timeline has less progress.
+
+Save files are stored outside the repository in `${user.home}/.comp2120-game/saves/`
+as `automatic.properties` and `manual.properties`. Startup creates a fresh live session
+and leaves both files untouched; use F9 to resume. There is currently no in-game New Game
+or delete-slots button. See the [save/load report](docs/SAVE_LOAD_REPORT.md) for snapshot
+coverage, failure handling and verification limits.
+
+Save notifications appear at the upper left below the visible HP/position HUD with a dark
+background and wrapping text. Their font, margins and the save panel shrink with either
+window dimension. A blocked-operation hint clears when the blocker disappears or after
+four seconds; this prevents a dialogue-related F9 warning from remaining on screen.
+
 ## Current controls: one Hub portal, practice, battle or Memorial Hall
 
 Background music loops automatically: Hub/Memorial Hall use `audio/hub_theme.wav` before all five
@@ -46,7 +91,7 @@ press **E** to confirm. Re-accepting the same task also requires confirmation ag
 
 - Provisional targets: Fire / Water / Lightning / Ice / Wind Sentinel, each with a distinct arena.
 - A successful return records that target and shows a **green check before its name** next time
-  the quest list is opened. Completed targets cannot be accepted again this session.
+  the quest list is opened. Completed targets can be accepted again with a new encounter identity; repeat wins do not add another distinct guardian stone.
 - Failure retains the task for retry with a fresh Boss; practice visits also retain the task.
 - Memorial Hall fits one camera view: **640 x 360 world units**, displayed at **960 x 540** in the
   default window. Its lower-left portal returns to Hub; Old Sage stands on the left and a five-slot
@@ -55,13 +100,12 @@ press **E** to confirm. Re-accepting the same task also requires confirmation ag
 - Defeating all **five distinct** targets unlocks, but does not automatically play, the ending.
   Visit Memorial Hall and speak to **Old Sage [E]** to start the one-time dialogue; advance its
   three lines with **E**. Repeated conversations do not replay it. Stones reflect quest progress,
-  not inventory items, and remain lit across map visits within the session.
+  not inventory items, and remain lit across map visits; saved completion is restored when loading.
 - All five identities share the Sentinel's 400 HP, two-phase pattern geometry and material tuning.
   Each now also owns one signature mechanic and its own movement speed, so the fights differ in
   play without a separate Boss class: see [Guardian traits](#guardian-traits) below and the
   [Boss trait report](docs/BOSS_TRAIT_REPORT.md). Final names, per-guardian art/audio cues, the
-  final ending script and final balance remain future content work. Task progress and ending
-  playback are session-local, without save/load.
+  final ending script and final balance remain future content work. Task progress and the one-time ending flag are included in save snapshots.
 
 - Training has one stationary, non-attacking target, not a Boss. J/K/L/O use the shared
   abilities/combat pipeline. The scoreboard shows total delivered damage, last damage and
@@ -71,7 +115,7 @@ press **E** to confirm. Re-accepting the same task also requires confirmation ag
   Talk to the **Return to Hub** NPC near the Training entrance: **E** opens confirmation,
   **E** again returns, **Escape** cancels. Leaving and re-entering creates a fresh target/score.
 - Every admitted Battle arena contains one real Boss and retains the success/failure flow below.
-- F1/F2/F3 select class and F5 selects its O mode **in Hub only**, including before practice.
+- F1/F2/F3 select class **in Hub only**, including before practice. Use Class Master for O mode; F5 saves.
 
 The **Class Master** in Hub at (320,130) provides the same choices without debug keys:
 approach and press **E**, select a profession or its **O mode A/B** with **Up/Down**, then
@@ -139,13 +183,15 @@ TravelSystem's existing arrival guard prevents immediate automatic return throug
 
 Quest/NPC acceptance and quest status remain outside gameplay; success-return is now integrated.
 Failure does not mark a Quest failed/completed or remove it; its external owner can keep it ACTIVE.
-Each Player retains a separate A/B ultimate selection for every class. F5 and the gameplay
-selection API work only in Hub; recovery cancels activity, not these choices. See
+Each Player retains a separate A/B ultimate selection for every class. The Class Master and gameplay
+selection API work only in Hub; recovery cancels activity, not these choices. F5 is the manual-save key. See
 [the defeat implementation report](docs/PLAYER_DEFEAT_REPORT.md) for tests and limitations.
 
 ## Author
 
 - Daoyan Zhu (`u7782042`)
+- Jiaqi Chen (`u7851266`)
+- Hao Liu (`u7998420`) — inventory/equipment integration, save/load and related UI refinements.
 
 ## Requirements
 
@@ -207,7 +253,7 @@ The application-default JVM options match the build host, so generate macOS dist
 Build output is written under each module's `build/` directory and is ignored by
 Git. `javadocAudit` checks production and test Java in both modules, including private
 members, with full doclint and warnings treated as errors. See
-[the integration report](docs/INTEGRATION_REPORT.md) for baseline coverage and remaining limitations.
+[the documentation index](docs/README.md) for dated validation reports and remaining manual checks.
 
 ## Map and movement demonstration
 
@@ -216,7 +262,8 @@ into the purple portal. There are no number-key map switches or keyboard unlocks
 The window title shows the active map and travel feedback. Visiting through a portal
 does not automatically unlock fast travel; future quest/discovery code can call
 `unlockDestination(id)`. Portal enabled state and fast-travel unlock state are
-independent. Closing/restarting the game restores the initial state.
+independent. Restarting creates an initial live state; F9 explicitly restores a saved snapshot.
+Startup does not overwrite either save slot.
 
 Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
 are obstacles when configured (built-in test walls have been removed), a gold circle marks
@@ -494,7 +541,7 @@ Placeholder controls (current first-version skills; numeric tuning is provisiona
 | O | Mage: selected fixed-location casting field or rapid double-projectile buff |
 | F1 / F2 / F3 | Select Archer / Mage / Katana when no player attack or dash is active |
 | F4 | Hub-only outgoing debug element configuration; Mage J uses its own K-selected element |
-| F5 | Toggle current class's O mode A/B in Hub only; active skills reject changes |
+| F5 / F9 | Manual save / load panel in production; see the save/load controls above |
 | R | Reset practice/Hub HP and abilities; ignored in production Battle encounters |
 
 1. Run `./gradlew lwjgl3:run`, select Battle at the Portal Guide, then enter the portal.
@@ -525,7 +572,8 @@ execution to `PlayerAbilities`, coordinates placement and reset/transition polic
 updates the Boss, then advances the shared CombatSystem exactly once before processing failure.
 
 Combat limitations: axis-aligned hitboxes, discrete area-attack overlap samples and centre-only
-visibility, with no armour, knockback, attack wind-up, invulnerability, combos or final class skills.
+visibility. Equipment defence, reaction displacement and class-specific defensive skills now
+use this pipeline; a general combo system is outside the current scope.
 Debug rectangles are not visually clipped against walls. Dead-player movement/abilities are blocked
 by the common controller; battle failure is handled before travel. Enemy HP is not persisted across transitions. Pause freezes
 combat, and the existing frame-time cap discards excess stall time.
@@ -564,7 +612,8 @@ combat, and the existing frame-time cap discards excess stall time.
   final position after movement/combat. Arrival immediately clears old-map attacks
   and cancels dash. The same controller retains slot cooldowns across all successful
   transitions, including re-entry, so travel cannot recharge abilities. This is
-  not a save system; restarting the application still starts a fresh session.
+  not itself a save system. Restarting starts a fresh live session; F9 restores saved choices
+  and cooldowns through the separate save coordinator.
 - Pause freezes timing; R explicitly clears arena attacks, dash and cooldowns and
   restores HP. Restoring Health alone does not reset ability cooldowns.
 
@@ -612,7 +661,9 @@ HitInterceptor boundary; counters execute after combat settlement, never in a da
 All repeated attacks have explicit finite counts and use normal combat/wall occlusion.
 Archer and Mage share straight, swept, non-piercing projectile flight, cleanup and atomic capacity checks.
 
-F1/F2/F3 choose classes in production Hub; F5 toggles A/B for the selected class.
+F1/F2/F3 choose classes in production Hub; Class Master selects A/B for the selected class.
+The legacy F5 mode request remains in the isolated input/demo API, but SaveMenu consumes F5
+first in production, where it saves or reports why saving is blocked.
 Player stores one UltimateMode per class, initially A, and the Mage element separately.
 PlayerAbilities.selectUltimateMode(mode) always requires Hub, including debug harnesses.
 Class selection, travel, defeat and retry retain choices and remaining slot cooldowns.
@@ -728,8 +779,9 @@ Limitations: two fixed-rectangle pattern cycles, no projectile Boss pattern, cut
 animation or phase immunity. Shared elemental reactions can affect Boss health. The full-body navigation corridor can be
 conservative in narrow passages. Once cast, fixed hitboxes do not follow targets or
 clip visually against walls; all candidate targets now require clear origin-to-centre
-segments at settlement, in addition to initial AI clearance. Actors have no mutual body collision. Inventory pickup,
-persistent defeat/drop state and final material/skill balance remain future work.
+segments at settlement, in addition to initial AI clearance. Actors have no mutual body collision.
+Production rewards are transferred automatically into the bag; completed progress and pending
+rewards are saved. Live Boss AI/HP is not saved. Final material/skill balance remains future work.
 
 ```bash
 ./gradlew core:test --tests '*Boss*Test' --tests '*EnemyAITest' --tests '*CombatSystemTest'
@@ -901,7 +953,6 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `EnemyConfig`: validated movement/ranges, shared attack tuning, and navigation resolution/timing.
 - `AStarPathfinder`: bounded full-body grid search, clear direct approaches, and safe route segments.
 - `EnemyState`: IDLE, CHASE, ATTACK, and DEAD diagnostics.
-- `NPC`: future non-player character.
 - `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
 - `MapCatalog`: built-in Hub and Battle Map definitions.
 - `MapType`: Hub/Battle metadata.
@@ -923,7 +974,13 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `BossState`: CHASE/ATTACK/TRANSITION/DEAD Boss lifecycle diagnostics.
 - `BossChallenge`: one admitted Boss encounter's outcome/reward bookkeeping for `EncounterFlow`.
 - `TrainingDummy`: the stationary, non-hostile, self-healing Training Ground practice target.
-- `Inventory`: stackable material storage keyed by material type, in acquisition order.
+- `Inventory`: overflow-safe item stacks in acquisition order, used by the player bag and chest.
+- `Equipment` / `EquipmentSlot` / `ItemCatalog`: owned wearable slots, item effects and guardian set bonuses.
+- `EquipmentModifiers`: equipment boundary used by the shared combat damage calculation.
+- `InventoryRewards`: one-time transfer from the settled encounter outbox, retaining overflowed rewards.
+- `GameSaves`: safe-state capture, complete validation and restoration through module APIs.
+- `SaveFile` / `SaveStore` / `SaveSlot`: versioned bounded files, atomic writes and independent slots.
+- `SaveMenu`: confirmation, slot selection and responsive save notifications.
 - `MaterialDrop`: one immutable claimable Boss reward instance.
 - `NPC`: shared identity/interaction-range base for Hub non-player characters.
 - `PortalGuide`: Hub NPC adapter that selects and opens the shared Hub portal's destination.
@@ -949,8 +1006,9 @@ Movement supports static, axis-aligned rectangles across eight built-in maps
 first-version elemental reactions, class skills and imported pixel-art
 presentation described above are implemented; this section only tracks what
 remains out of scope. It does not include dynamic entity-to-entity collision,
-external map-file loading, crowd navigation, saved/persisted map or quest
-state, or final (post-balance) character skill numbers and artwork. Collision
+external map-file loading, crowd navigation, arbitrary mid-battle snapshots,
+or final (post-balance) character skill numbers and artwork. Safe-map location, quest progress,
+portal state, inventory and equipment persistence are implemented. Collision
 uses X-then-Y axis separation rather than a continuous diagonal sweep, so large
 diagonal steps can take a different route around corners than many smaller
 steps. Normal screen updates cap delta to keep this effect limited; each axis
@@ -961,5 +1019,6 @@ changing movement or collision rules.
 Portal triggers sample overlap once per update, not a continuous swept trigger
 path; a custom very large movement that crosses an entire portal between updates
 can miss it. Built-in regions and the demo frame-time cap avoid that in normal
-play. There is no travel menu, distance/cost restriction, automatic discovery,
-quest gating, persisted unlock state, or portal animation/audio in this branch.
+play. Portal Guide provides destination selection and Battle is quest-gated; save/load includes
+portal routes, enabled flags and unlock state. Distance/cost restrictions and automatic
+discovery remain outside the current travel system.

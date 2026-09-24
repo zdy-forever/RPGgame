@@ -2,26 +2,37 @@
 
 Implemented by Hao Liu (u7998420) on `feature/inventory-equipment`.
 
+## Integration status
+
+Inventory/equipment implementation: `21de2898`; merged into the team repository through
+!38, merge commit `b3ac158b`. Later save/load integration persists bag, chest and equipped
+slots together; see [Save/load](SAVE_LOAD_REPORT.md). The P potion shortcut was added by
+the subsequent team change `721f9e6`, using the same potion rules.
+
 ## Behaviour
 
 - The existing player now owns the bag and equipment, preserving their identity across map changes.
   GameScreen reuses that bag, the existing merchant reward, and the existing chest interface.
 - B opens the bag. Right-click a wearable to equip/unequip it, or a health potion to use it.
+  Left/Right changes pages; B or Escape closes it. Rows show item effects and `[Worn]` status.
 - P uses one health potion directly during gameplay, including Boss battles, without opening the bag.
   It triggers once per press, not continuously while held; it is disabled while a modal panel is open.
   The existing bag right-click action remains available. Both paths use the same health/ownership checks.
-  Left/Right changes pages; B or Escape closes the bag. Rows show item effects and worn status.
 - The bag footer shows total attack/reduction percentages and guardian set progress.
 - E near the Storage Chest opens it. Right-click transfers the entire selected stack.
-  Left/Right pages both columns; E or Escape closes it. Moving the last owned unit of worn gear
+  Left/Right pages both columns; E or Escape closes it. B closes storage and opens the bag
+  for equipping. The footer explicitly distinguishes transfer from equip. Moving the last owned unit of worn gear
   to the chest removes its equipment benefit. Equipped items remain part of bag counts.
 - The initial chest contains four guardian armour pieces and three health potions. These are
   provisional starter contents so the feature can be exercised without a new crafting system.
-- The existing merchant still grants the Lightning Staff through the existing dialogue flow.
+- Weapon Merchant at Hub (650,250) grants the Lightning staff once: E opens/advances the
+  dialogue and collects the reward. Close dialogue, press B and right-click the staff to equip.
+- The WEAPON HUD shows only the weapon slot. `No weapon equipped` does not mean the bag is
+  empty or that armour failed to equip; check `[Worn]` rows and bag totals for armour.
 - Settled Boss rewards are consumed from EncounterFlow's existing outbox on the game-loop thread.
   Overflow is checked before claiming. Unaccepted rewards remain pending; repeated polling cannot
   duplicate them. Existing material IDs, quantities and quest ownership remain unchanged.
-- The shared CombatSystem applies equipment after reaction/physical modifiers and rounds once.
+- The shared CombatSystem applies equipment after reaction/physical modifiers and floors once.
   This covers direct, projectile and reaction damage through the same pipeline. No equipment
   means multipliers of one, retaining previous combat behaviour. Equipment is read at hit settlement.
 - A potion heals up to 30 HP and consumes exactly one unit only for a living, injured player.
@@ -47,11 +58,11 @@ Reduction is capped at 60%. The full current set provides 25% reduction.
 Slots are weapon, head, body, hands and feet. Wearables are not profession-restricted in this version;
 existing class/element/skill selection and character artwork remain unchanged.
 
-No files were removed or moved. Existing tests were not edited. No crafting, enchanting, save/load,
-new NPC, external UI dependency or Git/GitLab write operation was introduced.
-The existing text/shape UI is reused; equipment artwork and final balance remain future polish.
-Bag/chest state is not yet persisted to disk. The next save/load task must preserve bag, chest and
-worn slots together and avoid replaying starter contents or already-collected rewards.
+The original inventory change introduced no crafting, enchanting or new NPC. The existing
+text/shape UI is reused; equipment artwork and final balance remain future polish.
+Save/load now restores bag, chest, worn slots and NPC reward flags together, replacing initial
+contents rather than adding starter items again. Equipment bonuses are recomputed from restored
+ownership and slots, not trusted as independent saved totals.
 
 ## Files
 
@@ -74,7 +85,11 @@ Modified production files:
 Added tests: core/src/test/java/au/edu/anu/comp2120/inventory/EquipmentIntegrationTest.java.
 New and modified Java declarations include JavaDoc; existing authors are retained.
 
-## Verification (2026-09-23)
+## Original verification (2026-09-23)
+
+These results describe the original inventory integration, not the current full-suite status.
+Subsequent team and save/load changes supersede that baseline; do not carry the historical
+11 failures forward as a claim about the current checkout.
 
 The repository requests JDK 25, which is absent locally. Verification used the installed JDK 26
 with a temporary `/tmp/inventory-java26.gradle` init script that overrides only the local toolchain
@@ -98,7 +113,7 @@ identical failing test names and messages. The original problems are missing ass
 and stale Boss/combat/defeat expectations in ArtIntegrationTest, BossDemoTest, CombatDemoTest,
 CoreGameplayIntegrationTest and PlayerDefeatTest. They were not bypassed or rewritten here.
 
-## Manual acceptance before merge
+## Manual regression checklist
 
 1. Talk to the existing weapon merchant and receive the staff.
 2. Open the chest, take armour and potions, then close it.
@@ -110,6 +125,6 @@ CoreGameplayIntegrationTest and PlayerDefeatTest. They were not bypassed or rewr
 7. Complete a Boss encounter; confirm its material enters the bag once and survives travel.
 8. Resize the window and use Left/Right pages; confirm displayed rows match right-click targets.
 
-After manual acceptance, the user can commit and open a GitLab merge request, keeping this feature
-branch after merging. Suggested commit: `feat: integrate inventory rewards and equipment bonuses`.
-Do not begin the save/load branch until this module has been accepted and merged into main.
+The original feature is merged. The later storage-help and empty-weapon-label refinement
+passed core compilation and the core JavaDoc audit on 2026-09-25. Its visual regression
+check remains to be performed; compiling does not establish mouse/layout acceptance.

@@ -55,6 +55,19 @@ final class SaveMenuTest {
         var menu = new SaveMenu(saves);
         assertTrue(press(menu, Input.Keys.F5, true));
         assertFalse(Files.exists(store.path(SaveSlot.MANUAL)));
+        assertTrue(menu.notification().startsWith("Close the dialogue"));
+        // Closing the blocking panel clears its hint without another save/load request.
+        assertFalse(press(menu, -1, false));
+        assertEquals(saves.status(), menu.notification());
+        press(menu, Input.Keys.F9, true);
+        menu.advanceHint(3f);
+        assertTrue(menu.notification().startsWith("Close the dialogue"));
+        menu.advanceHint(Float.NaN);
+        menu.advanceHint(-1);
+        assertTrue(menu.notification().startsWith("Close the dialogue"));
+        menu.advanceHint(1f);
+        assertEquals(saves.status(), menu.notification());
+        assertFalse(menu.isOpen());
         assertTrue(press(menu, Input.Keys.F5, false));
         byte[] original = Files.readAllBytes(store.path(SaveSlot.MANUAL));
         session.getPlayer().takeDamage(20);
@@ -77,5 +90,33 @@ final class SaveMenuTest {
         assertEquals(70, session.getPlayer().getHealth().getCurrentHp());
         assertTrue(saves.status().startsWith("Load failed"));
         assertFalse(Files.exists(store.path(SaveSlot.AUTO)));
+    }
+
+    /** Width and height independently shrink notification text and preserve top-left bounds. */
+    @Test
+    void notificationScalesOnBothAxesAndClearsExistingHud() {
+        var normal = SaveMenu.hintLayout(960, 540);
+        var shortWindow = SaveMenu.hintLayout(960, 180);
+        var narrowWindow = SaveMenu.hintLayout(320, 540);
+        assertEquals(1f, normal.scale(), 0.00001f);
+        assertEquals(normal.scale() / 3, shortWindow.scale(), 0.00001f);
+        assertEquals(normal.scale() / 3, narrowWindow.scale(), 0.00001f);
+        for (int[] size : new int[][] {{960, 540}, {480, 560}, {820, 180}, {320, 180}, {640, 360}, {200, 100}}) {
+            var layout = SaveMenu.hintLayout(size[0], size[1]);
+            var hud = HudLayout.forWindow(size[0], size[1]);
+            assertTrue(layout.x() > 0);
+            assertTrue(layout.width() > 0);
+            assertTrue(layout.x() + layout.width() < size[0]);
+            assertTrue(layout.top() > size[1] / 2f);
+            assertTrue(layout.top() < size[1]);
+            if (hud.detailsVisible()) {
+                assertTrue(layout.top() <= size[1] - 60 * hud.scale());
+            } else if (hud.healthVisible()) {
+                assertTrue(layout.top() <= size[1] - 28 * hud.scale());
+            }
+        }
+        assertEquals(0, SaveMenu.hintLayout(0, 540).scale());
+        assertEquals(0, SaveMenu.hintLayout(960, 0).scale());
+        assertEquals(1, SaveMenu.hintLayout(1920, 1080).scale());
     }
 }

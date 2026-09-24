@@ -1,5 +1,9 @@
 # Quest portal / gameplay integration report
 
+> Current integration note (2026-09-25): BossQuests now supplies the NPC quest flow, InventoryRewards collects settled rewards, and GameSaves persists progress, replay IDs and pending rewards. The adapter report and its test counts below record the original integration stage.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 ## Scope
 
 Developer A now exposes task admission, single-Boss scope lifecycle, settled battle results
