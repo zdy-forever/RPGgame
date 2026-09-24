@@ -24,6 +24,30 @@ final class PlayerInputTest {
     PlayerInputTest() {
     }
 
+    /** P uses key edges without replacing simultaneous movement or attack intents. */
+    @Test
+    void potionUsesKeyEdgesIndependentlyOfMovementAndAttacks() {
+        Set<Integer> pressed = new HashSet<>();
+        Set<Integer> held = Set.of(Input.Keys.P, Input.Keys.W);
+        Input keyboard = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),
+                new Class<?>[] {Input.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "isKeyPressed" -> held.contains((Integer) args[0]);
+                    case "isKeyJustPressed" -> pressed.contains((Integer) args[0]);
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        PlayerInput input = new PlayerInput(keyboard);
+        assertFalse(input.samplePotionUse());
+        pressed.add(Input.Keys.J);
+        assertFalse(input.samplePotionUse());
+        pressed.add(Input.Keys.P);
+        assertTrue(input.samplePotionUse());
+        assertEquals(new PlayerCommand(0, 1, true, false, false, false), input.sample());
+        pressed.clear();
+        assertFalse(input.samplePotionUse());
+        pressed.add(Input.Keys.P);
+        assertTrue(input.samplePotionUse());
+    }
+
     /** Removed travel keys do not produce movement, ability or loadout intents in the retained adapter. */
     @Test
     void removedTravelKeysProduceNoPlayerIntent() {

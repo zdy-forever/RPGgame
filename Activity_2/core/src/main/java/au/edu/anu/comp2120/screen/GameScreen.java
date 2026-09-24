@@ -168,7 +168,7 @@ public final class GameScreen extends ScreenAdapter {
             if (item.slot() != EquipmentSlot.WEAPON) { chestStorage.addItem(item.id()); }
         }
         chestStorage.addItem(ItemCatalog.POTION, 3);
-        var savedNpcs = new java.util.ArrayList<NPC>(GameConfig.HUB_NPCS);
+        var savedNpcs = new java.util.ArrayList<>(GameConfig.HUB_NPCS);
         savedNpcs.add(GameConfig.GUIDE);
         savedNpcs.add(GameConfig.TRAINING_EXIT);
         saves = new au.edu.anu.comp2120.save.GameSaves(session, travel, encounterFlow, quests,
@@ -406,6 +406,9 @@ public final class GameScreen extends ScreenAdapter {
             }
         }
         boolean frozen = dialogueOpen || inventoryOpen || bigMap || chestOpen;
+        if (!frozen && input.samplePotionUse()) {
+            useHealthPotion();
+        }
         combatDemo.update(delta,
                 frozen ? PlayerCommand.NONE : input.sample(),
                 !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
@@ -1357,8 +1360,14 @@ public final class GameScreen extends ScreenAdapter {
         return materialId != null && materialId.startsWith(WEAPON_PREFIX);
     }
 
+    /** Uses the shared potion rule for keyboard and bag actions, retaining feedback for the bag. */
+    private void useHealthPotion() {
+        inventoryFeedback = session.getPlayer().useHealthPotion() ? "Recovered up to " + ItemCatalog.POTION_HEAL + " HP"
+                : "Requires a health potion and a living, injured player";
+    }
+
     /**
-     * Equips or unequips the weapon row under the mouse cursor.
+     * Toggles equipment or uses a potion in the inventory row under the mouse cursor.
      * Screen y is flipped because input reports a top-left origin.
      */
     private void handleInventoryRightClick() {
@@ -1377,8 +1386,7 @@ public final class GameScreen extends ScreenAdapter {
             }
             String id = entries.get(i).materialId();
             if (ItemCatalog.POTION.equals(id)) {
-                inventoryFeedback = session.getPlayer().useHealthPotion() ? "Recovered up to 30 HP"
-                        : "Potion requires a living, injured player";
+                useHealthPotion();
                 updateMapView();
                 return;
             }

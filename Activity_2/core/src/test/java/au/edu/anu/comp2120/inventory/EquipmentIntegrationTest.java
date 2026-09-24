@@ -123,6 +123,24 @@ final class EquipmentIntegrationTest {
         assertEquals(1, player.getInventory().quantityOf(ItemCatalog.POTION));
     }
 
+    /** Each successful request heals 30 HP and consumes one item; empty inventory never heals. */
+    @Test
+    void potionRequestsConsumeExactlyOneAndRejectEmptyInventory() {
+        Player player = session().getPlayer();
+        player.takeDamage(80);
+        assertFalse(player.useHealthPotion());
+        assertEquals(20, player.getHealth().getCurrentHp());
+        player.getInventory().addItem(ItemCatalog.POTION, 2);
+        assertTrue(player.useHealthPotion());
+        assertEquals(50, player.getHealth().getCurrentHp());
+        assertEquals(1, player.getInventory().quantityOf(ItemCatalog.POTION));
+        assertTrue(player.useHealthPotion());
+        assertEquals(80, player.getHealth().getCurrentHp());
+        assertEquals(0, player.getInventory().quantityOf(ItemCatalog.POTION));
+        assertFalse(player.useHealthPotion());
+        assertEquals(80, player.getHealth().getCurrentHp());
+    }
+
     /** Existing map switching preserves inventory/equipment identity and bonuses. */
     @Test
     void travelRetainsEquipment() {

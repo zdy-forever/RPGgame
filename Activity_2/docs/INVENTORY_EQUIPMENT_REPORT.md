@@ -7,6 +7,9 @@ Implemented by Hao Liu (u7998420) on `feature/inventory-equipment`.
 - The existing player now owns the bag and equipment, preserving their identity across map changes.
   GameScreen reuses that bag, the existing merchant reward, and the existing chest interface.
 - B opens the bag. Right-click a wearable to equip/unequip it, or a health potion to use it.
+- P uses one health potion directly during gameplay, including Boss battles, without opening the bag.
+  It triggers once per press, not continuously while held; it is disabled while a modal panel is open.
+  The existing bag right-click action remains available. Both paths use the same health/ownership checks.
   Left/Right changes pages; B or Escape closes the bag. Rows show item effects and worn status.
 - The bag footer shows total attack/reduction percentages and guardian set progress.
 - E near the Storage Chest opens it. Right-click transfers the entire selected stack.

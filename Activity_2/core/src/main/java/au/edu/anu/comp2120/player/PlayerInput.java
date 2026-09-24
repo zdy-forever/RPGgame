@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Translates held WASD and newly pressed J/K/L/O into intents without owning gameplay rules.
+ * Translates held WASD and newly pressed ability/potion keys into intents without owning gameplay rules.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -32,6 +32,14 @@ public final class PlayerInput {
         return new PlayerCommand(horizontal(), vertical(),
                 input.isKeyJustPressed(Input.Keys.J), input.isKeyJustPressed(Input.Keys.K),
                 input.isKeyJustPressed(Input.Keys.L), input.isKeyJustPressed(Input.Keys.O));
+    }
+
+    /**
+     * Requests a health potion independently of movement and ability commands.
+     * @return true only on a P key edge; holding P does not repeatedly consume potions
+     */
+    public boolean samplePotionUse() {
+        return input.isKeyJustPressed(Input.Keys.P);
     }
 
     /**
