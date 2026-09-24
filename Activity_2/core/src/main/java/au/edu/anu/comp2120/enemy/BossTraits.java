@@ -52,12 +52,18 @@ public final class BossTraits {
     public static final double BLINK_COOLDOWN = 4;
     /** Immunity the wind guardian gains immediately after a blink. */
     public static final double BLINK_INVULNERABILITY = 2;
-    /** Shortest random blink, far enough to break contact. */
-    public static final double BLINK_MIN_DISTANCE = 120;
-    /** Longest random blink, near enough to stay in the same fight. */
+    /** Minimum centre-to-centre distance from the challenger on arrival, outside normal melee reach. */
+    public static final double BLINK_MIN_DISTANCE = 180;
+    /** Maximum centre-to-centre distance from the challenger on arrival, keeping the fight nearby. */
     public static final double BLINK_MAX_DISTANCE = 320;
+    /** Minimum displacement from the Boss's old centre, preventing a dodge that barely moves it. */
+    private static final double BLINK_MIN_DISPLACEMENT = 120;
     /** Bounded random placement attempts, so a crowded arena cannot stall a decision step. */
     private static final int BLINK_ATTEMPTS = 24;
+    /** Deterministic fallback bearings prevent unlucky random rolls from failing in an open arena. */
+    private static final int BLINK_FALLBACK_BEARINGS = 48;
+    /** Interior radii searched at each fallback bearing; the search remains finite in blocked arenas. */
+    private static final int BLINK_FALLBACK_RINGS = 3;
 
     /** Prevents construction of this guardian catalogue. */
     private BossTraits() {
@@ -351,9 +357,9 @@ public final class BossTraits {
     /**
      * Wind guardian: heavy burst damage makes it vanish to a random spot instead of trading hits.
      * Damage is accumulated over a short sliding window, so a single skill or a fast combo triggers
-     * the escape while ordinary chip damage does not. The destination is drawn at random from the
-     * random bearing and distance rather than pushed away from the challenger, so a blink cannot
-     * be predicted or herded. A blink drops its prepared strike and route, and the arrival is
+     * the escape while ordinary chip damage does not. Random destinations lie in a bounded ring
+     * around the challenger, with a finite safe-placement fallback instead of unsafe clamping.
+     * A blink drops its prepared strike and route, consumes the current Boss decision, and the arrival is
      * briefly untouchable, which ends the burst that caused it instead of merely relocating it.
      * @author Daoyan Zhu (u7782042)
      */
@@ -389,7 +395,7 @@ public final class BossTraits {
             if (windowDamage < BLINK_DAMAGE || cooldownRemaining > 0 || target == null || !boss.canAct()) {
                 return;
             }
-            if (blink(boss, target)) {
+            if (tryBlink(boss, target, random)) {
                 boss.getCombatant().getStatus().applyInvulnerability(BLINK_INVULNERABILITY);
                 windowDamage = 0;
                 windowRemaining = 0;
@@ -415,34 +421,61 @@ public final class BossTraits {
                     : String.format(Locale.ROOT, "%.1fs", cooldownRemaining), blinks);
         }
 
-        /**
-         * Vanishes to a random spot around its current position, in a random direction.
-         * Both the bearing and the distance are drawn at random, so an escape cannot be predicted
-         * or herded the way a fixed outward shove could. The distance is bounded at both ends: far
-         * enough to break contact, near enough that the guardian stays in the same fight instead of
-         * crossing the arena and walking back. The shared world resolver rejects blocked or
-         * out-of-bounds candidates and a candidate landing on the target is skipped, so a rejected
-         * roll simply becomes another roll. Attempts are bounded, and exhausting them leaves the
-         * guardian in place without consuming its cooldown.
-         * @param boss owning encounter
-         * @param target current target a destination may not land on
-         * @return true when the encounter actually relocated
-         */
-        private boolean blink(Boss boss, Combatant target) {
-            CollisionBox body = boss.getBounds();
-            for (int attempt = 0; attempt < BLINK_ATTEMPTS; attempt++) {
-                double bearing = random.nextDouble() * Math.PI * 2;
+    }
+
+    /**
+     * Samples a player-centred landing ring, then searches a bounded set of fallback candidates.
+     * Full-body wall and map-boundary validation stays in the existing Boss/navigation resolver.
+     * Never clamps a candidate into an unsafe distance; failure leaves the encounter untouched.
+     * The random source is supplied explicitly so adversarial rolls are reproducible in tests.
+     * @param boss owning encounter
+     * @param target current challenger whose centre anchors the distance band
+     * @param random encounter random source
+     * @return true only after an actual legal relocation
+     * @throws NullPointerException if a required argument is null
+     */
+    static boolean tryBlink(Boss boss, Combatant target, Random random) {
+        Objects.requireNonNull(boss, "boss");
+        Objects.requireNonNull(target, "target");
+        Objects.requireNonNull(random, "random");
+        CollisionBox body = boss.getBounds(), player = target.getHurtbox();
+        for (int attempt = 0; attempt < BLINK_ATTEMPTS; attempt++) {
+            double bearing = random.nextDouble() * Math.PI * 2;
+            double distance = BLINK_MIN_DISTANCE
+                    + random.nextDouble() * (BLINK_MAX_DISTANCE - BLINK_MIN_DISTANCE);
+            if (tryBlinkCandidate(boss, body, player, bearing, distance)) { return true; }
+        }
+        for (int bearing = 0; bearing < BLINK_FALLBACK_BEARINGS; bearing++) {
+            for (int ring = 1; ring <= BLINK_FALLBACK_RINGS; ring++) {
                 double distance = BLINK_MIN_DISTANCE
-                        + random.nextDouble() * (BLINK_MAX_DISTANCE - BLINK_MIN_DISTANCE);
-                double x = body.x() + Math.cos(bearing) * distance;
-                double y = body.y() + Math.sin(bearing) * distance;
-                CollisionBox candidate = new CollisionBox(x, y, body.width(), body.height());
-                if (!candidate.overlaps(target.getHurtbox()) && boss.blinkTo(x, y)) {
-                    return true;
-                }
+                        + (BLINK_MAX_DISTANCE - BLINK_MIN_DISTANCE) * ring / (BLINK_FALLBACK_RINGS + 1.0);
+                if (tryBlinkCandidate(boss, body, player,
+                        bearing * Math.PI * 2 / BLINK_FALLBACK_BEARINGS, distance)) { return true; }
             }
+        }
+        return false;
+    }
+
+    /**
+     * Rejects player overlap, inadequate displacement and out-of-band arrival before teleporting.
+     * @param boss owning encounter, using the existing full-body world validator
+     * @param body original Boss bounds, unchanged until acceptance
+     * @param target challenger bounds captured for this decision
+     * @param bearing candidate angle in radians
+     * @param distance requested centre-to-centre distance from the challenger
+     * @return whether this candidate was accepted and committed
+     */
+    private static boolean tryBlinkCandidate(Boss boss, CollisionBox body, CollisionBox target,
+                                            double bearing, double distance) {
+        double x = centreX(target) + Math.cos(bearing) * distance - body.width() / 2;
+        double y = centreY(target) + Math.sin(bearing) * distance - body.height() / 2;
+        CollisionBox candidate = new CollisionBox(x, y, body.width(), body.height());
+        double arrivalDistance = Math.hypot(centreX(candidate) - centreX(target), centreY(candidate) - centreY(target));
+        if (candidate.overlaps(target) || arrivalDistance < BLINK_MIN_DISTANCE || arrivalDistance > BLINK_MAX_DISTANCE
+                || Math.hypot(x - body.x(), y - body.y()) < BLINK_MIN_DISPLACEMENT) {
             return false;
         }
+        return boss.blinkTo(x, y);
     }
 
     /**

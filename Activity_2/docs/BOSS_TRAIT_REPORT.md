@@ -50,7 +50,7 @@ guardian never disturbs its own melee or ranged pacing.
 | Water | Every connected attack shoves the target outward, resolved by its own collision | 120 world units, no action lock; speed 62 |
 | Lightning | Taking no damage for ten seconds calls down a strike and a short action lock | 10 s, 10 damage, 0.6 s stagger; speed 92 |
 | Ice | The third connected attack freezes the target outright | 3 hits, 2 s freeze; speed 54 |
-| Wind | Burst damage makes it blink to a random bearing and distance, arriving untouchable | 45 damage in 1.5 s, 4 s cooldown, 120-320 units, 2 s immunity; speed 104 |
+| Wind | Burst damage makes it blink to a random legal position around the player, arriving untouchable | 45 damage in 1.5 s, 4 s cooldown, 180-320 units from the player's centre, 2 s immunity; speed 104 |
 
 `tune` deliberately changes only navigation speed and the blocked-path replan interval, plus the
 fire guardian's direct damage below. Health, detection and loss radii, attack stopping distance,
@@ -74,9 +74,15 @@ the burn expires now matters more than surviving one hit.
 A first implementation drew the destination uniformly from the whole 1600 x 1200 arena, which is
 literally random but let the guardian kite a stationary caster indefinitely: a scripted Mage fight
 ran **300 simulated seconds** with the Boss still at 350/400 HP, because each blink was followed by
-a long walk back. Bearing and distance are both still random, but the distance is bounded to
-120-320 units: far enough to break contact, near enough to stay in the same fight. The same
-scenario then finished in 12.9 seconds.
+a long walk back. The initial distance bound of 120-320 units from the old Boss position brought
+that historical scenario down to 12.9 seconds; those timings predate the correction below.
+
+The current rule instead places the Boss centre **180-320 units from the player's current centre**,
+with at least 120 units of displacement from the old Boss position. Every candidate validates the
+entire Boss body against existing map bounds and walls. After 24 random attempts, a bounded search
+of 48 bearings and three interior radii provides a safe fallback. If none is legal, the Boss does
+not blink or consume dodge cooldown/immunity. A successful blink cancels the pending windup and
+consumes the current AI decision, so it cannot immediately chase or start a new attack that frame.
 
 ## Shared additions
 

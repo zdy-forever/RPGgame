@@ -127,6 +127,8 @@ public final class Boss {
      * Generic freeze/stagger pauses decisions; navigation still resolves queued collision-safe knockback.
      * A living attached encounter then advances its guardian trait, before those same suppression
      * rules apply, so afflictions already delivered continue while this Boss itself cannot act.
+     * A trait relocation consumes the current decision step: no pursuit or new attack can undo
+     * its safe landing distance or recreate its cancelled melee warning in the arrival frame.
      * @param target eligible canonical hostile target, or null
      * @param delta finite non-negative simulation seconds with representable movement
      * @throws IllegalArgumentException if time or resulting geometry is invalid
@@ -142,7 +144,9 @@ public final class Boss {
             awaitingImpact.clear();
             return;
         }
+        CollisionBox beforeTrait = getBounds();
         advanceTrait(target, delta);
+        if (!getBounds().equals(beforeTrait)) { return; }
         if (getCombatant().getStatus().blocksActions()) {
             cancelWindup();
             navigation.update(null, delta, false);

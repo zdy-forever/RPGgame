@@ -710,7 +710,7 @@ through `BossTrait`; arenas outside the campaign keep the template's behaviour e
 | Water | Water Arena | Connected attacks shove you outward through your own collision | 120 units, no action lock |
 | Lightning | Lightning Arena | Dealing it no damage for ten seconds calls down a strike | 10 s, 10 damage, 0.6 s lock |
 | Ice | Ice Arena | Its third connected attack freezes you | 3 hits, 2 s freeze |
-| Wind | Wind Arena | Burst damage makes it blink to a random nearby spot, arriving immune | 45 damage in 1.5 s, 4 s cooldown, 120-320 units, 2 s immunity |
+| Wind | Wind Arena | Burst damage makes it blink to a safe player-centred distance band, arriving immune | 45 damage in 1.5 s, 4 s cooldown, 180-320 units from player centre, 2 s immunity |
 
 Movement speed also differs: fire 78, water 62, lightning 92, ice 54, wind 104. Health, detection
 and loss radii, stopping distance, pattern geometry, pacing, phase threshold and reward stay shared,
