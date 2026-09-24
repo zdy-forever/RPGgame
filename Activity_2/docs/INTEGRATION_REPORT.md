@@ -1,5 +1,9 @@
 # Placeholder gameplay integration report
 
+> Current integration note (2026-09-25): Inventory reward transfer, equipment and save/load are now implemented; the original limitations and test counts below describe the September 10 placeholder baseline.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 Validated on 10 September 2026, macOS, JDK 25 (Java 17 compilation target), Gradle 9.7.1.
 Scope: existing gameplay integration only. No Git/GitLab operations, new art, sound,
 profession mechanics, damage engine, inventory rewrite or UI redesign were performed.

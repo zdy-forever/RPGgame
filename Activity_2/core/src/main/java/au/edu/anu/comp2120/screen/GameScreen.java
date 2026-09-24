@@ -999,7 +999,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch, "WEAPON", x + pad, y + boxH - pad);
         if (equippedWeapon.isEmpty()) {
             dialogueFont.setColor(0.55f, 0.58f, 0.65f, 1);
-            dialogueFont.draw(dialogueBatch, "(none)", x + pad, y + pad + 6f);
+            dialogueFont.draw(dialogueBatch, "No weapon equipped", x + pad, y + pad + 6f);
         } else {
             dialogueFont.setColor(0.40f, 1f, 0.55f, 1);
             dialogueFont.draw(dialogueBatch, prettyName(equippedWeapon),
@@ -1252,7 +1252,7 @@ public final class GameScreen extends ScreenAdapter {
         }
     }
 
-    /** Draws the two-column chest transfer panel while it is open. */
+    /** Draws the chest transfer panel, distinguishing storage transfers from equipping in the B bag. */
     private void drawChest() {
         if (!chestOpen) {
             return;
@@ -1314,7 +1314,7 @@ public final class GameScreen extends ScreenAdapter {
         }
 
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, "Right-click: move  Left/Right: page  E/Esc: close",
+        dialogueFont.draw(dialogueBatch, "Right-click: transfer | B: open bag to equip | Left/Right: page | E/Esc: close",
                 p.x + p.pad, p.y + p.pad + 4f);
         dialogueBatch.end();
     }

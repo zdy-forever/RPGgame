@@ -1,5 +1,18 @@
 # Stage 2 Architecture
 
+## Inventory and persistence integration (2026-09-25)
+
+The current production loop includes Hao Liu's inventory/equipment and save/load work.
+[Inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md) defines item interactions and combat
+bonuses; [Save/load](SAVE_LOAD_REPORT.md) defines slot policy, validation and restoration.
+Earlier implementation/test reports describe their original checkout, not missing features
+in the current game. Section 7 retains the older contribution snapshot with a current update.
+
+The game-loop order after outcome settlement is: collect inventory rewards, reconcile worn
+slots, synchronize BossQuests, then observe the settled result for autosave. A success snapshot
+therefore includes Hub recovery, earned rewards and quest progress. Failure never writes an
+automatic checkpoint. No damage callback performs disk IO or triggers a scene transition.
+
 ## Current art presentation
 
 The asset-free gameplay boundary is retained, but production rendering now composes `SceneArt` and
@@ -73,7 +86,7 @@ tuning, using `HP multiplier = min(4, 1 + log10(wins + 1))` (HP rounded to an in
 are divided by this rate. Active windows remain unchanged and provide an additional cooldown floor.
 The 0.8-second melee warning, damage, projectile speed, movement speed, phase threshold and reward
 quantity remain unchanged. Effective melee cadence grows less than twice as fast because its warning
-is preserved. Counts are per guardian and session-local, not persisted; failed retries use the same
+is preserved. Counts are per guardian and included in save snapshots; failed retries use the same
 difficulty, and five repeated wins against one Boss still light only one stone.
 `consumeEnding` emits once after all five distinct completions, only in a living Memorial Hall.
 GameScreen calls it explicitly when the player interacts with Old Sage, never during frame polling
@@ -105,7 +118,7 @@ Hub-only class/O-mode changes. Its viewport-sized bounds remain fixed when the w
 
 The five arenas reuse the existing Sentinel HP, AI, patterns and material tuning; only identities,
 names and arena routing differ in this first content version. No second damage engine or final
-elemental Boss mechanics are introduced. Progress/ending flags are in-memory only, not saved.
+elemental Boss mechanics are introduced. Progress and the ending-consumed flag are included in save snapshots.
 
 `MapType.TRAINING` is separate from `BATTLE`. It contains one `enemy.TrainingDummy`, with
 no AI, movement, attacks, Boss reward or battle outcome. Damage is delivered by the existing
@@ -150,16 +163,16 @@ each admitted built-in Battle map/spawn; generic Enemy/EnemyAI remain reusable c
   Both retain Player/Health/abilities/class, per-class O choices and Mage's selected element. Production loadout selection
   requires Hub (including same-class O changes); R cannot reset a production Battle encounter.
 - `BattleResult(encounter, encounterVersion, outcome)` is the latest immutable snapshot.
-  Polling does not execute anything. Developer B observes it on the game-loop thread and owns
-  all Quest state changes. Distinct transition stamps distinguish retries of one acceptance.
+  Polling does not execute anything. BossQuests observes it on the game-loop thread and owns
+  Quest state changes. Distinct transition stamps distinguish retries of one acceptance.
 - An in-memory `getPendingRewards()` outbox maps success results to immutable MaterialDrops.
   It survives all subsequent map changes and acceptances. `claimReward(result)` removes and
-  transfers a payload at most once. Developer C's adapter must be ready to own it before
-  claiming; no inventory add/capacity/pickup/save implementation is included.
-- Rewards and completed acceptance IDs live only for this process/session. Pending rewards
-  accumulate intentionally until consumed; persistence and transactional adapter recovery
-  remain Developer B/C integration work. Only the latest BattleResult is retained; poll it
-  in normal game-loop coordination rather than treating it as a durable event history.
+  transfers a payload at most once. InventoryRewards checks stack capacity before claiming,
+  adds accepted rewards to the player bag and leaves overflowed rewards pending.
+- Save snapshots include pending rewards and completed acceptance IDs together with inventory
+  and quest state. This preserves replay protection across loading without a separate reward
+  transaction log. Only the latest BattleResult is retained; ordinary game-loop coordination
+  observes it once, rather than treating it as a durable event history.
 
 See [Quest portal flow report](QUEST_PORTAL_FLOW_REPORT.md) for calls, tests and limitations.
 
@@ -203,6 +216,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── CombatStatus.java
 │   ├── Damageable.java
 │   ├── DamageType.java
+│   ├── EquipmentModifiers.java
 │   ├── ElementType.java
 │   ├── ElementStatus.java
 │   ├── ElementRules.java
@@ -229,6 +243,10 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── EnemyState.java
 │   └── TrainingDummy.java
 ├── inventory/
+│   ├── Equipment.java
+│   ├── EquipmentSlot.java
+│   ├── ItemCatalog.java
+│   ├── InventoryRewards.java
 │   ├── Inventory.java
 │   └── MaterialDrop.java
 ├── npc/
@@ -253,6 +271,15 @@ core/src/main/java/au/edu/anu/comp2120/
 │   └── UltimateMode.java
 ├── quest/
 │   └── BossQuests.java
+├── save/
+│   ├── GameSaves.java
+│   ├── InventorySnapshot.java
+│   ├── LocationSnapshot.java
+│   ├── SaveFields.java
+│   ├── SaveFile.java
+│   ├── SaveMetadata.java
+│   ├── SaveSlot.java
+│   └── SaveStore.java
 ├── screen/
 │   ├── ArtAssets.java
 │   ├── CameraFollow.java
@@ -263,6 +290,7 @@ core/src/main/java/au/edu/anu/comp2120/
 │   ├── GameScreen.java
 │   ├── HudLayout.java
 │   ├── PlaceholderRenderer.java
+│   ├── SaveMenu.java
 │   ├── SceneArt.java
 │   ├── StatusLabels.java
 │   └── TrainingAppearance.java
@@ -407,13 +435,14 @@ small, single-class packages (`BossQuests` and `BackgroundMusic`); UI beyond
 - Every admitted built-in Battle Map creates one fresh sentinel and no ordinary mobs. Retry
   never reuses the old Boss: Health, AI, phase, pattern index, cooldown and pending loot
   start fresh. Custom maps need a walkable configured Boss placement; no invalid body is forced.
-- Player stores one UltimateMode per PlayerClass. PlayerAbilities.selectUltimateMode and F5
+- Player stores one UltimateMode per PlayerClass. PlayerAbilities.selectUltimateMode and Class Master
   require Hub; recovery preserves these choices and Mage element while cancelling active skills.
   ClassDefinition supplies both ultimate definitions without duplicating Player or combat.
 - Invalid Hub configuration fails explicitly without healing in Battle or losing Boss loot.
   Hub death itself is not a battle failure. SUCCESS retains its one-time material payload
   before scope removal, closes task admission and also restores the same player in Hub.
-  Quest state, durable loot persistence, death effects and respawn UI remain external work.
+  BossQuests, InventoryRewards and GameSaves handle progress, reward delivery and persistence
+  outside combat. Failure recovery leaves existing disk checkpoints unchanged.
   Production R cannot reset a battle; dead battle players return instead of reviving in place.
 
 ### Class composition and selection
@@ -676,7 +705,8 @@ files, validation and limitations.
   Capacity remains 256 live projectiles and at most nine per volley.
 - Player owns persistent per-class UltimateMode selections (A initially) and Mage element.
   selectUltimateMode always validates living Hub state and inactive execution, even in a
-  debug harness. F5 calls this API. Mode/class switches preserve remaining cooldowns.
+  debug harness. The legacy F5 input API remains, but SaveMenu consumes F5 before gameplay
+  in production. Use Class Master for O selection. Mode/class switches preserve remaining cooldowns.
 - Transition/reset unregisters defensive capabilities, restores targetability and clears
   captured references, pending counters, fields, casts, buffs and movement activity.
   Existing encounter cleanup cancels attacks/projectiles/elements; choices survive.
@@ -710,20 +740,20 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
   valid location. getDrop/claimDrop provide a minimal read/one-time-transfer boundary;
   In formal task flow CombatDemo transfers this payload into EncounterFlow's outbox before
   scope cleanup. External adapters use getPendingRewards/claimReward, not the detached Boss's
-  claimDrop. Inventory remains untouched; its adapter must be ready to accept the payload
-  before the one-time claim on the simulation thread. No pickup-distance UI is required here.
+  claimDrop. InventoryRewards checks capacity before claiming on the simulation thread,
+  then transfers the reward to the bag. No pickup-distance UI or NPC reward visit is required.
 - Production CombatDemo owns a single sentinel on each admitted built-in battle map, without ordinary enemies.
   Safe placement candidates and provisional pattern tuning are in GameConfig. Map changes
   clear registrations/attacks; reset replaces the Boss rather than reviving the rewarded
   instance. Formal SUCCESS rewards survive later travel/encounters in the in-memory outbox;
-  they are not save-persisted. Unrestricted demo loot remains scope-local. Old Bosses cannot
+  the bag and any overflowed pending payload are saved together. Unrestricted demo loot remains scope-local. Old Bosses cannot
   expose/claim rewards after detachment. Generic Boss supports shared-engine use without
   changing production's one-Boss membership rule.
 - PlaceholderRenderer draws the existing large enemy hurtbox and gold MaterialDrop
   rectangles. The native title displays phase/HP/state/material text, with no asset load.
   There is no Boss UI, cutscene, animation, pickup UI or inventory rewrite.
 - Limitations: two static rectangular pattern cycles, conservative navigation corridors,
-  no actor-body collision, no visual hitbox clipping, no save/defeat persistence. An
+  no actor-body collision, no visual hitbox clipping and no mid-battle actor persistence. An
   attack requires an initially clear target corridor; all targets also pass post-cast
   world occlusion at settlement. A defeated encounter stays stopped even if its Health is restored;
   a deliberate new encounter/reset is needed to fight and reward it again.
@@ -864,16 +894,26 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 
 ### Inventory / Equipment
 
-- Owns item storage, add/remove operations, equipped items, and equipment values.
-- Does not apply final combat damage, render UI, or track quests.
-- Has no module dependency initially; consumers use public methods.
-- Public surface is currently the constructor. Equipment remains here.
+- Player owns the bag and Equipment; GameScreen owns separate chest storage. Both preserve
+  identity across map changes and validated restoration.
+- Inventory rejects overflowing stack additions. ItemCatalog defines supported gear and potion
+  effects; Equipment owns weapon/head/body/hands/feet slots, validates bag ownership and
+  reconciles removed items. Two/four-piece guardian bonuses are derived from current slots.
+- Equipped items remain bag contents. Moving the last copy to storage removes its bonus.
+- CombatSystem applies EquipmentModifiers in the existing damage calculation after reaction
+  and physical modifiers, then floors once. No UI or save code calculates combat damage.
+- InventoryRewards adapts EncounterFlow's outbox; it checks capacity before the one-time claim.
+  Overflowed rewards stay pending and are included in the next save.
+- GameScreen presents B-bag equip/unequip/potion actions and E-chest transfers. Storage input
+  never equips; B switches to the bag. WEAPON reads only EquipmentSlot.WEAPON.
 
 ### UI
 
-- Will own HUD, menus, dialogue presentation, and inventory display.
-- Will not mutate feature internals or implement gameplay rules.
-- Will read public APIs from Player, Quest, Inventory, and NPC.
+- GameScreen and screen helpers own HUD, menus, dialogue and inventory presentation.
+- They coordinate public feature APIs rather than mutating private model internals.
+- SaveMenu consumes F5/F9 and confirmations before normal gameplay input; its modal pauses
+  gameplay. Notifications sit below the upper-left HUD, wrap and scale on both window axes.
+  Temporary rejection hints clear when their blocker disappears or after four UI seconds.
 - No separate package exists until there are reusable UI classes.
 - `screen/StatusLabels` is the graphics-free mapping from a `CombatStatus`, plus an optional
   attacker-owned label, to ordered uppercase status labels and colours. `PlaceholderRenderer`
@@ -888,14 +928,25 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 
 ### Save / Game State
 
-**Implementation update (Hao Liu, u7998420):** The two-slot save/load system is now implemented. See [SAVE_LOAD_REPORT.md](SAVE_LOAD_REPORT.md) for controls, snapshot coverage, validation and tests. The future-tense bullets below describe the original architecture plan.
-
-- Will own save-file creation, loading, validation, and versioning.
-- Will coordinate immutable snapshots supplied by gameplay modules rather than
-  reaching into their private fields.
-- Will not implement player, world, quest, achievement, or inventory rules.
-- No package or save format exists until the first required state snapshot is
-  agreed by all module owners.
+- `save.GameSaves` coordinates snapshots through public module APIs on the game-loop thread.
+  Player, abilities, GameSession, TravelSystem, EncounterFlow, BossQuests and NPC remain owners
+  of gameplay rules. No reflection or LibGDX object-graph serialization is used.
+- SaveFile version 1 uses Java properties, format/version markers, duplicate-key rejection
+  and a 1 MiB limit. SaveFields and component snapshots validate required/unknown fields,
+  finite numbers and cross-module consistency before any live restoration.
+- SaveStore separates AUTO and MANUAL paths. Same-directory temporary writes are flushed and
+  atomically moved; unsupported atomic replacement or IO failure leaves the previous file intact.
+- Safe-state policy requires a living player in Hub/Memorial and idle ability execution.
+  UI blockers are checked separately by SaveMenu. Cooldowns can be nonzero and are preserved.
+- Loading restores exact location/HP, class/modes/element/cooldowns, bag/chest/worn slots, quest
+  and ending state, win counts, pending rewards/replay IDs, portal routes/unlocks and NPC flags.
+  All validation precedes live mutation; transient combat is rebuilt and arrival protection
+  requires leaving a restored overlapping portal before re-entry. Bonuses are recomputed.
+- Startup and loading never write either slot. Manual save only writes MANUAL; successful
+  settled Boss returns only write AUTO. Failure and simultaneous player/Boss death do not autosave.
+  Loading an older timeline does not merge progress; its next victory may replace a newer AUTO.
+- No arbitrary mid-battle snapshot, automatic startup load, dedicated New Game button or separate
+  achievement subsystem is implemented. See [Save/load](SAVE_LOAD_REPORT.md) for verification.
 
 ### Achievement
 
@@ -908,6 +959,13 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 
 ```text
 GameScreen -> feature modules (coordination only)
+GameScreen -> SaveMenu, GameSaves, InventoryRewards, Equipment, BossQuests
+SaveMenu -> GameSaves, HudLayout (input/confirmation/presentation only)
+GameSaves -> SaveStore, snapshots, public player/session/travel/quest/encounter/NPC APIs
+SaveStore -> SaveSlot, SaveFile (independent paths and atomic disk IO)
+Player -> Inventory, Equipment; Equipment -> Inventory, ItemCatalog, EquipmentSlot
+InventoryRewards -> EncounterFlow, Inventory (capacity-checked one-time transfer)
+CombatSystem -> EquipmentModifiers (shared damage calculation)
 GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
 PlaceholderRenderer -> CameraFollow, observational player/map/portal/combat geometry
 CombatDemo -> GameSession, EncounterFlow, PlayerAbilities, Boss/BossConfig, CombatSystem, Combatant
@@ -983,8 +1041,8 @@ has been introduced; future execution abstractions need a concrete skill use cas
 | Owner | Primary boundary | Integration boundary |
 | --- | --- | --- |
 | Developer A — Daoyan Zhu (`u7782042`) | `player`, `combat`, `world`, `enemy`, portals | Inventory/equipment values, quest combat events, save snapshots, and screen integration |
-| Developer B — name to confirm (`u7998420`) | `npc`, dialogue, `quest`, achievements, save/load | Read-only gameplay events, inventory reward operations, and module state snapshots |
-| Developer C — name to confirm (`u7851266`) | `inventory`, equipment, crafting, UI, settings/debug UI | Read-only gameplay APIs, world data for the minimap, and combat equipment values |
+| Developer B — Hao Liu (`u7998420`) | `npc`, dialogue, `quest`, achievements, save/load | Read-only gameplay events, inventory reward operations, and module state snapshots |
+| Developer C — Jiaqi Chen (`u7851266`) | `inventory`, equipment, crafting, UI, settings/debug UI | Read-only gameplay APIs, world data for the minimap, and combat equipment values |
 
 Developer A owns the core gameplay path from player movement, maps, collision,
 and portals through enemy behaviour and combat resolution. Developer B owns
@@ -1058,12 +1116,32 @@ This integration stage adds regression coverage and hardens lifecycle contracts,
 - Use stable events/read-only interfaces for quest, achievement, save, minimap,
   and UI integration instead of depending on private fields.
 
-## 7. Actual division of labor (from git history)
+## 7. Contribution evidence
+
+### Current update: 2026-09-25
+
+The older allocation below predates Hao Liu's merged work and is not a statement about the
+current contributor list. Read-only inspection at `721f9e6` confirms these Hao Liu commits:
+
+| Commit | Contribution |
+| --- | --- |
+| `21de2898` | Inventory/equipment integration, shared combat bonuses, reward collection and tests. |
+| `82f6a450` | Save-file foundations and validated inventory/location snapshots. |
+| `c8d14bc9` | Automatic checkpoints, manual save/load, cross-module restoration, menu and tests. |
+| `d47a1f6b` | Merge of save/load into team main. |
+
+The subsequent save-notification, storage-help and empty-weapon-label refinements are in the
+working branch, alongside this documentation update. They are not assigned a nonexistent
+commit hash. Existing NPC/quest, combat, art and world ownership by teammates is retained;
+using their APIs for persistence does not imply authorship of those original systems.
+The team's later P potion shortcut is `721f9e6`; Wind fixes are `36ce30d`.
+
+### Historical allocation snapshot (before inventory/save integration)
 
 Sections 5 and 6 above record the **planned** three-developer split, written
 before implementation started. This section records the **actual** split, read
 directly from `git shortlog` / `git log --pretty=format:'%an <%ae>' -- <path>`
-against the full repository history as of this update. It is descriptive, not
+against the repository history available at that earlier update. It is descriptive, not
 a revision of the plan: the plan is kept above so the gap is visible.
 
 Git history contains commits from exactly two identities that are the same
@@ -1142,17 +1220,18 @@ commit message.
 
 ## Decisions still requiring the team
 
-- Confirm the names for Developers B and C.
+- Developer B is Hao Liu (`u7998420`); Developer C is Jiaqi Chen (`u7851266`).
+  Keep future task allocation aligned with the current contribution evidence above.
 - Current maps use Java rectangle data and named bottom-left spawn anchors in
   world units. Agree on any future external file format and portal triggers when
   those features are implemented.
-- Agree on quest objective/reward data and the Inventory reward API before
-  creating the `quest` package.
+- Extend the existing BossQuests and InventoryRewards boundaries for future quest/reward work;
+  do not introduce a competing progress store or reward claim path.
 - First-version class behaviours and reaction rules are now fixed and implemented. Agree on
   balance refinements and future art/presentation mapping separately; those must preserve the
   shared damage, world-collision, Hub-only selection and one-generation reaction contracts.
-- Agree on the first save-file version and snapshot fields before implementing
-  save/load; do not serialize complete LibGDX objects directly.
+- Define migration before changing the implemented version-1 save schema. Decide separately
+  whether to add a New Game/reset-slots UI, more profiles or new safe-save locations.
 - Agree on final guardian balance. Scripted fights show mobile classes winning every arena, while
   a deliberately stationary caster loses to the ice and wind guardians; measurements and the
   single-constant levers are recorded in [Boss trait report](BOSS_TRAIT_REPORT.md).

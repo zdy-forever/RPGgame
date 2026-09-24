@@ -1,5 +1,9 @@
 # First-version class skills integration report
 
+> Current integration note (2026-09-25): Save/load now persists class, per-class O modes, Mage element and cooldowns. Production F5 is consumed by SaveMenu for manual saving; choose O mode through Class Master. The F5 mode-selection instructions and no-persistence boundary below describe the original skills integration.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 Implemented 2026-09-11 by Daoyan Zhu (u7782042). Behaviour follows the supplied first-version
 specification; numerical tuning is provisional. No Git/GitLab operation or formal asset integration.
 

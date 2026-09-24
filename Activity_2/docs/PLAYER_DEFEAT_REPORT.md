@@ -1,5 +1,9 @@
 # Player defeat and Hub recovery
 
+> Current integration note (2026-09-25): Production now uses quest admission and success/failure Hub returns. Bag/equipment survive recovery; successful settlement autosaves, failure does not. The old debug travel instructions and missing-feature statements below describe the September 11 checkout.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 Validated 11 September 2026. Scope: Developer A's failure handling and encounter cleanup.
 No Git/GitLab operations, art/audio loading, QuestManager, NPC logic or task UI were introduced.
 
