@@ -18,7 +18,7 @@ cd Activity_2
 ./gradlew lwjgl3:run
 ```
 
-See [`Activity_2/README.md`](Activity_2/README.md) for the project structure,
+See [`Activity_2/README.md`](Activity_2/README.md) or the project structure,
 build instructions, and class responsibilities.
 
 ## Documentation
