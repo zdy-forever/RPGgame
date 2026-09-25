@@ -260,4 +260,28 @@ final class GameSavesTest {
         assertArrayEquals(manual, Files.readAllBytes(game.store.path(SaveSlot.MANUAL)));
         assertEquals("keep", Files.readString(game.store.path(SaveSlot.AUTO).resolve("block")));
     }
+    /** Hood capacity validates against saved gear, retains exact HP and accepts old base-HP saves.
+     * @throws IOException if isolated files cannot be inspected
+     */
+    @Test void hoodHealthRestoresAcrossEquipmentChangesAndOldSaves() throws IOException {
+        var game = new Game(directory); var player = game.session.getPlayer();
+        player.getInventory().addItem("guardian_hood+2"); player.getEquipment().toggle("guardian_hood+2");
+        player.getHealth().takeDamage(5);
+        assertTrue(game.saves.saveManual());
+        player.getEquipment().toggle("guardian_hood+2");
+        assertEquals(100, player.getHealth().getMaxHp());
+        assertTrue(game.saves.load(SaveSlot.MANUAL), game.saves.status());
+        assertEquals(140, player.getHealth().getMaxHp()); assertEquals(135, player.getHealth().getCurrentHp());
+        var fields = new HashMap<>(game.store.load(SaveSlot.MANUAL));
+        fields.put("location.maxHp", "100"); fields.put("location.hp", "90");
+        game.store.save(SaveSlot.MANUAL, fields);
+        assertTrue(game.saves.load(SaveSlot.MANUAL), game.saves.status());
+        assertEquals(140, player.getHealth().getMaxHp()); assertEquals(90, player.getHealth().getCurrentHp());
+        fields.put("location.maxHp", "150"); fields.put("location.hp", "145");
+        game.store.save(SaveSlot.MANUAL, fields);
+        assertFalse(game.saves.load(SaveSlot.MANUAL));
+        assertEquals(90, player.getHealth().getCurrentHp());
+        assertEquals("guardian_hood+2", player.getEquipment().itemAt(EquipmentSlot.HEAD));
+    }
+
 }

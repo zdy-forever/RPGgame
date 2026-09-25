@@ -15,10 +15,10 @@ public final class ItemCatalog {
     /** Immutable wearable catalogue; percentages are additive before combat multiplication. */
     private static final List<Gear> GEAR = List.of(
             new Gear("weapon_lightning_staff", "Lightning staff", EquipmentSlot.WEAPON, 20, 0, ""),
-            new Gear("guardian_hood", "Guardian hood", EquipmentSlot.HEAD, 0, 4, "guardian"),
+            new Gear("guardian_hood", "Guardian hood", EquipmentSlot.HEAD, 0, 0, "guardian"),
             new Gear("guardian_coat", "Guardian coat", EquipmentSlot.BODY, 0, 8, "guardian"),
-            new Gear("guardian_gloves", "Guardian gloves", EquipmentSlot.HANDS, 0, 4, "guardian"),
-            new Gear("guardian_boots", "Guardian boots", EquipmentSlot.FEET, 0, 4, "guardian"));
+            new Gear("guardian_gloves", "Guardian gloves", EquipmentSlot.HANDS, 0, 0, "guardian"),
+            new Gear("guardian_boots", "Guardian boots", EquipmentSlot.FEET, 0, 0, "guardian"));
 
     /** Prevents catalogue construction. */
     private ItemCatalog() { }
@@ -28,7 +28,18 @@ public final class ItemCatalog {
      * @return matching definition, or empty for non-equipment
      */
     public static Optional<Gear> gear(String id) {
-        return GEAR.stream().filter(item -> item.id().equals(id)).findFirst();
+        var base = GEAR.stream().filter(item -> item.id().equals(id)).findFirst();
+        if (base.isPresent() || id == null) { return base; }
+        for (Gear item : GEAR) {
+            for (int level = 1; level <= 2; level++) {
+                if ((item.id() + "+" + level).equals(id)) {
+                    return Optional.of(new Gear(id, item.name() + " +" + level, item.slot(),
+                            item.attackPercent() + (item.slot() == EquipmentSlot.WEAPON ? 5 * level : 0),
+                            item.defencePercent() + (item.slot() == EquipmentSlot.BODY ? 2 * level : 0), item.setId()));
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     /** Lists all supported wearable definitions.
@@ -50,9 +61,13 @@ public final class ItemCatalog {
      */
     public static String effect(String id) {
         if (POTION.equals(id)) { return "Heal " + POTION_HEAL; }
-        return gear(id).map(item -> item.slot() == EquipmentSlot.WEAPON
-                ? "ATK +" + item.attackPercent() + "%"
-                : item.slot() + " DEF " + item.defencePercent() + "%").orElse("Material");
+        return gear(id).map(item -> switch (item.slot()) {
+            case WEAPON -> "ATK +" + item.attackPercent() + "%";
+            case HEAD -> "Max HP +" + item.healthBonus();
+            case BODY -> "DEF " + item.defencePercent() + "%";
+            case HANDS -> "Skill CDR " + item.cooldownPercent() + "%";
+            case FEET -> "Move speed +" + item.speedPercent() + "%";
+        }).orElse("Material");
     }
 
     /** Immutable internal catalogue entry.
@@ -64,5 +79,22 @@ public final class ItemCatalog {
      * @param setId armour set identity, empty for no set
      */
     public record Gear(String id, String name, EquipmentSlot slot,
-                       int attackPercent, int defencePercent, String setId) { }
+                       int attackPercent, int defencePercent, String setId) {
+        /** Reads the bounded enhancement encoded in this catalogue identity.
+         * @return enhancement level
+         */
+        private int level() { return id.endsWith("+2") ? 2 : id.endsWith("+1") ? 1 : 0; }
+        /** Returns headgear health capacity.
+         * @return added maximum HP
+         */
+        public int healthBonus() { return slot == EquipmentSlot.HEAD ? 20 + 10 * level() : 0; }
+        /** Returns glove cooldown reduction for K/L/O.
+         * @return reduction percentage
+         */
+        public int cooldownPercent() { return slot == EquipmentSlot.HANDS ? 10 + 5 * level() : 0; }
+        /** Returns boot ordinary movement amplification.
+         * @return speed percentage
+         */
+        public int speedPercent() { return slot == EquipmentSlot.FEET ? 10 + 5 * level() : 0; }
+    }
 }

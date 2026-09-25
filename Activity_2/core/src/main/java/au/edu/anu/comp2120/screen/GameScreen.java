@@ -29,6 +29,7 @@ import au.edu.anu.comp2120.inventory.EquipmentSlot;
 import au.edu.anu.comp2120.inventory.ItemCatalog;
 import au.edu.anu.comp2120.inventory.InventoryRewards;
 import au.edu.anu.comp2120.npc.MerchantServices;
+import au.edu.anu.comp2120.inventory.GearUpgrades;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -94,12 +95,16 @@ public final class GameScreen extends ScreenAdapter {
     private int dialogueLine;
     /** Selected merchant service, independent of the once-only weapon flag. */
     private int merchantChoice;
+    /** Whether the merchant equipment submenu owns input. */
+    private boolean upgradeMenu;
+    /** Selected equipment position. */
+    private int upgradeChoice;
+    /** Carried item explicitly awaiting upgrade confirmation. */
+    private String pendingUpgrade = "";
     /** Feedback beneath the merchant service list. */
     private String merchantFeedback = "Choose a service. Potions are topped up to 3 across bag and chest.";
     /** NPC currently talking. */
     private NPC activeNpc;
-    /** Maximum HP used to scale the placeholder health bar. */
-    private static final int MAX_HP = 100;
     /** Own screen-space batch used only for the dialogue box. */
     private final SpriteBatch dialogueBatch;
     /** Own built-in font for dialogue text; no art files required. */
@@ -251,7 +256,7 @@ public final class GameScreen extends ScreenAdapter {
         drawSkillHud(hud);
         drawDialogue();
         drawOutcome(delta);
-        saveMenu.draw(dialogueBatch, dialogueFont, dialogueShapes);
+        saveMenu.draw(dialogueBatch, dialogueFont, dialogueShapes, dialogueOpen);
     }
 
     /**
@@ -288,6 +293,12 @@ public final class GameScreen extends ScreenAdapter {
      * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
      */
     private void updateGameplay(double delta) {
+        if (isMerchantDialogueOpen() && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            if (!pendingUpgrade.isEmpty()) { pendingUpgrade = ""; }
+            else if (upgradeMenu) { upgradeMenu = false; }
+            else { dialogueOpen = false; activeNpc = null; }
+            updateMapView(); return;
+        }
         // Escape closes an ordinary panel first; a second press opens the pause menu.
         if (!saveMenu.isOpen() && !endingOpen && !credits.isOpen()
                 && (dialogueOpen || inventoryOpen || chestOpen || bigMap)
@@ -319,7 +330,7 @@ public final class GameScreen extends ScreenAdapter {
                     endingOpen = false;
                     dialogueLine = 0;
                     credits.open();
-                    travelStatus = "All five guardians defeated - journey complete";
+                    saveMenu.notify("All five guardians defeated - journey complete");
                 }
             }
             updateMapView();
@@ -404,7 +415,7 @@ public final class GameScreen extends ScreenAdapter {
                     dialogueLine = 0;
                     activeNpc = near;
                     if (isMerchantDialogueOpen()) {
-                        merchantChoice = 0;
+                        merchantChoice = 0; upgradeMenu = false; upgradeChoice = 0; pendingUpgrade = "";
                         merchantFeedback = "Choose a service. Supplies count both bag and chest.";
                         inventoryOpen = false; bigMap = false;
                     }
@@ -466,11 +477,11 @@ public final class GameScreen extends ScreenAdapter {
             try {
                 if (travel.updatePortals()) {
                     combatDemo.update(0, PlayerCommand.NONE, false);
-                    travelStatus = "Arrived by portal; leave the portal area before re-entry";
+                    saveMenu.notify("Arrived by portal; leave the portal area before re-entry");
                     updateMapView();
                 }
             } catch (IllegalArgumentException | IllegalStateException failure) {
-                travelStatus = failure.getMessage();
+                saveMenu.notify(failure.getMessage());
                 updateMapView();
             }
         }
@@ -514,9 +525,9 @@ public final class GameScreen extends ScreenAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             try {
                 quests.accept(targets[questChoice]);
-                questFeedback = "Accepted: " + targets[questChoice].displayName() + ". Talk to the Portal Guide.";
+                saveMenu.notify("Accepted: " + targets[questChoice].displayName() + ". Talk to the Portal Guide.");
             } catch (IllegalArgumentException | IllegalStateException failure) {
-                questFeedback = failure.getMessage();
+                saveMenu.notify(failure.getMessage());
             }
         }
     }
@@ -550,9 +561,9 @@ public final class GameScreen extends ScreenAdapter {
                 portalGuide.returnFromTraining();
                 dialogueOpen = false;
                 activeNpc = null;
-                travelStatus = "Practice finished; returned to Hub";
+                saveMenu.notify("Practice finished; returned to Hub");
             } catch (IllegalArgumentException | IllegalStateException failure) {
-                travelStatus = failure.getMessage();
+                saveMenu.notify(failure.getMessage());
             }
         }
     }
@@ -569,6 +580,24 @@ public final class GameScreen extends ScreenAdapter {
         if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()) {
             dialogueOpen = false; activeNpc = null; return;
         }
+        if (upgradeMenu) {
+            if (!pendingUpgrade.isEmpty()) {
+                if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                    saveMenu.notify(GearUpgrades.upgrade(pendingUpgrade, inventory, chestStorage, equipment));
+                    pendingUpgrade = "";
+                }
+                return;
+            }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) { upgradeChoice = Math.floorMod(upgradeChoice - 1, 5); }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) { upgradeChoice = (upgradeChoice + 1) % 5; }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                String id = GearUpgrades.candidate(EquipmentSlot.values()[upgradeChoice], inventory, equipment);
+                if (id.isEmpty()) { saveMenu.notify("Move the equipment into your bag first."); }
+                else if (GearUpgrades.level(id) == GearUpgrades.MAX_LEVEL) { saveMenu.notify("Already at maximum level +2."); }
+                else { pendingUpgrade = id; }
+            }
+            return;
+        }
         var choices = MerchantServices.Choice.values();
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
             merchantChoice = Math.floorMod(merchantChoice - 1, choices.length);
@@ -576,7 +605,9 @@ public final class GameScreen extends ScreenAdapter {
             merchantChoice = (merchantChoice + 1) % choices.length;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            merchantFeedback = MerchantServices.select(choices[merchantChoice], activeNpc, inventory, chestStorage);
+            if (choices[merchantChoice] == MerchantServices.Choice.UPGRADES) {
+                upgradeMenu = true; merchantFeedback = "Worn item first; otherwise highest-level carried item. Cost: 1 core.";
+            } else { saveMenu.notify(MerchantServices.select(choices[merchantChoice], activeNpc, inventory, chestStorage)); }
         }
     }
 
@@ -595,9 +626,9 @@ public final class GameScreen extends ScreenAdapter {
             trainerChoice = (trainerChoice + 1) % choices.length;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
-            trainerFeedback = classTrainer.select(choices[trainerChoice])
+            saveMenu.notify(classTrainer.select(choices[trainerChoice])
                     ? "Applied: " + classTrainer.label(choices[trainerChoice])
-                    : "Unchanged: already selected or an ability is still active.";
+                    : "Unchanged: already selected or an ability is still active.");
         }
     }
 
@@ -623,11 +654,11 @@ public final class GameScreen extends ScreenAdapter {
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             try {
                 portalGuide.select(portalChoice);
-                travelStatus = "Portal ready: " + portalGuide.destinationLabel(portalChoice) + "; step into the portal";
+                saveMenu.notify("Portal ready: " + portalGuide.destinationLabel(portalChoice) + "; step into the portal");
                 dialogueOpen = false;
                 activeNpc = null;
             } catch (IllegalArgumentException | IllegalStateException failure) {
-                travelStatus = failure.getMessage();
+                saveMenu.notify(failure.getMessage());
             }
         }
     }
@@ -678,12 +709,12 @@ public final class GameScreen extends ScreenAdapter {
                 String reward = activeNpc.getRewardItemId();
                 if (reward != null && !reward.isBlank()) {
                     inventory.addItem(reward, 1);
-                    travelStatus = "Received: " + reward;
+                    saveMenu.notify("Received: " + reward);
                 } else {
-                    travelStatus = "Talked to: " + activeNpc.getName();
+                    saveMenu.notify("Talked to: " + activeNpc.getName());
                 }
             } else if (activeNpc != null) {
-                travelStatus = "Talked to: " + activeNpc.getName();
+                saveMenu.notify("Talked to: " + activeNpc.getName());
             }
             updateMapView();
             activeNpc = null;
@@ -738,7 +769,7 @@ public final class GameScreen extends ScreenAdapter {
         float barW = 180f * scale;
         float barH = 18f * scale;
         float barY = h - 10f * scale - barH;
-        float ratio = currentHp() / (float) MAX_HP;
+        float ratio = currentHp() / (float) session.getPlayer().getHealth().getMaxHp();
 
         dialogueFont.getData().setScale(scale);
         dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
@@ -753,7 +784,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(0.1f, 0.1f, 0.1f, 1);
-        dialogueFont.draw(dialogueBatch, currentHpText() + " / " + MAX_HP,
+        dialogueFont.draw(dialogueBatch, currentHpText() + " / " + session.getPlayer().getHealth().getMaxHp(),
                 x, baseline, barW, Align.center, false);
         dialogueBatch.end();
     }
@@ -789,37 +820,15 @@ public final class GameScreen extends ScreenAdapter {
                 x + 10f * scale, top - 12f * scale, boxW - 20f * scale, Align.left, true);
         dialogueBatch.end();
     }
-    /**
-     * Parses the current HP number from the combat status text.
-     *
-     * @return the parsed HP clamped to 0..MAX_HP, or MAX_HP when unreadable
+    /** Reads current HP directly from the model rather than parsing stale status text.
+     * @return current player HP
      */
-    private int currentHp() {
-        String segment = currentHpText();
-        StringBuilder digits = new StringBuilder();
-        for (int i = 0; i < segment.length(); i++) {
-            char c = segment.charAt(i);
-            if (Character.isDigit(c)) {
-                digits.append(c);
-            } else if (!digits.isEmpty()) {
-                break;
-            }
-        }
-        if (digits.isEmpty()) {
-            return MAX_HP;
-        }
-        return Math.max(0, Math.min(Integer.parseInt(digits.toString()), MAX_HP));
-    }
-    /**
-     * Extracts the HP segment from the combat status, for example "HP 100".
-     *
-     * @return the leading status segment before the first separator
+    private int currentHp() { return session.getPlayer().getHealth().getCurrentHp(); }
+
+    /** Formats the live HP numerator.
+     * @return player-facing HP text
      */
-    private String currentHpText() {
-        String status = combatDemo.getStatus();
-        int bar = status.indexOf('|');
-        return (bar > 0 ? status.substring(0, bar) : status).trim();
-    }
+    private String currentHpText() { return "HP " + currentHp(); }
     /**
      * Draws the live player coordinate in the top-left corner.
      * Uses this screen's own font and batch, so no renderer change is needed.
@@ -899,6 +908,7 @@ public final class GameScreen extends ScreenAdapter {
             return List.of(text.append(questFeedback).toString());
         }
         if (isMerchantDialogueOpen()) {
+            if (upgradeMenu) { return List.of(upgradeText()); }
             StringBuilder text = new StringBuilder("Welcome! Choose a service:\n\n");
             var choices = MerchantServices.Choice.values();
             for (int i = 0; i < choices.length; i++) {
@@ -940,6 +950,33 @@ public final class GameScreen extends ScreenAdapter {
         withNotice.add("You already took the " + prettyName(activeNpc.getRewardItemId()) + ".");
         return withNotice;
     }
+    /** Formats upgrade previews and explicit material-spending confirmation.
+     * @return current merchant upgrade page
+     */
+    private String upgradeText() {
+        if (!pendingUpgrade.isEmpty()) {
+            String material = "sentinel-core";
+            int level = GearUpgrades.level(pendingUpgrade);
+            String base = level == 0 ? pendingUpgrade : pendingUpgrade.substring(0, pendingUpgrade.lastIndexOf('+'));
+            return "Confirm upgrade: " + ItemCatalog.name(pendingUpgrade) + " -> +" + (level + 1)
+                    + "\n" + ItemCatalog.effect(pendingUpgrade) + " -> " + ItemCatalog.effect(base + "+" + (level + 1))
+                    + "\nCost: 1 " + ItemCatalog.name(material)
+                    + "\nAvailable: " + GearUpgrades.count(material, inventory, chestStorage)
+                    + "\nBag before chest.\n[E] Spend material and upgrade  [Esc] Cancel";
+        }
+        StringBuilder text = new StringBuilder("UPGRADE EQUIPMENT - max +2\n");
+        for (var slot : EquipmentSlot.values()) {
+            String id = GearUpgrades.candidate(slot, inventory, equipment);
+            text.append(slot.ordinal() == upgradeChoice ? "> " : "  ").append(slot).append(": ")
+                    .append(id.isEmpty() ? "Not in bag" : ItemCatalog.name(id) + " | " + ItemCatalog.effect(id))
+                    .append("\n");
+        }
+        return text.append("\nShared cores: ").append(GearUpgrades.count("sentinel-core", inventory, chestStorage))
+                .append(" (Bag: ").append(inventory.quantityOf("sentinel-core"))
+                .append(" | Chest: ").append(chestStorage.quantityOf("sentinel-core")).append(")")
+                .append("\n").append(merchantFeedback).toString();
+    }
+
     /** Measures wrapped text to fit all dialogue bands before drawing, including on window resize. */
     private void drawDialogue() {
         if (!dialogueOpen || activeNpc == null) {

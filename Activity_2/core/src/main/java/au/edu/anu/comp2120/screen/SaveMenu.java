@@ -285,8 +285,9 @@ final class SaveMenu {
      * @param batch shared screen batch
      * @param font shared bitmap font
      * @param shapes shared shape renderer
+     * @param dialogueVisible whether a dialogue needs the lower screen clear
      */
-    void draw(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes) {
+    void draw(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes, boolean dialogueVisible) {
         observeStatus(); advanceHint(Gdx.graphics.getDeltaTime());
         int width = Gdx.graphics.getWidth(), height = Gdx.graphics.getHeight();
         var b = layout(width, height);
@@ -363,7 +364,7 @@ final class SaveMenu {
                 text.setText(font, toast, new Color(1, 1, 1, alpha), w - 24 * scale, Align.center, true);
             }
             float h = text.height + 24 * scale, x = (width - w) / 2;
-            float y = isOpen() ? 12 * scale : height * 0.22f;
+            float y = isOpen() ? 12 * scale : dialogueVisible ? height - h - 12 * scale : height * 0.22f;
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0.06f, 0.10f, 0.16f, 0.8f * alpha); shapes.rect(x, y, w, h); shapes.end();
             batch.begin(); font.draw(batch, text, x + 12 * scale, y + h - 12 * scale); batch.end();

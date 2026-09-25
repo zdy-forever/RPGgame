@@ -55,7 +55,7 @@ final class InventorySnapshotTest {
         InventorySnapshot.fromFields(store.load(SaveSlot.MANUAL)).restore(target, targetChest);
         assertEquals(expected, InventorySnapshot.capture(target, targetChest));
         assertEquals(30, target.getEquipment().attackPercent());
-        assertEquals(25, target.getEquipment().defencePercent());
+        assertEquals(13, target.getEquipment().defencePercent());
     }
 
     /** Repeated loads replace contents, retain identities and clear previously worn gear. */
@@ -77,7 +77,7 @@ final class InventorySnapshotTest {
         assertSame(equipment, target.getEquipment());
         assertEquals(snapshot, InventorySnapshot.capture(target, chest));
         assertEquals(0, equipment.attackPercent());
-        assertEquals(4, equipment.defencePercent());
+        assertEquals(20, equipment.healthBonus());
     }
 
     /** Empty saves never regrant starter items or retain equipment effects. */

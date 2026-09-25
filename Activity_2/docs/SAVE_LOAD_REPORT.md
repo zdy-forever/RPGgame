@@ -228,3 +228,21 @@ with world animation. Inventory input remains active; closing with B/Escape resu
 frame updates without accumulating paused time. Battle-map save/load restrictions remain.
 Manual check: open the bag during a Boss attack, wait several seconds and verify HP, enemy
 positions and projectiles remain stationary; close it and verify combat resumes.
+
+
+## Equipment upgrade persistence
+
+The catalogue recognises base IDs and bounded `+1`/`+2` variants. Existing inventory snapshot
+fields preserve upgraded item identity, quantity, chest contents and worn slot without a
+new file-format version. Base IDs remain level zero. Worn invalid variants are rejected by
+existing catalogue validation. Upgrade level travels with each item, rather than a global
+slot bonus. Upgrade services do not write files; manual and automatic slots remain independent.
+
+
+### Headgear capacity compatibility
+
+Full-load validation computes expected HP capacity from the saved worn items before touching
+live state. Inventory/equipment restores before exact location/HP. Older snapshots recording
+base maximum HP with a hood are accepted and retain their saved current HP; other mismatched
+capacities are rejected before mutation. Boots and glove modifiers are derived from worn IDs;
+remaining cooldowns restore exactly without a second reduction.

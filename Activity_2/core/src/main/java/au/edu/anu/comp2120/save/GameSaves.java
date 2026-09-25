@@ -277,8 +277,14 @@ public final class GameSaves {
         var f = new SaveFields(fields);
         var metadata = SaveMetadata.fromFields(fields, slot); f.accept(metadata.toFields().keySet());
         var location = LocationSnapshot.fromFields(fields); f.accept(location.toFields().keySet());
-        location.validateFor(session);
         var inventory = InventorySnapshot.fromFields(fields); f.accept(inventory.toFields().keySet());
+        int capacity = (int) Math.min(Integer.MAX_VALUE, (long) session.getPlayer().getBaseMaxHp()
+                + inventory.worn().values().stream().map(id -> au.edu.anu.comp2120.inventory.ItemCatalog.gear(id).orElseThrow())
+                .mapToInt(au.edu.anu.comp2120.inventory.ItemCatalog.Gear::healthBonus).sum());
+        // Pre-attribute saves recorded base HP even with a hood; preserve their actual HP.
+        var restoredLocation = location.maxHp() == session.getPlayer().getBaseMaxHp()
+                ? new LocationSnapshot(location.mapId(), location.x(), location.y(), location.hp(), capacity) : location;
+        restoredLocation.validateFor(session, capacity);
         var type = PlayerClass.valueOf(f.text("player.class"));
         var element = ElementType.valueOf(f.text("player.element"));
         if (element == ElementType.NONE) { throw new IllegalArgumentException("Invalid Mage element"); }
@@ -347,9 +353,9 @@ public final class GameSaves {
         npcs.forEach(npc -> flags.put(npc, f.flag("npc." + npc.getId())));
         f.finish();
         return () -> {
-            location.restore(session);
-            session.getPlayer().restoreSelections(type, element, modes);
             inventory.restore(session.getPlayer(), chest);
+            restoredLocation.restore(session);
+            session.getPlayer().restoreSelections(type, element, modes);
             flow.restoreProgress(permission, wins, completedIds, rewards);
             quests.restoreProgress(done, active, ending);
             travel.restoreProgress(portals, unlocks);

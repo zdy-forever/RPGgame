@@ -16,7 +16,8 @@ public final class MerchantServices {
      */
     public enum Choice {
         /** Once-only weapon reward. */ WEAPON,
-        /** Repeatable potion top-up. */ POTIONS
+        /** Repeatable potion top-up. */ POTIONS,
+        /** Opens the equipment enhancement menu. */ UPGRADES
     }
 
     /** Builds the live status beside a menu choice.
@@ -27,6 +28,7 @@ public final class MerchantServices {
      * @return player-facing label and current status
      */
     public static String label(Choice choice, NPC merchant, Inventory bag, Inventory chest) {
+        if (choice == Choice.UPGRADES) { return "Upgrade equipment  [Max +2]"; }
         if (choice == Choice.WEAPON) {
             return "Claim Lightning Staff  [" + (merchant.hasInteracted() ? "Claimed" : "Available") + "]";
         }
@@ -44,6 +46,7 @@ public final class MerchantServices {
      * @return operation feedback
      */
     public static String select(Choice choice, NPC merchant, Inventory bag, Inventory chest) {
+        if (choice == Choice.UPGRADES) { return "Choose equipment in the upgrade menu."; }
         if (choice == Choice.WEAPON) {
             if (merchant.hasInteracted()) { return "Weapon already claimed."; }
             bag.addItem(merchant.getRewardItemId());

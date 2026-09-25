@@ -79,18 +79,18 @@ final class EquipmentIntegrationTest {
         Player player = session().getPlayer();
         armour(player);
         assertEquals(4, player.getEquipment().setPieces());
-        assertEquals(30, hit(player, false));
+        assertEquals(34, hit(player, false));
         assertEquals(44, hit(player, true));
         player.getInventory().removeItem("guardian_coat", 1);
         assertEquals("", player.getEquipment().itemAt(EquipmentSlot.BODY));
         assertEquals(3, player.getEquipment().setPieces());
         assertEquals(0, player.getEquipment().attackPercent());
-        assertEquals(17, player.getEquipment().defencePercent());
+        assertEquals(5, player.getEquipment().defencePercent());
         player.getEquipment().toggle("guardian_hood");
         assertEquals(2, player.getEquipment().setPieces());
-        assertEquals(13, player.getEquipment().defencePercent());
+        assertEquals(5, player.getEquipment().defencePercent());
         player.getEquipment().toggle("guardian_gloves");
-        assertEquals(4, player.getEquipment().defencePercent());
+        assertEquals(0, player.getEquipment().defencePercent());
     }
 
     /** Removing some units preserves the wearable, but clearing ownership invalidates it. */
@@ -151,7 +151,7 @@ final class EquipmentIntegrationTest {
         session.switchMap(MapCatalog.HUB);
         assertSame(player, session.getPlayer());
         assertEquals(4, player.getEquipment().snapshot().size());
-        assertEquals(30, hit(player, false));
+        assertEquals(34, hit(player, false));
     }
 
     /** Overflow never replaces the previous stack quantity. */
@@ -192,4 +192,53 @@ final class EquipmentIntegrationTest {
         assertEquals(Integer.MAX_VALUE, inventory.quantityOf(reward.materialId()));
         assertTrue(flow.getPendingRewards().isEmpty());
     }
+    /** Upgrade bonuses alter real combat damage immediately on the already-worn item. */
+    @Test void upgradedWeaponChangesRealDamage() {
+        Player player = session().getPlayer();
+        var bag = player.getInventory(); var chest = new Inventory();
+        bag.addItem("weapon_lightning_staff"); bag.addItem("sentinel-core", 2);
+        player.getEquipment().toggle("weapon_lightning_staff");
+        assertEquals(48, hit(player, true));
+        GearUpgrades.upgrade("weapon_lightning_staff", bag, chest, player.getEquipment());
+        assertEquals(50, hit(player, true));
+        GearUpgrades.upgrade("weapon_lightning_staff+1", bag, chest, player.getEquipment());
+        assertEquals(52, hit(player, true));
+    }
+
+    /** Headgear changes capacity without free healing or revival, including upgrades and removal. */
+    @Test void hoodCapacityCannotBeUsedToFarmHealth() {
+        var player = session().getPlayer(); var bag = player.getInventory(); var chest = new Inventory();
+        var health = player.getHealth();
+        bag.addItem("guardian_hood"); bag.addItem("sentinel-core", 2);
+        player.getEquipment().toggle("guardian_hood");
+        assertEquals(120, health.getMaxHp()); assertEquals(120, health.getCurrentHp());
+        health.heal(20);
+        GearUpgrades.upgrade("guardian_hood", bag, chest, player.getEquipment());
+        assertEquals(130, health.getMaxHp()); assertEquals(130, health.getCurrentHp());
+        GearUpgrades.upgrade("guardian_hood+1", bag, chest, player.getEquipment());
+        assertEquals(140, health.getMaxHp()); assertEquals(140, health.getCurrentHp());
+        player.getEquipment().toggle("guardian_hood+2");
+        assertEquals(100, health.getCurrentHp());
+        player.getEquipment().toggle("guardian_hood+2");
+        assertEquals(140, health.getCurrentHp());
+        health.takeDamage(140);
+        player.getEquipment().toggle("guardian_hood+2");
+        player.getEquipment().toggle("guardian_hood+2");
+        assertFalse(health.isAlive());
+        bag.removeItem("guardian_hood+2", 1);
+        assertEquals(100, player.getHealth().getMaxHp());
+    }
+
+    /** Boots modify normal movement, and no longer contribute defence. */
+    @Test void bootsChangeActualMovement() {
+        var player = session().getPlayer();
+        double base = player.getSpeed();
+        player.getInventory().addItem("guardian_boots+2"); player.getEquipment().toggle("guardian_boots+2");
+        assertEquals(base * 1.2, player.getSpeed(), 1e-8);
+        double x = player.getX(); player.updateMovement(1, 0, 0.01);
+        assertEquals(base * 1.2 * 0.01, player.getX() - x, 1e-8);
+        assertEquals(0, player.getEquipment().defencePercent());
+        player.getEquipment().toggle("guardian_boots+2"); assertEquals(base, player.getSpeed());
+    }
+
 }
