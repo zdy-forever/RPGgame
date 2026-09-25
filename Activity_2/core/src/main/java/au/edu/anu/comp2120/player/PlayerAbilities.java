@@ -241,7 +241,7 @@ public final class PlayerAbilities {
                 dashX = facingX / length;
                 dashY = facingY / length;
                 dashRemaining = loadout.dash().duration();
-                cooldowns[AbilitySlot.DASH.ordinal()] = loadout.dash().cooldown();
+                cooldowns[AbilitySlot.DASH.ordinal()] = adjustedCooldown(AbilitySlot.DASH, loadout.dash().cooldown());
                 triggered = Optional.of(AbilitySlot.DASH);
             }
             boolean dashFrame = dashRemaining > 0;
@@ -365,6 +365,15 @@ public final class PlayerAbilities {
         facingY = 0;
     }
 
+    /** Snapshots glove reduction when a skill starts; existing timers do not change on swaps.
+     * @param slot ability slot
+     * @param seconds base cooldown
+     * @return actual timer, leaving ordinary attacks unchanged
+     */
+    private double adjustedCooldown(AbilitySlot slot, double seconds) {
+        return seconds * (slot == AbilitySlot.LIGHT ? 1 : 1 - player.getEquipment().cooldownPercent() / 100.0);
+    }
+
     /**
      * Submits shape/projectile delivery with its element and captured shape-selected origin, then starts cooldown.
      * @param slot attack slot
@@ -385,7 +394,7 @@ public final class PlayerAbilities {
             if (!skills.start(slot, area)) {
                 return false;
             }
-            cooldowns[slot.ordinal()] = spec.cooldownSeconds();
+            cooldowns[slot.ordinal()] = adjustedCooldown(slot, spec.cooldownSeconds());
             return true;
         }
         boolean rapid = area.kind() == SkillKind.ELEMENT_PROJECTILE && skills.rapid();
@@ -424,7 +433,7 @@ public final class PlayerAbilities {
         if (area.projectile() != null) {
             launchWindows[slot.ordinal()] = active;
         }
-        cooldowns[slot.ordinal()] = rapid ? SkillTuning.RAPID_COOLDOWN : spec.cooldownSeconds();
+        cooldowns[slot.ordinal()] = adjustedCooldown(slot, rapid ? SkillTuning.RAPID_COOLDOWN : spec.cooldownSeconds());
         return true;
     }
 

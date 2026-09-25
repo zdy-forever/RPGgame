@@ -23,7 +23,7 @@ public final class Player implements Damageable, EquipmentModifiers {
     /** Persistent item storage, shared with the existing screen UI. */
     private final Inventory inventory = new Inventory();
     /** Equipment survives map transitions with this player. */
-    private final Equipment equipment = new Equipment(inventory);
+    private final Equipment equipment = new Equipment(inventory, this::refreshHealthCapacity);
 
     /** Returns this player's bag.
      * @return persistent inventory
@@ -64,6 +64,8 @@ public final class Player implements Damageable, EquipmentModifiers {
     public static final int DEFAULT_MAX_HP = 100;
     /** Per-player health retained during movement and map transitions. */
     private final Health health;
+    /** Unequipped HP capacity, retained for save compatibility. */
+    private final int baseMaxHp;
     /** Current immutable collision rectangle, anchored at the bottom-left corner. */
     private CollisionBox bounds;
     /** Movement speed in world units per second. */
@@ -154,6 +156,7 @@ public final class Player implements Damageable, EquipmentModifiers {
             throw new IllegalArgumentException("Speed must be positive and finite; spawn must be walkable");
         }
         this.speed = speed;
+        baseMaxHp = maxHp;
         health = new Health(maxHp);
     }
 
@@ -190,8 +193,19 @@ public final class Player implements Damageable, EquipmentModifiers {
      * @return this player's persistent health model
      */
     public Health getHealth() {
+        equipment.reconcile();
         return health;
     }
+
+    /** Updates maximum HP after equipment changes without giving free healing. */
+    private void refreshHealthCapacity() {
+        health.setMaxHp((int) Math.min(Integer.MAX_VALUE, (long) baseMaxHp + equipment.healthBonus()));
+    }
+
+    /** Reads health capacity before equipment.
+     * @return base maximum HP
+     */
+    public int getBaseMaxHp() { return baseMaxHp; }
 
     /**
      * Delegates damage to the shared model without changing position or triggering visual effects.
@@ -201,6 +215,7 @@ public final class Player implements Damageable, EquipmentModifiers {
      */
     @Override
     public void takeDamage(int damage) {
+        equipment.reconcile();
         health.takeDamage(damage);
     }
 
@@ -211,6 +226,7 @@ public final class Player implements Damageable, EquipmentModifiers {
      */
     @Override
     public boolean isAlive() {
+        equipment.reconcile();
         return health.isAlive();
     }
 
@@ -228,10 +244,10 @@ public final class Player implements Damageable, EquipmentModifiers {
      */
     public void updateMovement(int horizontal, int vertical, double delta) {
         if (horizontal < -1 || horizontal > 1 || vertical < -1 || vertical > 1
-                || !Double.isFinite(delta) || delta < 0 || !Double.isFinite(speed * delta)) {
+                || !Double.isFinite(delta) || delta < 0 || !Double.isFinite(getSpeed() * delta)) {
             throw new IllegalArgumentException("Expected axis inputs in [-1, 1] and finite non-negative distance");
         }
-        double distance = speed * delta;
+        double distance = getSpeed() * delta;
         double length = Math.hypot(horizontal, vertical);
         if (length != 0 && distance != 0) {
             bounds = area.move(bounds, horizontal / length * distance, vertical / length * distance);
@@ -303,7 +319,7 @@ public final class Player implements Damageable, EquipmentModifiers {
      * @return world units travelled per second when unobstructed
      */
     public double getSpeed() {
-        return speed;
+        return speed * (1 + equipment.speedPercent() / 100.0);
     }
 
     /**

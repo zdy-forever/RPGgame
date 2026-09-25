@@ -5,18 +5,20 @@ Author: Hao Liu (u7998420)
 ## Integration status
 
 Foundations: `82f6a450`; gameplay integration: `c8d14bc9`; team-main merge: `d47a1f6b`.
-The notification refinements below are subsequent working-branch changes.
+The first notification refinement was committed as `534cb93` and merged as `12d6da8`.
+The Esc menu redesign below is the subsequent working-branch change.
 See [the game README](../README.md) for launch instructions and
 [the inventory report](INVENTORY_EQUIPMENT_REPORT.md) for equipment and reward rules.
 
 ## Player controls
 
-- **F5** saves the manual slot. An existing manual file, even an invalid one, requires Enter confirmation before replacement. Escape cancels.
-- **F9** opens the save selection panel. **1** selects automatic, **2** selects manual. **Enter** confirms replacing current gameplay; **Escape** cancels.
+- **Esc** opens the pause menu: Resume, Save manually, Manage saves, Restart game and music volume. Click rows or use Up/Down and Enter. Esc from a confirmation returns to the menu; Esc from the menu resumes. Ordinary dialogue/bag/chest/map panels close on the first Esc, before menu entry.
+- **F5** remains a shortcut to save the manual slot. An existing manual file, even an invalid one, requires Enter confirmation before replacement. Escape cancels.
+- **F9** opens the Manage saves submenu with the automatic-load row selected. **1** selects automatic, **2** selects manual. **Enter** confirms replacing current gameplay; **Escape** cancels.
 - On macOS the keyboard may require **Fn+F5 / Fn+F9**.
 - Close dialogue, inventory, chest, enlarged map, ending and credits before requesting either operation.
 - Save and load require a living player in Hub or Memorial Hall. Training and Battle are excluded. Executing skills, dashes, launch windows and projectiles block both operations; inactive cooldowns are allowed and preserved.
-- The upper-left notification reports completion, blocked operations and disk/validation failures. The selection panel shows UTC save time, map and distinct guardian completion count.
+- The timed translucent notification reports completion, blocked operations and disk/validation failures. The selection panel shows UTC save time, map and distinct guardian completion count.
 
 ## Independent slots and automatic checkpoints
 
@@ -29,7 +31,7 @@ Victory autosave runs in `GameScreen.render` after combat settlement has returne
 
 Simultaneous player/Boss death is failure and does not autosave. Each result is observed once. Load clears result polling so a restored victory cannot immediately overwrite either slot. Startup does not write saves. Reading either slot neither modifies the other nor falls back to it. Loading an old manual save and winning again replaces the automatic slot with that timeline, even if its progress is lower.
 
-If autosave fails, the victory and current inventory remain earned; the previous checkpoint remains on disk. The upper-left notification reports failure. The player may manually save in the safe Hub or retry by completing another challenge. No automatic retry loop writes every frame.
+If autosave fails, the victory and current inventory remain earned; the previous checkpoint remains on disk. The timed translucent notification reports failure. The player may manually save in the safe Hub or retry by completing another challenge. No automatic retry loop writes every frame.
 
 ## Persisted state
 
@@ -83,16 +85,16 @@ in `36ce30d`. This report does not assert that the old failure remains in the cu
 2. Press F5 again and cancel; confirm the previous manual timestamp stays unchanged. Repeat and confirm overwrite.
 3. Defeat a Boss. Confirm the automatic-save notification appears immediately on settled Hub return, without an NPC interaction. F9 → 1 → Enter should restore the settled reward and quest progress.
 4. Restart the application and load each slot. Verify the manual slot was not overwritten by the victory.
-5. Attempt F5/F9 during Battle, Training or an active skill; verify rejection. Close an open dialogue/chest before retrying in Hub.
+5. Open the menu during Battle, Training or an active skill; verify save/load rows remain unavailable. F5 is rejected, while F9 may open the menu but cannot load. Close an open dialogue/chest before retrying in Hub.
 6. Inspect the load panel at the normal window size. If the OS intercepts function keys, use Fn with the function key.
 
 The original feature is merged; use this checklist for follow-up regression testing.
 Corrupt-file and failed-write cases are covered by automated tests; no additional manual
 acceptance of those cases is claimed here.
 
-## Save UI refinement
+## Earlier save UI refinement (superseded by the Esc menu)
 
-The save notification now appears at the top left below the visible HP/coordinate HUD,
+The first refinement placed the save notification at the top left below the visible HP/coordinate HUD,
 with a dark background and wrapping width. Font size and margins scale with the smaller
 relative window dimension using the existing HUD policy, including short, wide windows.
 The repeated default shortcut suffix was removed. The load/overwrite modal also uses
@@ -115,7 +117,11 @@ HUD and no longer overlaps bottom dialogue or skill text.
 Starting the application creates a fresh live game without deleting or loading either slot.
 To keep that new run, save manually and confirm replacement of the manual slot; its first
 successful Boss battle will replace the automatic slot. Until those writes, older files
-remain available. There is no dedicated in-game New Game/reset-both-slots operation.
+remain available. The Esc menu now offers Restart game with explicit confirmation. It rebuilds
+player/map/quest/combat state and starter chest contents, resets NPC reward flags, and disposes
+the old screen after its render completes. Music volume carries over. It performs no save-file
+read, write or deletion; users can still load either older slot afterwards. There is no
+reset-both-slots/delete-files command.
 
 Saving only supports Hub and Memorial Hall, not every non-combat location: Training is
 excluded even when idle. Arbitrary mid-battle recovery, live Boss HP/AI, current skill effects,
@@ -144,3 +150,99 @@ with the same temporary JDK 26 override. Core tests: **1,184 passed**; desktop t
 **4 passed**, with zero failures, errors or skips. The test tasks executed; compilation
 and the core JavaDoc audit were up-to-date, and the desktop JavaDoc audit executed successfully.
 This does not replace the outstanding manual visual/Boss-checkpoint checks above.
+
+## Esc menu redesign
+
+The permanent status strip is removed. GameSaves publishes an operation sequence alongside
+its message; SaveMenu consumes each event once. Successful manual saves, loads, autosaves
+and failures all produce four-second toasts with a 0.6-second fade. Repeating the same action
+produces a fresh event even if the text is identical. Startup shows no stale status, and an
+expired notification never falls back to the coordinator's last message. Notifications use
+alpha blending, wrapped text and both-axis scaling. During gameplay they sit at 22% of window
+height, centred horizontally; while the menu is open they sit near the bottom below it.
+
+The centred menu is scaled from a 500 × 460 layout using both dimensions. Drawing and mouse
+hit-testing share the same transform. Opening, closing and confirmation frames consume input;
+world animation and simulation pause while the menu is open. The menu is available in Battle
+and Training for resume, volume and restart, but pause cannot bypass GameSaves.isSafe().
+Existing confirmations still protect manual-file overwrites and replacement of live progress.
+
+Music gain is an application preference, not save content. The 0–100 slider supports click/drag
+and one-percent Left/Right steps when focused. It updates all cached music streams and future
+tracks without restarting playback. Zero mutes. Menu pause leaves music playing for preview;
+application lifecycle pause still pauses it. Gain survives an in-game restart, but is not
+persisted after quitting the application.
+
+Verification: the complete local test run passed **1,191 core tests and 4 desktop tests**, with
+zero failures, errors or skips. Both JavaDoc audits and desktop compilation passed using the
+existing temporary JDK 26 override. Menu tests cover Escape ownership, paused unsafe maps,
+confirmation/cancellation, unchanged slot bytes on load/restart request, repeated identical
+notifications, expiry, and keyboard/resized mouse slider input. Music tests cover current,
+cached and future streams, pause, invalid values and disposal. Restart callback/file invariants
+are tested without OpenGL; a complete fresh-screen restart still needs the manual check below.
+The desktop launch task completed without an exception; native visual acceptance is not claimed.
+
+Manual checks for this redesign:
+
+1. Esc opens the menu and stops player/Boss movement; Resume/Esc restores play without a time jump.
+2. In Hub, save, move and load manually. Confirm the toast disappears after four seconds. Repeat
+   an identical save/load and check that feedback appears again; shrink the window in both axes.
+3. In Training and Battle, verify save/load remain unavailable even while paused. Confirm the
+   training score has no permanent save notification over it.
+4. Drag volume to 0, 50 and 100; also use arrows. Travel/load and check the chosen gain remains.
+5. Cancel Restart game once, then confirm it. Verify fresh Hub, full HP, initial class, empty bag,
+   starter chest, cleared quests and merchant reward availability. Both prior saves must remain
+   selectable; loading restores old progress. Confirm music volume is retained.
+6. Open dialogue/bag/chest/map; Esc closes that panel, and another Esc opens the menu.
+
+
+## Save management submenu
+
+Esc → Manage saves (or F9) groups Load automatic, Delete automatic, Load manual,
+Delete manual and Back. Each load/delete requires confirmation. Esc cancels a confirmation
+back to this submenu, returns from the submenu to the main menu, then resumes gameplay.
+Deletion is permanent and names the selected slot. It changes neither the live session nor
+the other slot. Slot summaries refresh after deletion; feedback expires after four seconds.
+Missing files report an already-empty slot; malformed files can be deleted without loading.
+Filesystem errors are reported without resetting gameplay. Directory paths are never deleted.
+Saving, loading and deleting require the existing safe Hub/Memorial state; pausing combat
+never bypasses that guard. Deleting automatic storage does not disable future Boss autosaves.
+Restart game still preserves both files. Tests use temporary directories only.
+
+Manual check: open Manage saves, cancel deletion once, then confirm deletion of a disposable
+slot. Verify the other slot still loads, the current player is unchanged, and Esc navigates
+back one level. Repeat with the other slot and an empty slot.
+
+Validation after adding slot deletion: 1,198 tests passed (1,194 core and 4 desktop),
+with zero failures/errors; JavaDoc audits and desktop compilation also passed using the
+same JDK 26 override. Added checks cover cancel/confirm for both slots, malformed and
+missing files, directory refusal, unsafe-map rejection, live-state preservation and
+mouse interaction at a reduced window size. Visual in-game acceptance remains manual.
+
+
+## Inventory combat pause
+
+The bag now skips combat simulation updates while open, instead of only substituting an
+empty player command. Boss/enemy actions, projectiles and skill timers therefore pause along
+with world animation. Inventory input remains active; closing with B/Escape resumes normal
+frame updates without accumulating paused time. Battle-map save/load restrictions remain.
+Manual check: open the bag during a Boss attack, wait several seconds and verify HP, enemy
+positions and projectiles remain stationary; close it and verify combat resumes.
+
+
+## Equipment upgrade persistence
+
+The catalogue recognises base IDs and bounded `+1`/`+2` variants. Existing inventory snapshot
+fields preserve upgraded item identity, quantity, chest contents and worn slot without a
+new file-format version. Base IDs remain level zero. Worn invalid variants are rejected by
+existing catalogue validation. Upgrade level travels with each item, rather than a global
+slot bonus. Upgrade services do not write files; manual and automatic slots remain independent.
+
+
+### Headgear capacity compatibility
+
+Full-load validation computes expected HP capacity from the saved worn items before touching
+live state. Inventory/equipment restores before exact location/HP. Older snapshots recording
+base maximum HP with a hood are accepted and retain their saved current HP; other mismatched
+capacities are rejected before mutation. Boots and glove modifiers are derived from worn IDs;
+remaining cooldowns restore exactly without a second reduction.

@@ -47,14 +47,14 @@ These initial values are centralized in ItemCatalog and Equipment for review:
 | Item / set | Effect |
 | --- | --- |
 | Lightning Staff | +20% attack damage |
-| Guardian hood | 4% damage reduction |
+| Guardian hood | +20 maximum HP |
 | Guardian coat | 8% damage reduction |
-| Guardian gloves | 4% damage reduction |
-| Guardian boots | 4% damage reduction |
+| Guardian gloves | 10% K/L/O cooldown reduction |
+| Guardian boots | +10% ordinary movement speed |
 | Two guardian pieces | Additional 5% damage reduction |
 | Four guardian pieces | Additional 10% attack damage; retains two-piece bonus |
 
-Reduction is capped at 60%. The full current set provides 25% reduction.
+Reduction is capped at 60%. The base full set provides 13% reduction (8% coat + 5% set).
 Slots are weapon, head, body, hands and feet. Wearables are not profession-restricted in this version;
 existing class/element/skill selection and character artwork remain unchanged.
 
@@ -128,3 +128,61 @@ CoreGameplayIntegrationTest and PlayerDefeatTest. They were not bypassed or rewr
 The original feature is merged. The later storage-help and empty-weapon-label refinement
 passed core compilation and the core JavaDoc audit on 2026-09-25. Its visual regression
 check remains to be performed; compiling does not establish mouse/layout acceptance.
+
+
+### Repeatable potion supplies
+
+Talk to the **Weapon Merchant** in the Hub to open his service menu. Use Up/Down to
+select **Claim Lightning Staff** or **Replenish potions**, E to confirm, and Esc to leave.
+The weapon row shows Available/Claimed from the existing saved reward flag. The potion
+row shows bag, chest and combined quantities, plus the shortfall or Full status. Statuses
+refresh immediately and the menu stays open after each service.
+
+Weapon collection is once-only and does not replenish potions. Potion supplies do not
+claim the weapon: if the combined total is below three, only the shortfall is added to
+the bag. Stored potions and any surplus are retained. Repeated requests cannot accumulate
+extra potions. Opening or closing the menu grants nothing. Save manually to persist changes;
+neither service automatically writes a save slot.
+
+
+### Merchant equipment upgrades
+
+Talk to Weapon Merchant → Upgrade equipment. Up/Down chooses one of the five equipment
+slots; E opens a preview showing current/next effects and available shared cores. E again
+confirms spending, while Esc cancels or returns one menu level. Equipment must be in the
+bag; the worn item is selected first, otherwise the highest-level carried item in that slot.
+A max-level selected item must be unequipped and stored to choose a lower-level duplicate.
+
+Every Boss continues to drop the same `sentinel-core`. Each upgrade costs **one core**,
+consumed from the bag before the chest. All five equipment types cap at **+2**. Each level
+adds 5 percentage points to weapon attack; armour effects follow the attribute table below. Existing set bonuses and the 60% total defence cap still apply. Upgrading replaces
+one item only and keeps it equipped when it was worn. Missing items/materials, max-level
+items and full destination stacks consume nothing.
+
+Enhanced items retain their level when stored, transferred or restored from either save
+slot. Base-level saves remain compatible. Upgrades do not automatically overwrite saves;
+save manually afterwards. Returning to a previous save restores its items and materials.
+
+
+### Equipment attributes and NPC feedback
+
+| Equipment | Base | +1 | +2 |
+| --- | --- | --- | --- |
+| Lightning Staff | ATK +20% | +25% | +30% |
+| Guardian hood | Max HP +20 | +30 | +40 |
+| Guardian gloves | Skill CDR 10% | 15% | 20% |
+| Guardian coat | DEF 8% | 10% | 12% |
+| Guardian boots | Move speed +10% | +15% | +20% |
+
+Hoods scale current and maximum HP together, preserving the health percentage. A stored
+ratio prevents repeated swaps from generating HP or accumulating rounding loss. Living players
+retain at least 1 HP; dead players stay dead. Damage/healing resets this ratio. Gloves reduce new K/L/O cooldowns,
+not J attacks; running cooldowns retain their remaining duration when equipment changes.
+Boots affect normal walking only, not dash speed/distance. Set bonuses remain 2 pieces:
+DEF +5%, 4 pieces: ATK +10%; only coats contribute individual armour reduction.
+
+NPC action results (quest acceptance, class selection, portal selection, merchant rewards,
+potion supplies and upgrades) now share the save menu's translucent four-second toast,
+including repeated identical actions. Dialogue instructions and live item/quest statuses
+remain visible. While dialogue is open, the toast appears above it instead of covering its
+options. The HP bar now reads actual current/max HP, including headgear bonuses.

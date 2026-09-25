@@ -2,7 +2,7 @@ package au.edu.anu.comp2120.combat;
 
 /**
  * Shared integer hit-point state for any damageable entity, independent of graphics and effects.
- * Current HP stays between zero and an immutable positive maximum. Death is derived from zero HP,
+ * Current HP stays between zero and a positive maximum. Death is derived from zero HP,
  * not stored separately. Ordinary healing cannot revive; restoration must be requested explicitly.
  * Mutations belong on the game-loop thread; this model is not thread-safe.
  *
@@ -10,10 +10,14 @@ package au.edu.anu.comp2120.combat;
  * @author Hao Liu (u7998420)
  */
 public final class Health implements Damageable {
-    /** Positive hit-point limit, fixed for this health instance. */
-    private final int maxHp;
+    /** Positive hit-point limit, adjustable by equipment. */
+    private int maxHp;
     /** Remaining hit points, inclusive of zero and maxHp. */
     private int currentHp;
+    /** HP numerator at the last actual health mutation, avoiding repeated rounding on gear swaps. */
+    private int ratioHp;
+    /** Capacity denominator paired with ratioHp. */
+    private int ratioMax;
     /** Changes only on actual HP loss, so healing cannot conceal damage from cast interruption. */
     private long damageVersion;
 
@@ -37,15 +41,28 @@ public final class Health implements Damageable {
         }
         this.maxHp = maxHp;
         currentHp = maxHp;
+        rememberRatio();
     }
 
     /**
-     * Returns the fixed capacity of this health model.
+     * Returns the current capacity of this health model.
      *
      * @return positive maximum hit points
      */
     public int getMaxHp() {
         return maxHp;
+    }
+
+    /** Changes capacity while preserving the health fraction without recording a combat hit.
+     * Reuses the last health-mutation ratio so repeated equipment swaps neither heal nor erode HP.
+     * Living entities retain at least one HP; dead entities remain dead.
+     * @param maximum positive new capacity
+     * @throws IllegalArgumentException if maximum is nonpositive
+     */
+    public void setMaxHp(int maximum) {
+        if (maximum <= 0) { throw new IllegalArgumentException("Maximum HP must be positive"); }
+        maxHp = maximum;
+        currentHp = ratioHp == 0 ? 0 : (int) Math.max(1L, (long) ratioHp * maximum / ratioMax);
     }
 
     /**
@@ -71,7 +88,10 @@ public final class Health implements Damageable {
         if (damage > 0 && currentHp > 0) {
             damageVersion++;
         }
-        currentHp -= Math.min(damage, currentHp);
+        if (damage > 0 && currentHp > 0) {
+            currentHp -= Math.min(damage, currentHp);
+            rememberRatio();
+        }
     }
 
     /**
@@ -87,6 +107,7 @@ public final class Health implements Damageable {
         requireNonNegative(amount);
         int restored = isAlive() ? Math.min(amount, maxHp - currentHp) : 0;
         currentHp += restored;
+        if (restored > 0) { rememberRatio(); }
         return restored;
     }
 
@@ -116,6 +137,7 @@ public final class Health implements Damageable {
      */
     public void restoreFull() {
         currentHp = maxHp;
+        rememberRatio();
     }
 
     /** Restores an exact saved HP value without treating loading as a combat hit.
@@ -129,7 +151,11 @@ public final class Health implements Damageable {
             throw new IllegalArgumentException("Saved HP is outside health capacity");
         }
         currentHp = savedHp;
+        rememberRatio();
     }
+
+    /** Starts a fresh exact scaling reference after damage, healing or explicit restoration. */
+    private void rememberRatio() { ratioHp = currentHp; ratioMax = maxHp; }
 
     /**
      * Validates an operation before any hit-point mutation.

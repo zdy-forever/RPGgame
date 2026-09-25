@@ -383,4 +383,25 @@ final class PlayerAbilitiesTest {
             case DASH -> throw new IllegalArgumentException("Dash does not deal damage");
         };
     }
+    /** Gloves shorten newly requested K/L/O timers while leaving J and running timers unchanged.
+     * @param slot tested action
+     */
+    @ParameterizedTest
+    @EnumSource(AbilitySlot.class)
+    void glovesReduceOnlySkillCooldowns(AbilitySlot slot) {
+        player.getInventory().addItem("guardian_gloves+2"); player.getEquipment().toggle("guardian_gloves+2");
+        var command = new PlayerCommand(0, 0, slot == AbilitySlot.LIGHT, slot == AbilitySlot.SPECIAL,
+                slot == AbilitySlot.DASH, slot == AbilitySlot.ULTIMATE);
+        assertEquals(Optional.of(slot), abilities.update(0, command));
+        double expected = switch (slot) {
+            case LIGHT -> 0.5;
+            case SPECIAL -> 1.6;
+            case DASH -> 0.8;
+            case ULTIMATE -> 6.4;
+        };
+        assertEquals(expected, abilities.getCooldownRemaining(slot), EPSILON);
+        player.getEquipment().toggle("guardian_gloves+2");
+        assertEquals(expected, abilities.getCooldownRemaining(slot), EPSILON);
+    }
+
 }

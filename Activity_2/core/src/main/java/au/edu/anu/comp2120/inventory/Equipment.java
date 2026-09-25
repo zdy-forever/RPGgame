@@ -11,6 +11,8 @@ import java.util.Objects;
 public final class Equipment {
     /** Inventory owning all equipped units. */
     private final Inventory inventory;
+    /** Called after a worn-slot change, allowing player HP to clamp immediately. */
+    private final Runnable changed;
     /** At most one item identity per position. */
     private final Map<EquipmentSlot, String> worn = new EnumMap<>(EquipmentSlot.class);
 
@@ -19,7 +21,16 @@ public final class Equipment {
      * @throws NullPointerException if inventory is null
      */
     public Equipment(Inventory inventory) {
+        this(inventory, () -> { });
+    }
+
+    /** Binds equipment and a capacity-change observer.
+     * @param inventory owning bag
+     * @param changed observer invoked after changes
+     */
+    public Equipment(Inventory inventory, Runnable changed) {
         this.inventory = Objects.requireNonNull(inventory, "inventory");
+        this.changed = Objects.requireNonNull(changed, "observer");
     }
 
     /** Toggles one owned wearable, replacing the previous occupant of its slot.
@@ -33,12 +44,13 @@ public final class Equipment {
         EquipmentSlot slot = gear.get().slot();
         if (id.equals(worn.get(slot))) { worn.remove(slot); }
         else { worn.put(slot, id); }
+        changed.run();
         return true;
     }
 
     /** Drops stale slot references after transfers or other inventory operations. */
     public void reconcile() {
-        worn.values().removeIf(id -> inventory.quantityOf(id) <= 0);
+        if (worn.values().removeIf(id -> inventory.quantityOf(id) <= 0)) { changed.run(); }
     }
 
     /** Checks whether an owned item currently occupies a slot.
@@ -93,4 +105,26 @@ public final class Equipment {
         return Math.min(60, worn.values().stream().map(id -> ItemCatalog.gear(id).orElseThrow())
                 .mapToInt(ItemCatalog.Gear::defencePercent).sum() + (setPieces() >= 2 ? 5 : 0));
     }
+    /** Sums equipped maximum-health bonuses.
+     * @return added HP
+     */
+    public int healthBonus() {
+        reconcile();
+        return worn.values().stream().map(id -> ItemCatalog.gear(id).orElseThrow()).mapToInt(ItemCatalog.Gear::healthBonus).sum();
+    }
+    /** Sums equipped K/L/O cooldown reduction.
+     * @return percentage reduction
+     */
+    public int cooldownPercent() {
+        reconcile();
+        return worn.values().stream().map(id -> ItemCatalog.gear(id).orElseThrow()).mapToInt(ItemCatalog.Gear::cooldownPercent).sum();
+    }
+    /** Sums equipped ordinary movement bonuses.
+     * @return percentage amplification
+     */
+    public int speedPercent() {
+        reconcile();
+        return worn.values().stream().map(id -> ItemCatalog.gear(id).orElseThrow()).mapToInt(ItemCatalog.Gear::speedPercent).sum();
+    }
+
 }

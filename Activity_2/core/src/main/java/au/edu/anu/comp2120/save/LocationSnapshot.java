@@ -57,11 +57,19 @@ public record LocationSnapshot(String mapId, double x, double y, int hp, int max
      * @throws IllegalArgumentException if the save cannot be applied to this session
      */
     public void validateFor(GameSession session) {
+        validateFor(session, session.getPlayer().getHealth().getMaxHp());
+    }
+
+    /** Validates against capacity computed from the saved equipment before changing live state.
+     * @param session destination session
+     * @param expectedMaxHp saved equipment capacity
+     */
+    public void validateFor(GameSession session, int expectedMaxHp) {
         var map = session.getMap(mapId);
         var player = session.getPlayer();
         var bounds = player.getBounds();
         if ((map.getType() != MapType.HUB && map.getType() != MapType.MEMORIAL)
-                || maxHp != player.getHealth().getMaxHp()
+                || maxHp != expectedMaxHp
                 || !map.isWalkable(new CollisionBox(x, y, bounds.width(), bounds.height()))) {
             throw new IllegalArgumentException("Saved map, position or health capacity is incompatible");
         }

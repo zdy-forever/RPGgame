@@ -40,6 +40,9 @@ public final class GameSaves {
     /** Visible feedback including recoverable IO errors. */
     private String status = "F5: manual save | F9: load saves (Hub / Memorial)";
 
+    /** Monotonic operation event number; repeated identical messages remain new notifications. */
+    private long statusVersion;
+
     /** Binds one coordinator to a game session.
      * @param session map/player owner
      * @param travel route owner
@@ -68,6 +71,15 @@ public final class GameSaves {
      * @return displayable status
      */
     public String status() { return status; }
+    /** Returns the last operation event number.
+     * @return monotonically increasing notification sequence
+     */
+    public long statusVersion() { return statusVersion; }
+    /** Publishes feedback once per attempted operation.
+     * @param message result for the presentation layer
+     */
+    private void report(String message) { status = message; statusVersion++; }
+
     /** Checks whether overwriting a manual file needs confirmation, including corrupt files.
      * @return whether a manual file exists
      */
@@ -108,20 +120,37 @@ public final class GameSaves {
         }
     }
 
+    /** Removes one slot without changing the live session or the other slot.
+     * @param slot slot explicitly confirmed by the player
+     * @return whether deletion completed, including an already empty slot
+     */
+    public boolean deleteSlot(SaveSlot slot) {
+        if (!isSafe()) { report("Delete blocked: use Hub / Memorial after active skills finish."); return false; }
+        try {
+            boolean removed = store.delete(slot);
+            report(removed ? "Deleted " + slot + ". Current game and other save unchanged."
+                    : slot + " is already empty. Current game unchanged.");
+            return true;
+        } catch (IOException error) {
+            report("Delete failed: " + error.getMessage());
+            return false;
+        }
+    }
+
     /** Loads exactly the chosen slot after UI confirmation; never saves or merges timelines.
      * @param slot selected source slot
      * @return whether a complete validated snapshot was restored
      */
     public boolean load(SaveSlot slot) {
-        if (!isSafe()) { status = "Load blocked: leave combat and finish active skills first."; return false; }
+        if (!isSafe()) { report("Load blocked: leave combat and finish active skills first."); return false; }
         try {
             Runnable restore = prepare(store.load(slot), slot);
             restore.run();
             observed = null;
-            status = "Loaded " + slot + ". Neither save slot was changed.";
+            report("Loaded " + slot + ". Neither save slot was changed.");
             return true;
         } catch (IOException | IllegalArgumentException error) {
-            status = "Load failed: " + error.getMessage();
+            report("Load failed: " + error.getMessage());
             return false;
         }
     }
@@ -131,15 +160,15 @@ public final class GameSaves {
      * @return write success
      */
     private boolean save(SaveSlot slot) {
-        if (!isSafe()) { status = "Save blocked: use Hub / Memorial after active skills finish."; return false; }
+        if (!isSafe()) { report("Save blocked: use Hub / Memorial after active skills finish."); return false; }
         try {
             var fields = capture(slot);
             prepare(fields, slot);
             store.save(slot, fields);
-            status = slot == SaveSlot.AUTO ? "Boss defeated - automatic save complete." : "Manual save complete.";
+            report(slot == SaveSlot.AUTO ? "Boss defeated - automatic save complete." : "Manual save complete.");
             return true;
         } catch (IOException | IllegalArgumentException error) {
-            status = "Save failed; previous file retained: " + error.getMessage();
+            report("Save failed; previous file retained: " + error.getMessage());
             return false;
         }
     }
@@ -248,8 +277,14 @@ public final class GameSaves {
         var f = new SaveFields(fields);
         var metadata = SaveMetadata.fromFields(fields, slot); f.accept(metadata.toFields().keySet());
         var location = LocationSnapshot.fromFields(fields); f.accept(location.toFields().keySet());
-        location.validateFor(session);
         var inventory = InventorySnapshot.fromFields(fields); f.accept(inventory.toFields().keySet());
+        int capacity = (int) Math.min(Integer.MAX_VALUE, (long) session.getPlayer().getBaseMaxHp()
+                + inventory.worn().values().stream().map(id -> au.edu.anu.comp2120.inventory.ItemCatalog.gear(id).orElseThrow())
+                .mapToInt(au.edu.anu.comp2120.inventory.ItemCatalog.Gear::healthBonus).sum());
+        // Pre-attribute saves recorded base HP even with a hood; preserve their actual HP.
+        var restoredLocation = location.maxHp() == session.getPlayer().getBaseMaxHp()
+                ? new LocationSnapshot(location.mapId(), location.x(), location.y(), location.hp(), capacity) : location;
+        restoredLocation.validateFor(session, capacity);
         var type = PlayerClass.valueOf(f.text("player.class"));
         var element = ElementType.valueOf(f.text("player.element"));
         if (element == ElementType.NONE) { throw new IllegalArgumentException("Invalid Mage element"); }
@@ -318,9 +353,9 @@ public final class GameSaves {
         npcs.forEach(npc -> flags.put(npc, f.flag("npc." + npc.getId())));
         f.finish();
         return () -> {
-            location.restore(session);
-            session.getPlayer().restoreSelections(type, element, modes);
             inventory.restore(session.getPlayer(), chest);
+            restoredLocation.restore(session);
+            session.getPlayer().restoreSelections(type, element, modes);
             flow.restoreProgress(permission, wins, completedIds, rewards);
             quests.restoreProgress(done, active, ending);
             travel.restoreProgress(portals, unlocks);

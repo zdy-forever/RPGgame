@@ -29,8 +29,12 @@ These features are integrated into the production game. See the
 | Use a potion | Right-click a health potion in the bag, or P during gameplay. Heals up to 30 HP; full-health or dead players do not consume it. |
 | Transfer items | E near Storage Chest opens STORAGE; right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
 | Page / close | Left/Right changes pages; B/Escape closes the bag, E/Escape closes storage. |
-| Save manually | F5 in a safe Hub or Memorial Hall; Enter confirms an overwrite, Escape cancels. |
-| Load | F9, then 1 for automatic or 2 for manual, then Enter to replace current progress; Escape cancels. |
+| Pause menu | Esc opens the menu; click a row or use Up/Down and Enter. Esc resumes, or cancels a confirmation back to the menu. |
+| Save manually | Esc → Save manually, or F5. Existing manual saves require confirmation. |
+| Load | Esc → Manage saves → Load automatic / Load manual, then confirm. F9 and 1/2 remain shortcuts. |
+| Delete save | Esc → Manage saves → Delete automatic / Delete manual → Confirm. Only the selected file is removed; current gameplay and the other slot remain unchanged. |
+| Restart game | Esc → Restart game → Confirm: fresh Hub/player/quests/inventory/chest/NPC rewards; both save files and music volume are kept. |
+| Music volume | Drag the menu slider from 0 to 100, or select it with Up/Down and adjust with Left/Right. |
 
 On macOS, function keys may require Fn. Close dialogue, bag, chest, enlarged map,
 ending and credits before saving/loading. A living player with no active skills,
@@ -53,14 +57,18 @@ loaded timeline, even if that timeline has less progress.
 
 Save files are stored outside the repository in `${user.home}/.comp2120-game/saves/`
 as `automatic.properties` and `manual.properties`. Startup creates a fresh live session
-and leaves both files untouched; use F9 to resume. There is currently no in-game New Game
-or delete-slots button. See the [save/load report](docs/SAVE_LOAD_REPORT.md) for snapshot
+and leaves both files untouched; use the menu or F9 to resume. Restart game resets live
+progress after confirmation, without deleting either slot. A later explicit manual save or
+Boss victory can replace its respective file from the new timeline. See the [save/load report](docs/SAVE_LOAD_REPORT.md) for snapshot
 coverage, failure handling and verification limits.
 
-Save notifications appear at the upper left below the visible HP/position HUD with a dark
-background and wrapping text. Their font, margins and the save panel shrink with either
-window dimension. A blocked-operation hint clears when the blocker disappears or after
-four seconds; this prevents a dialogue-related F9 warning from remaining on screen.
+Operation feedback appears in a temporary, translucent toast in the lower-centre play area,
+away from the upper-left health/position/training score. It lasts four seconds and fades during
+the final 0.6 seconds; there is no permanent black status strip. The menu and toast scale with
+both window axes. Escape closes an ordinary dialogue, bag, chest or map first; press it again
+to open the pause menu. Menu pause freezes simulation, not the safe-map restriction, so
+Battle and Training still cannot save/load. Music continues while the menu is open so volume
+can be previewed; volume survives in-game restart and loading, but defaults to 50% on app launch.
 
 ## Current controls: one Hub portal, practice, battle or Memorial Hall
 
@@ -69,7 +77,8 @@ guardian stones are collected and `audio/victory_theme.wav` afterwards (no endin
 Training and Battle always use `audio/battle_theme.wav`. Moving between maps that share a song does
 not stop, reload or restart it, including Hub/Hall travel. A different song starts from its beginning.
 Music pauses/resumes with the application and is released when the game screen closes. Default volume
-is 50%, centralized in `BackgroundMusic.VOLUME`; no system-volume changes or sound effects are added.
+is 50%, centralized in `BackgroundMusic.VOLUME`; the Esc menu adjusts music gain from 0–100%
+without restarting the track. No system-volume changes or sound effects are added.
 
 Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
 choose **Training Ground**, **Battle Map** or **Memorial Hall** with **Up/Down**, then press **E** to confirm
@@ -980,7 +989,7 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `InventoryRewards`: one-time transfer from the settled encounter outbox, retaining overflowed rewards.
 - `GameSaves`: safe-state capture, complete validation and restoration through module APIs.
 - `SaveFile` / `SaveStore` / `SaveSlot`: versioned bounded files, atomic writes and independent slots.
-- `SaveMenu`: confirmation, slot selection and responsive save notifications.
+- `SaveMenu`: paused Esc menu, confirmations, save slots, volume slider and timed translucent toasts.
 - `MaterialDrop`: one immutable claimable Boss reward instance.
 - `NPC`: shared identity/interaction-range base for Hub non-player characters.
 - `PortalGuide`: Hub NPC adapter that selects and opens the shared Hub portal's destination.
@@ -1022,3 +1031,66 @@ can miss it. Built-in regions and the demo frame-time cap avoid that in normal
 play. Portal Guide provides destination selection and Battle is quest-gated; save/load includes
 portal routes, enabled flags and unlock state. Distance/cost restrictions and automatic
 discovery remain outside the current travel system.
+
+
+Opening the bag with **B** pauses combat, including Boss/enemy actions, projectiles and
+skill cooldowns. Inventory paging and item/equipment actions remain available. Close with
+**B** or **Escape** to resume; this pause does not allow saving/loading in a battle map.
+
+
+### Repeatable potion supplies
+
+Talk to the **Weapon Merchant** in the Hub to open his service menu. Use Up/Down to
+select **Claim Lightning Staff** or **Replenish potions**, E to confirm, and Esc to leave.
+The weapon row shows Available/Claimed from the existing saved reward flag. The potion
+row shows bag, chest and combined quantities, plus the shortfall or Full status. Statuses
+refresh immediately and the menu stays open after each service.
+
+Weapon collection is once-only and does not replenish potions. Potion supplies do not
+claim the weapon: if the combined total is below three, only the shortfall is added to
+the bag. Stored potions and any surplus are retained. Repeated requests cannot accumulate
+extra potions. Opening or closing the menu grants nothing. Save manually to persist changes;
+neither service automatically writes a save slot.
+
+
+### Merchant equipment upgrades
+
+Talk to Weapon Merchant → Upgrade equipment. Up/Down chooses one of the five equipment
+slots; E opens a preview showing current/next effects and available shared cores. E again
+confirms spending, while Esc cancels or returns one menu level. Equipment must be in the
+bag; the worn item is selected first, otherwise the highest-level carried item in that slot.
+A max-level selected item must be unequipped and stored to choose a lower-level duplicate.
+
+Every Boss continues to drop the same `sentinel-core`. Each upgrade costs **one core**,
+consumed from the bag before the chest. All five equipment types cap at **+2**. Each level
+adds 5 percentage points to weapon attack; armour effects follow the attribute table below. Existing set bonuses and the 60% total defence cap still apply. Upgrading replaces
+one item only and keeps it equipped when it was worn. Missing items/materials, max-level
+items and full destination stacks consume nothing.
+
+Enhanced items retain their level when stored, transferred or restored from either save
+slot. Base-level saves remain compatible. Upgrades do not automatically overwrite saves;
+save manually afterwards. Returning to a previous save restores its items and materials.
+
+
+### Equipment attributes and NPC feedback
+
+| Equipment | Base | +1 | +2 |
+| --- | --- | --- | --- |
+| Lightning Staff | ATK +20% | +25% | +30% |
+| Guardian hood | Max HP +20 | +30 | +40 |
+| Guardian gloves | Skill CDR 10% | 15% | 20% |
+| Guardian coat | DEF 8% | 10% | 12% |
+| Guardian boots | Move speed +10% | +15% | +20% |
+
+Hoods scale current and maximum HP together, preserving the health percentage. A stored
+ratio prevents repeated swaps from generating HP or accumulating rounding loss. Living players
+retain at least 1 HP; dead players stay dead. Damage/healing resets this ratio. Gloves reduce new K/L/O cooldowns,
+not J attacks; running cooldowns retain their remaining duration when equipment changes.
+Boots affect normal walking only, not dash speed/distance. Set bonuses remain 2 pieces:
+DEF +5%, 4 pieces: ATK +10%; only coats contribute individual armour reduction.
+
+NPC action results (quest acceptance, class selection, portal selection, merchant rewards,
+potion supplies and upgrades) now share the save menu's translucent four-second toast,
+including repeated identical actions. Dialogue instructions and live item/quest statuses
+remain visible. While dialogue is open, the toast appears above it instead of covering its
+options. The HP bar now reads actual current/max HP, including headgear bonuses.

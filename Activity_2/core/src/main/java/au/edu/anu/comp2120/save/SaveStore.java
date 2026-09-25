@@ -2,6 +2,8 @@ package au.edu.anu.comp2120.save;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -9,7 +11,7 @@ import java.util.Objects;
 /** Serializes access to two independent save slots through one session-owned store.
  * Reading a slot does not write either slot, merge snapshots or load a fallback.
  * Gameplay guards, confirmation, field validation and live-state restoration belong to
- * the future game coordinator. Construct one shared store per game session.
+ * the game coordinator. Construct one shared store per game session.
  * @author Hao Liu (u7998420)
  */
 public final class SaveStore {
@@ -47,6 +49,19 @@ public final class SaveStore {
      */
     public synchronized Map<String, String> load(SaveSlot slot) throws IOException {
         return file(slot).read();
+    }
+
+    /** Deletes only the selected slot, including a malformed save, without reading it.
+     * @param slot selected slot
+     * @return whether a file was removed
+     * @throws IOException if deletion fails or the path is a directory
+     */
+    public synchronized boolean delete(SaveSlot slot) throws IOException {
+        Path target = file(slot).path();
+        if (Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Save path is a directory.");
+        }
+        return Files.deleteIfExists(target);
     }
 
     /** Reads a slot's path for diagnostics and future UI feedback.
