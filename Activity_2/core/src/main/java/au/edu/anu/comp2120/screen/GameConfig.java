@@ -81,11 +81,12 @@ public final class GameConfig {
             List.of(new BossConfig.Pattern(new AttackSpec("boss-heavy-sweep", 20, 0.2, 0.8), 120, AttackShape.FORWARD),
                     new BossConfig.Pattern(new AttackSpec("boss-heavy-slam", 30, 0.3, 1.1), 160, AttackShape.AREA)),
             "sentinel-core", 1);
-    /** Hub merchant granting one placeholder weapon after dialogue. */
+    /** Hub merchant granting one weapon and repeatable shared bag/chest potion top-ups. */
     public static final NPC WEAPON_MERCHANT = new NPC(
             "weapon_merchant", "Weapon Merchant",
             650.0, 250.0, 24.0, 24.0,
-            "Take this Lightning Staff! It will serve you well.",
+            List.of("I have a Lightning Staff for your first visit.",
+                    "Choose weapon collection or potion supplies from my service menu."),
             "weapon_lightning_staff"
     );
     /** Decorative forge retains its original (+40, 0) offset from the merchant. */

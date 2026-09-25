@@ -128,3 +128,18 @@ CoreGameplayIntegrationTest and PlayerDefeatTest. They were not bypassed or rewr
 The original feature is merged. The later storage-help and empty-weapon-label refinement
 passed core compilation and the core JavaDoc audit on 2026-09-25. Its visual regression
 check remains to be performed; compiling does not establish mouse/layout acceptance.
+
+
+### Repeatable potion supplies
+
+Talk to the **Weapon Merchant** in the Hub to open his service menu. Use Up/Down to
+select **Claim Lightning Staff** or **Replenish potions**, E to confirm, and Esc to leave.
+The weapon row shows Available/Claimed from the existing saved reward flag. The potion
+row shows bag, chest and combined quantities, plus the shortfall or Full status. Statuses
+refresh immediately and the menu stays open after each service.
+
+Weapon collection is once-only and does not replenish potions. Potion supplies do not
+claim the weapon: if the combined total is below three, only the shortfall is added to
+the bag. Stored potions and any surplus are retained. Repeated requests cannot accumulate
+extra potions. Opening or closing the menu grants nothing. Save manually to persist changes;
+neither service automatically writes a save slot.

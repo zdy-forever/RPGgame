@@ -14,6 +14,7 @@ import java.util.function.Function;
  * Re-selecting the same track is a no-op, so Hub/Hall travel never resets its playback position.
  * Calls belong on the game-loop thread; progression is supplied as a read-only completed-stones flag.
  * @author Daoyan Zhu (u7782042)
+ * @author Hao Liu (u7998420)
  */
 public final class BackgroundMusic implements Disposable {
     /** Central default gain; does not change source files or system audio settings. */
@@ -57,6 +58,8 @@ public final class BackgroundMusic implements Disposable {
     private boolean paused;
     /** Prevents reopening disposed streams and repeated native disposal. */
     private boolean disposed;
+    /** Current application music gain, independent of saved gameplay. */
+    private float volume = VOLUME;
 
     /** Creates a lazy LibGDX streaming player after application audio initialization. */
     public BackgroundMusic() {
@@ -102,12 +105,31 @@ public final class BackgroundMusic implements Disposable {
         Music music = streams.computeIfAbsent(next, track -> {
             Music loaded = Objects.requireNonNull(loader.apply(track.path()), "music stream");
             loaded.setLooping(true);
-            loaded.setVolume(VOLUME);
+            loaded.setVolume(volume);
             return loaded;
         });
         if (current != null) { streams.get(current).stop(); }
         current = next;
         if (!paused) { music.play(); }
+    }
+
+    /** Returns the current music gain.
+     * @return gain between zero and one
+     */
+    public float getVolume() { return volume; }
+
+    /** Changes every loaded stream and the default for future tracks without restarting playback.
+     * @param value finite gain between zero and one
+     * @throws IllegalArgumentException if outside the allowed range
+     * @throws IllegalStateException if disposed
+     */
+    public void setVolume(float value) {
+        requireOpen();
+        if (!Float.isFinite(value) || value < 0 || value > 1) {
+            throw new IllegalArgumentException("Volume must be between 0 and 1");
+        }
+        volume = value;
+        streams.values().forEach(stream -> stream.setVolume(value));
     }
 
     /**

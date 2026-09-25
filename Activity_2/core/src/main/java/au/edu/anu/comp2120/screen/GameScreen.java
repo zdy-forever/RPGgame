@@ -28,6 +28,7 @@ import au.edu.anu.comp2120.inventory.Equipment;
 import au.edu.anu.comp2120.inventory.EquipmentSlot;
 import au.edu.anu.comp2120.inventory.ItemCatalog;
 import au.edu.anu.comp2120.inventory.InventoryRewards;
+import au.edu.anu.comp2120.npc.MerchantServices;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,6 +92,10 @@ public final class GameScreen extends ScreenAdapter {
     private boolean dialogueOpen;
     /** Index of the current dialogue line. */
     private int dialogueLine;
+    /** Selected merchant service, independent of the once-only weapon flag. */
+    private int merchantChoice;
+    /** Feedback beneath the merchant service list. */
+    private String merchantFeedback = "Choose a service. Potions are topped up to 3 across bag and chest.";
     /** NPC currently talking. */
     private NPC activeNpc;
     /** Maximum HP used to scale the placeholder health bar. */
@@ -113,7 +118,7 @@ public final class GameScreen extends ScreenAdapter {
     private int chestPage;
     /** Last item operation shown inside the bag. */
     private String inventoryFeedback = "Right-click: equip, unequip or use";
-    /** Whether the inventory panel is open; freezes movement while true. */
+    /** Whether the inventory panel is open; pauses the entire combat simulation while true. */
     private boolean inventoryOpen;
     /** Whether the enlarged map panel is open; freezes movement while true. */
     private boolean bigMap;
@@ -143,7 +148,13 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Creates the demo models and drawing resources after graphics initialization.
      */
-    public GameScreen() {
+    public GameScreen() { this(BackgroundMusic.VOLUME, false); }
+
+    /** Creates fresh gameplay while preserving application music preferences.
+     * @param volume initial music gain between zero and one
+     * @param restarted whether to display the confirmed restart notification
+     */
+    public GameScreen(float volume, boolean restarted) {
         session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
                 GameConfig.PLAYER_WIDTH, GameConfig.PLAYER_HEIGHT, GameConfig.PLAYER_SPEED);
         var questPortals = TravelCatalog.createGameplayPortals();
@@ -151,6 +162,7 @@ public final class GameScreen extends ScreenAdapter {
         encounterFlow = new EncounterFlow(session, travel, List.of(TravelCatalog.QUEST_PORTAL_ID));
         quests = new BossQuests(session, encounterFlow);
         music = new BackgroundMusic();
+        music.setVolume(volume);
         portalGuide = new PortalGuide(session, travel, encounterFlow);
         combatDemo = new CombatDemo(session, encounterFlow);
         classTrainer = new ClassTrainer(session, combatDemo.getAbilities());
@@ -171,11 +183,15 @@ public final class GameScreen extends ScreenAdapter {
         var savedNpcs = new java.util.ArrayList<>(GameConfig.HUB_NPCS);
         savedNpcs.add(GameConfig.GUIDE);
         savedNpcs.add(GameConfig.TRAINING_EXIT);
+        savedNpcs.forEach(npc -> npc.restoreInteracted(false));
         saves = new au.edu.anu.comp2120.save.GameSaves(session, travel, encounterFlow, quests,
                 combatDemo, chestStorage, savedNpcs,
                 new au.edu.anu.comp2120.save.SaveStore(java.nio.file.Path.of(
                         System.getProperty("user.home"), ".comp2120-game", "saves")));
-        saveMenu = new SaveMenu(saves);
+        saveMenu = new SaveMenu(saves, () -> Math.round(music.getVolume() * 100),
+                percent -> music.setVolume(percent / 100f),
+                () -> ((au.edu.anu.comp2120.MainGame) Gdx.app.getApplicationListener()).restart(music.getVolume()));
+        if (restarted) { saveMenu.notify("New game started. Both save files were kept."); }
     }
 
     /**
@@ -272,6 +288,15 @@ public final class GameScreen extends ScreenAdapter {
      * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
      */
     private void updateGameplay(double delta) {
+        // Escape closes an ordinary panel first; a second press opens the pause menu.
+        if (!saveMenu.isOpen() && !endingOpen && !credits.isOpen()
+                && (dialogueOpen || inventoryOpen || chestOpen || bigMap)
+                && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            dialogueOpen = false; inventoryOpen = false; chestOpen = false; bigMap = false;
+            activeNpc = null;
+            updateMapView();
+            return;
+        }
         if (saveMenu.update(dialogueOpen || inventoryOpen || chestOpen || bigMap || endingOpen || credits.isOpen())) {
             equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
             inventoryPage = 0; chestPage = 0;
@@ -297,6 +322,11 @@ public final class GameScreen extends ScreenAdapter {
                     travelStatus = "All five guardians defeated - journey complete";
                 }
             }
+            updateMapView();
+            return;
+        }
+        if (isMerchantDialogueOpen()) {
+            handleMerchantInput();
             updateMapView();
             return;
         }
@@ -373,6 +403,11 @@ public final class GameScreen extends ScreenAdapter {
                     dialogueOpen = true;
                     dialogueLine = 0;
                     activeNpc = near;
+                    if (isMerchantDialogueOpen()) {
+                        merchantChoice = 0;
+                        merchantFeedback = "Choose a service. Supplies count both bag and chest.";
+                        inventoryOpen = false; bigMap = false;
+                    }
                     if (near.getId().equals(GameConfig.GUIDE.getId())
                             && session.getCurrentMap().getType() == MapType.MEMORIAL) {
                         endingOpen = quests.consumeEnding();
@@ -405,7 +440,13 @@ public final class GameScreen extends ScreenAdapter {
                 }
             }
         }
-        boolean frozen = dialogueOpen || inventoryOpen || bigMap || chestOpen;
+        // Inventory input remains active, but enemies, projectiles, damage and cooldowns
+        // must not advance while the player is managing equipment or items.
+        if (inventoryOpen) {
+            updateMapView();
+            return;
+        }
+        boolean frozen = dialogueOpen || bigMap || chestOpen;
         if (!frozen && input.samplePotionUse()) {
             useHealthPotion();
         }
@@ -513,6 +554,29 @@ public final class GameScreen extends ScreenAdapter {
             } catch (IllegalArgumentException | IllegalStateException failure) {
                 travelStatus = failure.getMessage();
             }
+        }
+    }
+
+    /** Identifies the merchant service menu.
+     * @return whether the Hub merchant owns dialogue input
+     */
+    private boolean isMerchantDialogueOpen() {
+        return dialogueOpen && activeNpc == GameConfig.WEAPON_MERCHANT;
+    }
+
+    /** Processes one service without closing the menu or triggering the other reward. */
+    private void handleMerchantInput() {
+        if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()) {
+            dialogueOpen = false; activeNpc = null; return;
+        }
+        var choices = MerchantServices.Choice.values();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            merchantChoice = Math.floorMod(merchantChoice - 1, choices.length);
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            merchantChoice = (merchantChoice + 1) % choices.length;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            merchantFeedback = MerchantServices.select(choices[merchantChoice], activeNpc, inventory, chestStorage);
         }
     }
 
@@ -834,6 +898,15 @@ public final class GameScreen extends ScreenAdapter {
             }
             return List.of(text.append(questFeedback).toString());
         }
+        if (isMerchantDialogueOpen()) {
+            StringBuilder text = new StringBuilder("Welcome! Choose a service:\n\n");
+            var choices = MerchantServices.Choice.values();
+            for (int i = 0; i < choices.length; i++) {
+                text.append(i == merchantChoice ? "> " : "  ")
+                        .append(MerchantServices.label(choices[i], activeNpc, inventory, chestStorage)).append("\n\n");
+            }
+            return List.of(text.append(merchantFeedback).toString());
+        }
         if (isTrainerDialogueOpen()) {
             StringBuilder text = new StringBuilder("Current: ")
                     .append(session.getPlayer().getPlayerClass().getDisplayName())
@@ -880,20 +953,20 @@ public final class GameScreen extends ScreenAdapter {
         int h = Gdx.graphics.getHeight();
         if (w <= 0 || h <= 0) { return; }
         boolean last = dialogueLine >= lines.size() - 1;
-        String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted()
-                ? "[E] Close" : "[E] Take reward";
+        String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted() ? "[E] Close" : "[E] Take reward";
         boolean completedSage = activeNpc == GameConfig.GUIDE
                 && session.getCurrentMap().getType() == MapType.MEMORIAL
                 && quests.getCompleted().size() == BossChallenge.values().length;
         String hint = credits.isOpen() ? credits.hint()
                 : endingOpen ? "[E] Continue"
+                : isMerchantDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Close"
                 : isQuestDialogueOpen() ? "[Up/Down] Choose   [E] Accept   [Esc] Close"
                 : isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
                 : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
                 : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
                 : last && !completedSage ? closeHint : "[E] Next";
         String body = lines.get(dialogueLine);
-        DialogueLayout layout = DialogueLayout.fit(w, h, isTrainerDialogueOpen() || isQuestDialogueOpen() || credits.isOpen(),
+        DialogueLayout layout = DialogueLayout.fit(w, h, isMerchantDialogueOpen() || isTrainerDialogueOpen() || isQuestDialogueOpen() || credits.isOpen(),
                 activeNpc.getName(), body, hint, this::measureDialogueText);
         float boxW = layout.width(), boxH = layout.height(), x = layout.x(), y = layout.y();
         float scale = layout.scale();

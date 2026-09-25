@@ -9,7 +9,7 @@ Updated 2026-09-25 for the inventory/equipment, save/load and related UI work.
 | [Game README](../README.md) | Setup, launch, current controls, gameplay and module overview. |
 | [Architecture](ARCHITECTURE.md) | Ownership, game-loop integration, persistence boundaries and contribution evidence. |
 | [Inventory and equipment](INVENTORY_EQUIPMENT_REPORT.md) | Obtaining/equipping items, storage transfers, bonuses, potions and one-time rewards. |
-| [Save and load](SAVE_LOAD_REPORT.md) | Slot independence, safe-state rules, snapshot coverage, file validation, UI and regression checks. |
+| [Save and load](SAVE_LOAD_REPORT.md) | Esc menu, restart, volume, transient feedback, slot independence, safe-state rules and regression checks. |
 | [Art integration](ART_INTEGRATION.md) | Runtime artwork, HUD presentation and asset coverage. |
 | [Guardian traits](BOSS_TRAIT_REPORT.md) | Boss mechanics, status display and balance measurements. |
 | [Asset attribution](../assets/README.md) | Visual/audio provenance and licensing references. |
@@ -38,6 +38,11 @@ they are not the save/load user guide.
 | Notification lifetime, position and resizing | Follow-up working-branch refinement; 62 focused save/menu/HUD tests plus core JavaDoc audit and desktop compilation passed on 2026-09-24. Visual resize/dialogue regression remains to be checked. |
 | Storage-to-bag guidance and empty weapon wording | Follow-up working-branch refinement; core compilation and JavaDoc audit passed on 2026-09-25. Visual interaction check remains to be performed. |
 | Boss victory autosave | Covered by automated save integration tests; a complete manual victory/checkpoint/reload playthrough remains outstanding. |
+
+The subsequent Esc menu redesign passes **1,191 core and 4 desktop tests**, JavaDoc audits
+and desktop compilation. Its complete native visual/restart checklist is in the save/load
+report; it is not claimed as manually accepted. The earlier top-left notification design
+is superseded by this menu and transient-toast implementation.
 
 These results belong to their recorded code stages. The subsequent pre-merge verification on 2026-09-25 passed **1,184 core tests and 4 desktop
 tests**, plus JavaDoc/build checks using the local JDK 26 override. It does not establish

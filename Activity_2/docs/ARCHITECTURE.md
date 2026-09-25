@@ -911,9 +911,16 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 
 - GameScreen and screen helpers own HUD, menus, dialogue and inventory presentation.
 - They coordinate public feature APIs rather than mutating private model internals.
-- SaveMenu consumes F5/F9 and confirmations before normal gameplay input; its modal pauses
-  gameplay. Notifications sit below the upper-left HUD, wrap and scale on both window axes.
-  Temporary rejection hints clear when their blocker disappears or after four UI seconds.
+- SaveMenu consumes Escape, optional F5/F9 shortcuts and confirmations before gameplay.
+  Its modal pauses simulation/animation without changing save safety. An ordinary open panel
+  owns the first Escape; the next opens the menu. Shared layout drives drawing and hit-testing.
+- GameSaves publishes operation sequence numbers; SaveMenu consumes each once for a four-second
+  translucent toast with a final fade. No persistent notification competes with the training HUD.
+- The music slider uses BackgroundMusic gain APIs; cached and future streams share the chosen
+  gain without playback restart. It is independent of gameplay save snapshots.
+- MainGame defers confirmed restart to the next application runnable, replaces GameScreen and
+  disposes old resources. Fresh models and NPC flags are initialized, disk saves stay untouched,
+  and the current music gain is passed to the replacement screen.
 - No separate package exists until there are reusable UI classes.
 - `screen/StatusLabels` is the graphics-free mapping from a `CombatStatus`, plus an optional
   attacker-owned label, to ordered uppercase status labels and colours. `PlaceholderRenderer`
@@ -945,8 +952,8 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 - Startup and loading never write either slot. Manual save only writes MANUAL; successful
   settled Boss returns only write AUTO. Failure and simultaneous player/Boss death do not autosave.
   Loading an older timeline does not merge progress; its next victory may replace a newer AUTO.
-- No arbitrary mid-battle snapshot, automatic startup load, dedicated New Game button or separate
-  achievement subsystem is implemented. See [Save/load](SAVE_LOAD_REPORT.md) for verification.
+- No arbitrary mid-battle snapshot, automatic startup load or separate achievement subsystem
+  is implemented. The menu restart creates fresh live state without deleting save files. See [Save/load](SAVE_LOAD_REPORT.md) for verification.
 
 ### Achievement
 
@@ -1231,10 +1238,18 @@ commit message.
   balance refinements and future art/presentation mapping separately; those must preserve the
   shared damage, world-collision, Hub-only selection and one-generation reaction contracts.
 - Define migration before changing the implemented version-1 save schema. Decide separately
-  whether to add a New Game/reset-slots UI, more profiles or new safe-save locations.
+  whether to add explicit save-file deletion, more profiles or new safe-save locations.
+  The existing Restart game action intentionally preserves both files.
 - Agree on final guardian balance. Scripted fights show mobile classes winning every arena, while
   a deliberately stationary caster loses to the ice and wind guardians; measurements and the
   single-constant levers are recorded in [Boss trait report](BOSS_TRAIT_REPORT.md).
 - Decide whether burning deserves its own status icon; the overlay currently uses text only and
   adds no asset.
 - Decide which P2 features will be dropped if the P0/P1 schedule slips.
+
+
+Save management is a nested `SaveMenu` page. Confirmed per-slot deletion passes through
+`GameSaves` safety checks to synchronized `SaveStore.delete`; it never restores or mutates
+live state. Only the selected enum-bound file is removed, directories are rejected, and
+missing files are idempotent. The submenu refreshes summaries after deletion and retains
+pause/input ownership until the player returns to gameplay.
