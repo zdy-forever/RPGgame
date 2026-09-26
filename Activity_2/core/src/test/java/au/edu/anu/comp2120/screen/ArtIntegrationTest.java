@@ -147,7 +147,7 @@ final class ArtIntegrationTest {
         assertEquals(bounds,dummy.getCombatant().getHurtbox());
         assertTrue(dummy.isAlive());
         assertTrue(demo.getBoss().isEmpty());
-        assertTrue(demo.getActiveAttacks().isEmpty());
+        assertTrue(demo.getActiveAttacks().stream().allMatch(a -> a.getSpecification().type().equals("training-shot")));
         demo.update(0,PlayerCommand.NONE,true);
         assertEquals(appearance,demo.getTrainingAppearance().orElseThrow());
         assertEquals(0,demo.getTrainingDummy().orElseThrow().getTotalDamage());

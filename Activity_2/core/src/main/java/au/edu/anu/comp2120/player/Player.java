@@ -62,6 +62,37 @@ public final class Player implements Damageable, EquipmentModifiers {
 
     /** Default player HP capacity; callers can override it with the explicit-capacity constructor. */
     public static final int DEFAULT_MAX_HP = 100;
+    /** Seconds since the last positive training hit. */
+    private double trainingQuietSeconds;
+    /** Latest incoming damage after combat modifiers, before the training HP floor. */
+    private int trainingLastDamage;
+
+    /** Whether practice-only health rules apply to the current collision environment.
+     * @return true only in a training map
+     */
+    private boolean inTraining() {
+        return area instanceof au.edu.anu.comp2120.world.GameMap map
+                && map.getType() == au.edu.anu.comp2120.world.MapType.TRAINING;
+    }
+
+    /** Advances practice recovery using simulation time; menus therefore pause the timer.
+     * @param delta finite non-negative elapsed seconds
+     */
+    public void updateTrainingRecovery(double delta) {
+        if (!Double.isFinite(delta) || delta < 0) { throw new IllegalArgumentException("Invalid recovery time"); }
+        if (!inTraining() || !isAlive()) { return; }
+        trainingQuietSeconds = Math.min(5, trainingQuietSeconds + delta);
+        if (trainingQuietSeconds >= 5) { health.restoreFull(); }
+    }
+
+    /** Clears practice-only hit feedback and recovery time on explicit reset. */
+    public void resetTrainingMetrics() { trainingQuietSeconds = 0; trainingLastDamage = 0; }
+
+    /** Reads the latest post-mitigation practice hit, even when the HP floor capped its loss.
+     * @return incoming damage or zero before the first hit
+     */
+    public int getTrainingLastDamage() { return trainingLastDamage; }
+
     /** Per-player health retained during movement and map transitions. */
     private final Health health;
     /** Unequipped HP capacity, retained for save compatibility. */
@@ -216,6 +247,12 @@ public final class Player implements Damageable, EquipmentModifiers {
     @Override
     public void takeDamage(int damage) {
         equipment.reconcile();
+        if (damage < 0) { throw new IllegalArgumentException("Damage must be non-negative"); }
+        if (inTraining() && damage > 0 && health.isAlive()) {
+            trainingQuietSeconds = 0;
+            trainingLastDamage = damage;
+            damage = Math.min(damage, health.getCurrentHp() - 1);
+        }
         health.takeDamage(damage);
     }
 
@@ -283,6 +320,7 @@ public final class Player implements Damageable, EquipmentModifiers {
             throw new IllegalArgumentException("Player does not fit at destination (" + x + ", " + y + ")");
         }
         area = destination;
+        resetTrainingMetrics();
         bounds = nextBounds;
     }
 

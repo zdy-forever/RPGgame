@@ -144,9 +144,9 @@ final class PortalGuideTrainingTest {
         assertEquals(expectedMap, session.getCurrentMap().getId());
     }
 
-    /** Practice never advances AI, moves the target, attacks the player or emits a result/reward. */
+    /** Practice stays stationary, fires upward without hitting a player to its side, and grants no rewards. */
     @Test
-    void targetStaysStillAndDoesNotAttack() {
+    void targetStaysStillAndOnlyAttacksUpward() {
         train();
         var dummy = dummy();
         CollisionBox before = dummy.getCombatant().getHurtbox();
@@ -156,7 +156,8 @@ final class PortalGuideTrainingTest {
         assertEquals(before, dummy.getCombatant().getHurtbox());
         assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
         assertEquals(0, dummy.getTotalDamage());
-        assertTrue(combat.getActiveAttacks().isEmpty());
+        assertTrue(combat.getActiveAttacks().stream().allMatch(a -> a.getProjectile() != null
+                && a.getProjectile().getDirectionX() == 0 && a.getProjectile().getDirectionY() == 1));
         assertTrue(flow.getLastResult().isEmpty());
         assertTrue(flow.getPendingRewards().isEmpty());
         assertTrue(demo.getDrops().isEmpty());
@@ -389,10 +390,48 @@ final class PortalGuideTrainingTest {
     @Test
     void trainingReturnRejectsDeadPlayer() {
         train();
-        session.getPlayer().takeDamage(100);
+        session.getPlayer().getHealth().takeDamage(100); // Explicit corrupt/dead state, bypassing practice protection.
         assertThrows(IllegalStateException.class, guide::returnFromTraining);
         assertEquals(MapCatalog.TRAINING, session.getCurrentMap().getId());
         assertFalse(session.getPlayer().isAlive());
+    }
+
+    /** Real upward projectiles use equipment mitigation, while practice never kills the player. */
+    @Test void upwardShotsRespectArmour() {
+        train();
+        var player = session.getPlayer();
+        var target = dummy().getCombatant().getHurtbox();
+        player.enterArea(session.getCurrentMap(), target.x() + target.width() / 2 - 14, target.y() + 100);
+        for (int i = 0; i < 80 && player.getTrainingLastDamage() == 0; i++) { demo.update(0.05, PlayerCommand.NONE, false); }
+        assertEquals(25, player.getTrainingLastDamage());
+        assertEquals(75, player.getHealth().getCurrentHp());
+        demo.update(0, PlayerCommand.NONE, true);
+        player.getInventory().addItem("guardian_coat");
+        player.getEquipment().toggle("guardian_coat");
+        player.enterArea(session.getCurrentMap(), target.x() + target.width() / 2 - 14, target.y() + 100);
+        for (int i = 0; i < 80 && player.getTrainingLastDamage() == 0; i++) { demo.update(0.05, PlayerCommand.NONE, false); }
+        assertTrue(player.getTrainingLastDamage() > 0 && player.getTrainingLastDamage() < 25);
+        assertEquals(100 - player.getTrainingLastDamage(), player.getHealth().getCurrentHp());
+    }
+
+    /** Hits at one HP restart recovery, zero damage does not, and leaving practice removes protection. */
+    @Test void practiceFloorAndRecoveryAreMapScoped() {
+        train();
+        var player = session.getPlayer();
+        player.takeDamage(Integer.MAX_VALUE);
+        assertEquals(1, player.getHealth().getCurrentHp());
+        player.updateTrainingRecovery(4);
+        player.takeDamage(25);
+        player.updateTrainingRecovery(4);
+        assertEquals(1, player.getHealth().getCurrentHp());
+        player.takeDamage(0);
+        player.updateTrainingRecovery(1);
+        assertEquals(100, player.getHealth().getCurrentHp());
+        assertThrows(IllegalArgumentException.class, () -> player.takeDamage(-1));
+        session.switchMap(MapCatalog.HUB);
+        player.takeDamage(100);
+        player.updateTrainingRecovery(10);
+        assertFalse(player.isAlive());
     }
 
     /** Enters the real route after arrival protection has observed departure from its region. */

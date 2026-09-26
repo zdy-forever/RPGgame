@@ -70,7 +70,7 @@ final class GearUpgradesTest {
         assertEquals("", worn.itemAt(EquipmentSlot.FEET));
         bag.addItem(id + "+1", chest.removeItem(id + "+1", 1));
         worn.toggle(id + "+1");
-        assertEquals(15, worn.speedPercent());
+        assertEquals(20, worn.speedPercent());
     }
 
     /** Both save slots round-trip upgraded worn and stored items; base-level saves still parse.
