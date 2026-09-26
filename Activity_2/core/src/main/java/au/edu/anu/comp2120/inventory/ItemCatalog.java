@@ -91,10 +91,10 @@ public final class ItemCatalog {
         /** Returns glove cooldown reduction for K/L/O.
          * @return reduction percentage
          */
-        public int cooldownPercent() { return slot == EquipmentSlot.HANDS ? 10 + 5 * level() : 0; }
+        public int cooldownPercent() { return slot == EquipmentSlot.HANDS ? 10 + 10 * level() : 0; }
         /** Returns boot ordinary movement amplification.
          * @return speed percentage
          */
-        public int speedPercent() { return slot == EquipmentSlot.FEET ? 10 + 5 * level() : 0; }
+        public int speedPercent() { return slot == EquipmentSlot.FEET ? 10 + 10 * level() : 0; }
     }
 }

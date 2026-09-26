@@ -12,9 +12,9 @@ See [the game README](../README.md) for launch instructions and
 
 ## Player controls
 
-- **Esc** opens the pause menu: Resume, Save manually, Manage saves, Restart game and music volume. Click rows or use Up/Down and Enter. Esc from a confirmation returns to the menu; Esc from the menu resumes. Ordinary dialogue/bag/chest/map panels close on the first Esc, before menu entry.
-- **F5** remains a shortcut to save the manual slot. An existing manual file, even an invalid one, requires Enter confirmation before replacement. Escape cancels.
-- **F9** opens the Manage saves submenu with the automatic-load row selected. **1** selects automatic, **2** selects manual. **Enter** confirms replacing current gameplay; **Escape** cancels.
+- **Esc** opens the pause menu: Resume, Save manually, Manage saves, Restart game and music volume. Click rows or use W/S or Up/Down and E/Enter. Esc from a confirmation returns to the menu; Esc from the menu resumes. Ordinary dialogue/bag/chest/map panels close on the first Esc, before menu entry.
+- **F5** remains a shortcut to save the manual slot. An existing manual file, even an invalid one, requires E/Enter confirmation before replacement. Escape cancels.
+- **F9** opens the Manage saves submenu with the automatic-load row selected. **1** selects automatic, **2** selects manual. **E/Enter** confirms replacing current gameplay; **Escape** cancels.
 - On macOS the keyboard may require **Fn+F5 / Fn+F9**.
 - Close dialogue, inventory, chest, enlarged map, ending and credits before requesting either operation.
 - Save and load require a living player in Hub or Memorial Hall. Training and Battle are excluded. Executing skills, dashes, launch windows and projectiles block both operations; inactive cooldowns are allowed and preserved.
@@ -158,8 +158,8 @@ its message; SaveMenu consumes each event once. Successful manual saves, loads, 
 and failures all produce four-second toasts with a 0.6-second fade. Repeating the same action
 produces a fresh event even if the text is identical. Startup shows no stale status, and an
 expired notification never falls back to the coordinator's last message. Notifications use
-alpha blending, wrapped text and both-axis scaling. During gameplay they sit at 22% of window
-height, centred horizontally; while the menu is open they sit near the bottom below it.
+alpha blending, wrapped text and both-axis scaling. They are centred horizontally and vertically in the game
+window for gameplay, dialogue and pause menus alike.
 
 The centred menu is scaled from a 500 × 460 layout using both dimensions. Drawing and mouse
 hit-testing share the same transform. Opening, closing and confirmation frames consume input;
@@ -168,7 +168,7 @@ and Training for resume, volume and restart, but pause cannot bypass GameSaves.i
 Existing confirmations still protect manual-file overwrites and replacement of live progress.
 
 Music gain is an application preference, not save content. The 0–100 slider supports click/drag
-and one-percent Left/Right steps when focused. It updates all cached music streams and future
+and one-percent A/D or Left/Right steps when focused. It updates all cached music streams and future
 tracks without restarting playback. Zero mutes. Menu pause leaves music playing for preview;
 application lifecycle pause still pauses it. Gain survives an in-game restart, but is not
 persisted after quitting the application.

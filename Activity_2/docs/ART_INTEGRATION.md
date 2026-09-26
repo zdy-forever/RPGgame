@@ -100,7 +100,7 @@ Existing safety checks retain nearby fallback candidates when the centre is bloc
 Training remains `MapType.TRAINING`, with one original TrainingDummy and no Boss AI/reward/outcome.
 On entry, `TrainingAppearance` makes independent random choices for elemental arena and guardian art.
 Selection stays fixed during the visit and an R reset, while leaving/re-entering samples again (a repeat
-is possible). The dummy stays still, does not attack, refills HP and scores delivered damage as before.
+is possible). The dummy stays still, refills its own HP and scores delivered damage. CombatDemo now launches fixed upward practice shots; these use the existing enemy projectile artwork while retaining physical damage rules.
 The random selector accepts a seeded Random in tests and does not share the Mage ability RNG.
 
 ## Status overlay without new assets

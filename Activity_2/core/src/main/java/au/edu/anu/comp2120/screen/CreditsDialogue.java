@@ -46,6 +46,11 @@ final class CreditsDialogue {
         if (open && page < 0 && up != down) { choice = 1 - choice; }
     }
 
+    /** Selects one visible credits option with the pointer.
+     * @param index option zero or one
+     */
+    void selectIndex(int index) { if (open && page < 0 && index >= 0 && index < 2) { choice = index; } }
+
     /** Confirms a menu choice, advances one credits page, or closes after the final page. */
     void confirm() {
         if (!open) { return; }

@@ -108,17 +108,17 @@ final class SaveMenu {
             return true;
         }
         if (page == Page.HOME || page == Page.SLOTS) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) { focus = (focus + 4) % 5; }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) { focus = (focus + 1) % 5; }
+            if (MenuKeys.up()) { focus = (focus + 4) % 5; }
+            if (MenuKeys.down()) { focus = (focus + 1) % 5; }
             if (page == Page.SLOTS && Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) { request(Action.AUTO); return true; }
             if (page == Page.SLOTS && Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) { request(Action.MANUAL); return true; }
             if (page == Page.HOME && focus == 4) {
-                int step = (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT) ? 1 : 0)
-                        - (Gdx.input.isKeyJustPressed(Input.Keys.LEFT) ? 1 : 0);
+                int step = (MenuKeys.right() ? 1 : 0)
+                        - (MenuKeys.left() ? 1 : 0);
                 if (step != 0) { setVolume.accept(Math.max(0, Math.min(100, volume.getAsInt() + step))); }
             }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) { activate(focus); return true; }
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) { confirm(); return true; }
+            if (MenuKeys.confirm()) { activate(focus); return true; }
+        } else if (MenuKeys.confirm()) { confirm(); return true; }
         pointer();
         return true;
     }
@@ -285,9 +285,8 @@ final class SaveMenu {
      * @param batch shared screen batch
      * @param font shared bitmap font
      * @param shapes shared shape renderer
-     * @param dialogueVisible whether a dialogue needs the lower screen clear
      */
-    void draw(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes, boolean dialogueVisible) {
+    void draw(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes) {
         observeStatus(); advanceHint(Gdx.graphics.getDeltaTime());
         int width = Gdx.graphics.getWidth(), height = Gdx.graphics.getHeight();
         var b = layout(width, height);
@@ -334,8 +333,8 @@ final class SaveMenu {
                     label(batch, font, b, (focus == 4 ? "> " : "") + "Music volume  " + volume.getAsInt() + " / 100",
                         32, 104, 436, 20, 1, Color.CYAN);
                 }
-                label(batch, font, b, saves.isSafe() ? "Esc: back  |  Arrows / Enter or mouse"
-                        : "Save actions locked: Hub / Memorial, no active skills.\nEsc: back  |  Arrows / Enter or mouse",
+                label(batch, font, b, saves.isSafe() ? "Esc: back  |  WASD / Arrows, E / Enter, mouse"
+                        : "Save actions locked: Hub / Memorial, no active skills.\nEsc: back  |  WASD / Arrows, E / Enter, mouse",
                         24, 46, 452, 34, 0.85f, Color.LIGHT_GRAY);
             } else {
                 String prompt = switch (pending) {
@@ -349,7 +348,7 @@ final class SaveMenu {
                 };
                 label(batch, font, b, prompt, 32, 340, 436, 220, 1.2f, Color.WHITE);
                 label(batch, font, b, "Cancel (Esc)", 36, 68, 196, 22, 1, Color.WHITE);
-                label(batch, font, b, "Confirm (Enter)", 268, 68, 196, 22, 1, Color.WHITE);
+                label(batch, font, b, "Confirm (E/Enter)", 268, 68, 196, 22, 1, Color.WHITE);
             }
             batch.end();
         }
@@ -364,7 +363,7 @@ final class SaveMenu {
                 text.setText(font, toast, new Color(1, 1, 1, alpha), w - 24 * scale, Align.center, true);
             }
             float h = text.height + 24 * scale, x = (width - w) / 2;
-            float y = isOpen() ? 12 * scale : dialogueVisible ? height - h - 12 * scale : height * 0.22f;
+            float y = (height - h) / 2;
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0.06f, 0.10f, 0.16f, 0.8f * alpha); shapes.rect(x, y, w, h); shapes.end();
             batch.begin(); font.draw(batch, text, x + 12 * scale, y + h - 12 * scale); batch.end();

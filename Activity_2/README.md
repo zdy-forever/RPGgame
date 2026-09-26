@@ -25,16 +25,16 @@ These features are integrated into the production game. See the
 | Action | Control and result |
 | --- | --- |
 | Obtain a weapon | Talk to Weapon Merchant in Hub at (650,250), press E to advance the dialogue and collect the Lightning staff once. |
-| Equip / unequip | B opens the bag; right-click a wearable. Equipped rows show `[Worn]`; the footer shows attack, defence and set bonuses. |
+| Equip / unequip | B opens the bag; select with W/S or Up/Down, then E/Enter to equip or unequip. Mouse: left-click selects, right-click acts. Equipped rows show `[Worn]`; the footer shows attack, defence and set bonuses. |
 | Use a potion | Right-click a health potion in the bag, or P during gameplay. Heals up to 30 HP; full-health or dead players do not consume it. |
-| Transfer items | E near Storage Chest opens STORAGE; right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
-| Page / close | Left/Right changes pages; B/Escape closes the bag, E/Escape closes storage. |
-| Pause menu | Esc opens the menu; click a row or use Up/Down and Enter. Esc resumes, or cancels a confirmation back to the menu. |
+| Transfer items | E near Storage Chest opens STORAGE; A/D or Left/Right selects a column; W/S or Up/Down selects a row; E/Enter or right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
+| Page / close | Q/R or PageUp/PageDown changes pages; B/Escape closes the bag, Escape closes storage. Clickable footer controls also page, act and close. |
+| Pause menu | Esc opens the menu; click a row or use W/S or Up/Down and E/Enter. Esc resumes, or cancels a confirmation back to the menu. |
 | Save manually | Esc → Save manually, or F5. Existing manual saves require confirmation. |
 | Load | Esc → Manage saves → Load automatic / Load manual, then confirm. F9 and 1/2 remain shortcuts. |
 | Delete save | Esc → Manage saves → Delete automatic / Delete manual → Confirm. Only the selected file is removed; current gameplay and the other slot remain unchanged. |
 | Restart game | Esc → Restart game → Confirm: fresh Hub/player/quests/inventory/chest/NPC rewards; both save files and music volume are kept. |
-| Music volume | Drag the menu slider from 0 to 100, or select it with Up/Down and adjust with Left/Right. |
+| Music volume | Drag the menu slider from 0 to 100, or select it with W/S or Up/Down and adjust with A/D or Left/Right. |
 
 On macOS, function keys may require Fn. Close dialogue, bag, chest, enlarged map,
 ending and credits before saving/loading. A living player with no active skills,
@@ -43,8 +43,8 @@ Remaining cooldowns are allowed and restored. F5 is reserved for saving in the
 production screen; choose O mode A/B through the **Class Master** in Hub.
 
 The chest initially contains four guardian armour pieces and three potions. Wearables
-stay in bag counts; storing the last copy removes its equipment bonus. The WEAPON panel
-shows only the weapon slot, so `No weapon equipped` is correct when only armour is worn.
+stay in bag counts; storing the last copy removes its equipment bonus. View equipped items in the bag. The legacy top-right WEAPON panel is disabled;
+its rendering implementation is retained and its call is commented out.
 The staff gives +20% attack; two guardian pieces add 5% defence and four add 10% attack.
 Individual armour values and the shared damage calculation are documented in the
 [inventory/equipment report](docs/INVENTORY_EQUIPMENT_REPORT.md).
@@ -62,8 +62,8 @@ progress after confirmation, without deleting either slot. A later explicit manu
 Boss victory can replace its respective file from the new timeline. See the [save/load report](docs/SAVE_LOAD_REPORT.md) for snapshot
 coverage, failure handling and verification limits.
 
-Operation feedback appears in a temporary, translucent toast in the lower-centre play area,
-away from the upper-left health/position/training score. It lasts four seconds and fades during
+Operation feedback appears in a temporary, translucent toast at the centre of the game window,
+including while dialogue or the pause menu is open. It lasts four seconds and fades during
 the final 0.6 seconds; there is no permanent black status strip. The menu and toast scale with
 both window axes. Escape closes an ordinary dialogue, bag, chest or map first; press it again
 to open the pause menu. Menu pause freezes simulation, not the safe-map restriction, so
@@ -116,7 +116,7 @@ press **E** to confirm. Re-accepting the same task also requires confirmation ag
   [Boss trait report](docs/BOSS_TRAIT_REPORT.md). Final names, per-guardian art/audio cues, the
   final ending script and final balance remain future content work. Task progress and the one-time ending flag are included in save snapshots.
 
-- Training has one stationary, non-attacking target, not a Boss. J/K/L/O use the shared
+- Training has one stationary target firing fixed upward practice shots, not a quest Boss. J/K/L/O use the shared
   abilities/combat pipeline. The scoreboard shows total delivered damage, last damage and
   positive-damage hit count, including reaction/field ticks. The target replenishes its HP
   after each hit so it remains available; it never grants rewards or a BattleResult.
@@ -315,11 +315,11 @@ NPC and confirm E to leave; Escape cancels. Returning clears the practice scope.
 
 ## Camera behaviour and verification
 
-The persistent HP, position, minimap and weapon HUD scales down with the smaller window axis.
+The persistent HP, position and minimap HUD scales down with the smaller window axis.
 Its maximum size is the existing **960 x 540** layout: larger windows move the anchored panels
 but do not enlarge them. Configuration is centralized in `GameConfig.HUD_*`:
 
-- Width below **640** or height below **360**: hide position, minimap and weapon; keep HP.
+- Width below **640** or height below **360**: hide position and minimap; keep HP.
 - Width below **320** or height below **180**: hide HP as well.
 - At the exact thresholds the relevant elements stay visible; enlarging restores them.
 - Shrinking below the minimap threshold closes an expanded M map and releases its movement lock.
@@ -1078,9 +1078,9 @@ save manually afterwards. Returning to a previous save restores its items and ma
 | --- | --- | --- | --- |
 | Lightning Staff | ATK +20% | +25% | +30% |
 | Guardian hood | Max HP +20 | +30 | +40 |
-| Guardian gloves | Skill CDR 10% | 15% | 20% |
+| Guardian gloves | Skill CDR 10% | 20% | 30% |
 | Guardian coat | DEF 8% | 10% | 12% |
-| Guardian boots | Move speed +10% | +15% | +20% |
+| Guardian boots | Move speed +10% | +20% | +30% |
 
 Hoods scale current and maximum HP together, preserving the health percentage. A stored
 ratio prevents repeated swaps from generating HP or accumulating rounding loss. Living players
@@ -1092,5 +1092,19 @@ DEF +5%, 4 pieces: ATK +10%; only coats contribute individual armour reduction.
 NPC action results (quest acceptance, class selection, portal selection, merchant rewards,
 potion supplies and upgrades) now share the save menu's translucent four-second toast,
 including repeated identical actions. Dialogue instructions and live item/quest statuses
-remain visible. While dialogue is open, the toast appears above it instead of covering its
-options. The HP bar now reads actual current/max HP, including headgear bonuses.
+remain in their panels. Toasts are centred horizontally and vertically in the game window,
+including during dialogue and pause menus. The HP bar now reads actual current/max HP, including headgear bonuses.
+
+### Unified menu input
+
+All menus accept W/S (or Up/Down) to select and E/Enter to confirm; Escape returns or closes. NPC options support left-click selection and right-click confirmation, with clickable confirm/back footer areas. Gameplay still uses E to interact. Bag/storage input pauses gameplay and consumes the opening and closing frames, so menu navigation does not move the character or trigger skills. Storage E now transfers the selected stack; use Escape to close.
+
+Expanded map (M): the panel uses 92% of window width and 88% of its height, retaining world proportions. NPC names appear beside yellow markers; nearby labels are staggered and kept within the panel. M or Escape closes it. The compact minimap retains its existing size.
+
+### Training defence and movement checks
+
+The practice target remains stationary and fires a 25-base-damage physical projectile straight upward every two seconds. Stand above it to test armour, or move to either side to practise attacks safely. Hits use the normal combat mitigation pipeline; the scoreboard includes post-mitigation incoming damage and current walking speed (including boots).
+
+Training damage cannot reduce a living player below 1 HP. Five seconds without a positive hit restores full HP; further hits at 1 HP also restart that delay. The bag, storage and pause menu pause simulation and recovery. These protections end immediately when leaving Training and grant no rewards or Boss completion.
+
+The legacy coordinate HUD is disabled by commenting out its rendering call; its implementation is retained. Training keeps its 1 HP protection without advertising that rule in the status panel.
