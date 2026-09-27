@@ -119,6 +119,36 @@ public final class GameScreen extends ScreenAdapter {
     private final InventoryRewards inventoryRewards;
     /** Zero-based bag page. */
     private int inventoryPage;
+    /** Keyboard-selected visible bag row. */
+    private int bagRow;
+    /** Keyboard-selected visible storage row. */
+    private int storageRow;
+    /** Whether the chest column, rather than the carried column, owns selection. */
+    private boolean storageRight;
+    /** Pointer activation sampled once for the current modal frame. */
+    private boolean pointerConfirm;
+    /** Pointer back action sampled once for the current modal frame. */
+    private boolean pointerBack;
+    /** Choice hitboxes from the last rendered dialogue, in logical window coordinates. */
+    private final List<DialogueHit> dialogueHits = new ArrayList<>();
+    /** Exact rendered content used to reject obsolete hitboxes after a page change. */
+    private String hitBody = "";
+    /** NPC owning the last rendered click targets. */
+    private String hitNpc = "";
+    /** Last rendered dialogue width. */
+    private int hitWidth;
+    /** Last rendered dialogue height. */
+    private int hitHeight;
+    /** Cached rendered panel with wrapped text geometry. */
+    private DialogueLayout hitLayout;
+    /** One wrapped option's vertical interval.
+     * @param top upper edge
+     * @param bottom lower edge
+     * @param choice option index
+     * @author Hao Liu (u7998420)
+     */
+    private record DialogueHit(float top, float bottom, int choice) { }
+
     /** Zero-based shared page for the two chest columns. */
     private int chestPage;
     /** Last item operation shown inside the bag. */
@@ -245,18 +275,20 @@ public final class GameScreen extends ScreenAdapter {
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
                 combatDemo.getDrops(), quests.getCompleted());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
-        drawCoordinates(hud);
+        // Legacy coordinate HUD disabled; retain the original renderer for reference.
+        // drawCoordinates(hud);
         drawHealth(hud);
         drawTrainingScore();
         drawInventory();
-        drawWeaponSlot(hud);
+        // Legacy weapon HUD disabled; retain its renderer for reference. Equipment is shown in the bag.
+        // drawWeaponSlot(hud);
         drawInteractionPrompt();
         drawMinimap(hud);
         drawChest();
         drawSkillHud(hud);
         drawDialogue();
         drawOutcome(delta);
-        saveMenu.draw(dialogueBatch, dialogueFont, dialogueShapes, dialogueOpen);
+        saveMenu.draw(dialogueBatch, dialogueFont, dialogueShapes);
     }
 
     /**
@@ -293,7 +325,8 @@ public final class GameScreen extends ScreenAdapter {
      * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
      */
     private void updateGameplay(double delta) {
-        if (isMerchantDialogueOpen() && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        sampleDialoguePointer();
+        if (isMerchantDialogueOpen() && menuBack()) {
             if (!pendingUpgrade.isEmpty()) { pendingUpgrade = ""; }
             else if (upgradeMenu) { upgradeMenu = false; }
             else { dialogueOpen = false; activeNpc = null; }
@@ -302,7 +335,7 @@ public final class GameScreen extends ScreenAdapter {
         // Escape closes an ordinary panel first; a second press opens the pause menu.
         if (!saveMenu.isOpen() && !endingOpen && !credits.isOpen()
                 && (dialogueOpen || inventoryOpen || chestOpen || bigMap)
-                && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                && menuBack()) {
             dialogueOpen = false; inventoryOpen = false; chestOpen = false; bigMap = false;
             activeNpc = null;
             updateMapView();
@@ -324,7 +357,8 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         if (endingOpen) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            if (menuBack()) { endingOpen = false; dialogueOpen = false; activeNpc = null; updateMapView(); return; }
+            if (menuConfirm()) {
                 dialogueLine++;
                 if (dialogueLine >= BossQuests.ENDING_LINES.size()) {
                     endingOpen = false;
@@ -368,35 +402,33 @@ public final class GameScreen extends ScreenAdapter {
         long beforeCombat = session.getTransitionVersion();
         if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
             inventoryOpen = !inventoryOpen;
+            if (!inventoryOpen) { updateMapView(); return; }
+            bagRow = 0;
             if (inventoryOpen) {
                 bigMap = false;
                 dialogueOpen = false;
                 chestOpen = false;
                 activeNpc = null;
             }
+            updateMapView(); return;
         }
         if (!inventoryOpen && !chestOpen && session.getCurrentMap().getType() != MapType.MEMORIAL
                 && HudLayout.forWindow(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()).detailsVisible()
                 && Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             bigMap = !bigMap;
+            updateMapView(); return;
         }
         if (inventoryOpen || chestOpen) {
-            int pageDelta = (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT) ? 1 : 0)
-                    - (Gdx.input.isKeyJustPressed(Input.Keys.LEFT) ? 1 : 0);
-            if (inventoryOpen) { inventoryPage = Math.max(0, Math.min(pageCount(false) - 1, inventoryPage + pageDelta)); }
-            if (chestOpen) { chestPage = Math.max(0, Math.min(pageCount(true) - 1, chestPage + pageDelta)); }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-                inventoryOpen = false;
-                chestOpen = false;
-            }
+            handleItemPanelInput();
+            updateMapView();
+            return;
         }
-        if (inventoryOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
-            handleInventoryRightClick();
+        if (dialogueOpen) {
+            if (menuConfirm()) { advanceDialogue(); }
+            updateMapView(); return;
         }
-        if (chestOpen && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
-            handleChestRightClick();
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (bigMap) { updateMapView(); return; }
+        if ((dialogueOpen && menuConfirm()) || (!dialogueOpen && Gdx.input.isKeyJustPressed(Input.Keys.E))) {
             if (chestOpen) {
                 chestOpen = false;
             } else if (dialogueOpen) {
@@ -406,7 +438,7 @@ public final class GameScreen extends ScreenAdapter {
                 if (near == null) {
                     travelStatus = "";
                 } else if (GameConfig.STORAGE_CHEST.getId().equals(near.getId())) {
-                    chestOpen = true;
+                    chestOpen = true; storageRow = 0; storageRight = false; chestPage = 0;
                     dialogueOpen = false;
                     inventoryOpen = false;
                     activeNpc = null;
@@ -453,7 +485,7 @@ public final class GameScreen extends ScreenAdapter {
         }
         // Inventory input remains active, but enemies, projectiles, damage and cooldowns
         // must not advance while the player is managing equipment or items.
-        if (inventoryOpen) {
+        if (inventoryOpen || chestOpen || dialogueOpen || bigMap) {
             updateMapView();
             return;
         }
@@ -508,21 +540,84 @@ public final class GameScreen extends ScreenAdapter {
                 && activeNpc.getId().equals(GameConfig.QUEST_KEEPER.getId());
     }
 
+    /** Reads a dialogue activation without changing world interaction bindings.
+     * @return whether the current UI selection should activate
+     */
+    private boolean menuConfirm() { return pointerConfirm || MenuKeys.confirm(); }
+
+    /** Reads modal back without allowing the same event to reopen a different panel.
+     * @return Escape or the rendered back button
+     */
+    private boolean menuBack() { return pointerBack || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE); }
+
+    /** Matches clicks to the exact last rendered layout, including wrapped option heights. */
+    private void sampleDialoguePointer() {
+        pointerConfirm = false; pointerBack = false;
+        if (!dialogueOpen || activeNpc == null || hitLayout == null || !activeNpc.getId().equals(hitNpc)) { return; }
+        boolean left = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT);
+        boolean right = Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT);
+        if ((!left && !right) || hitWidth != Gdx.graphics.getWidth() || hitHeight != Gdx.graphics.getHeight()) { return; }
+        var lines = dialogueLines();
+        if (dialogueLine >= lines.size() || !hitBody.equals(lines.get(dialogueLine))) { return; }
+        float x = Gdx.input.getX(), y = hitHeight - Gdx.input.getY();
+        float start = hitLayout.x() + hitLayout.padding(), width = hitLayout.textWidth();
+        if (x < start || x > start + width) { return; }
+        if (left && y <= hitLayout.hintTop() && y >= hitLayout.hintTop() - hitLayout.hintHeight()) {
+            pointerBack = x >= start + width / 2;
+            pointerConfirm = !pointerBack;
+            return;
+        }
+        for (var hit : dialogueHits) {
+            if (y > hit.top() || y < hit.bottom()) { continue; }
+            if (credits.isOpen()) { credits.selectIndex(hit.choice()); }
+            else if (isMerchantDialogueOpen()) {
+                if (upgradeMenu) { upgradeChoice = hit.choice(); } else { merchantChoice = hit.choice(); }
+            } else if (isQuestDialogueOpen()) { questChoice = hit.choice(); }
+            else if (isTrainerDialogueOpen()) { trainerChoice = hit.choice(); }
+            else if (isPortalDialogueOpen()) { portalChoice = PortalGuide.Destination.values()[hit.choice()]; }
+            pointerConfirm = right;
+            return;
+        }
+    }
+
+    /** Records option bounds using the same font scale and wrapping as dialogue rendering.
+     * @param layout rendered geometry
+     * @param body rendered text
+     */
+    private void cacheDialogueHits(DialogueLayout layout, String body) {
+        hitLayout = layout; hitBody = body; hitNpc = activeNpc.getId();
+        hitWidth = Gdx.graphics.getWidth(); hitHeight = Gdx.graphics.getHeight(); dialogueHits.clear();
+        boolean menu = !endingOpen && (credits.isOpen() || isQuestDialogueOpen() || isTrainerDialogueOpen()
+                || isPortalDialogueOpen() || (isMerchantDialogueOpen() && pendingUpgrade.isEmpty()));
+        if (!menu) { return; }
+        String[] rows = body.split("\n", -1);
+        int option = 0;
+        for (int i = 0; i < rows.length; i++) {
+            if (!rows[i].startsWith("> ") && !rows[i].startsWith("  ")) { continue; }
+            String before = String.join("\n", java.util.Arrays.copyOfRange(rows, 0, i));
+            float preceding = i == 0 ? 0 : measureDialogueText(before, layout.scale(), layout.textWidth())
+                    + dialogueFont.getLineHeight() - dialogueFont.getCapHeight();
+            float rowHeight = measureDialogueText(rows[i], layout.scale(), layout.textWidth());
+            float top = layout.bodyTop() - preceding;
+            dialogueHits.add(new DialogueHit(top, top - rowHeight - (dialogueFont.getLineHeight() - dialogueFont.getCapHeight()) / 2, option++));
+        }
+    }
+
     /** Accepts the highlighted target through quest/encounter APIs without teleporting or healing. */
     private void handleQuestDialogueInput() {
         if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
-                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                || menuBack()) {
             dialogueOpen = false;
             activeNpc = null;
             return;
         }
         var targets = BossChallenge.values();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+        if (MenuKeys.up()) {
             questChoice = Math.floorMod(questChoice - 1, targets.length);
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+        } else if (MenuKeys.down()) {
             questChoice = (questChoice + 1) % targets.length;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (menuConfirm()) {
             try {
                 quests.accept(targets[questChoice]);
                 saveMenu.notify("Accepted: " + targets[questChoice].displayName() + ". Talk to the Portal Guide.");
@@ -553,10 +648,10 @@ public final class GameScreen extends ScreenAdapter {
     /** Confirms E or cancels Escape without adding any global travel shortcut. */
     private void handleTrainingExitInput() {
         if (session.getCurrentMap().getType() != MapType.TRAINING || !session.getPlayer().isAlive()
-                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                || menuBack()) {
             dialogueOpen = false;
             activeNpc = null;
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        } else if (menuConfirm()) {
             try {
                 portalGuide.returnFromTraining();
                 dialogueOpen = false;
@@ -582,15 +677,15 @@ public final class GameScreen extends ScreenAdapter {
         }
         if (upgradeMenu) {
             if (!pendingUpgrade.isEmpty()) {
-                if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                if (menuConfirm()) {
                     saveMenu.notify(GearUpgrades.upgrade(pendingUpgrade, inventory, chestStorage, equipment));
                     pendingUpgrade = "";
                 }
                 return;
             }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) { upgradeChoice = Math.floorMod(upgradeChoice - 1, 5); }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) { upgradeChoice = (upgradeChoice + 1) % 5; }
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            if (MenuKeys.up()) { upgradeChoice = Math.floorMod(upgradeChoice - 1, 5); }
+            if (MenuKeys.down()) { upgradeChoice = (upgradeChoice + 1) % 5; }
+            if (menuConfirm()) {
                 String id = GearUpgrades.candidate(EquipmentSlot.values()[upgradeChoice], inventory, equipment);
                 if (id.isEmpty()) { saveMenu.notify("Move the equipment into your bag first."); }
                 else if (GearUpgrades.level(id) == GearUpgrades.MAX_LEVEL) { saveMenu.notify("Already at maximum level +2."); }
@@ -599,12 +694,12 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         var choices = MerchantServices.Choice.values();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+        if (MenuKeys.up()) {
             merchantChoice = Math.floorMod(merchantChoice - 1, choices.length);
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+        } else if (MenuKeys.down()) {
             merchantChoice = (merchantChoice + 1) % choices.length;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (menuConfirm()) {
             if (choices[merchantChoice] == MerchantServices.Choice.UPGRADES) {
                 upgradeMenu = true; merchantFeedback = "Worn item first; otherwise highest-level carried item. Cost: 1 core.";
             } else { saveMenu.notify(MerchantServices.select(choices[merchantChoice], activeNpc, inventory, chestStorage)); }
@@ -614,18 +709,18 @@ public final class GameScreen extends ScreenAdapter {
     /** Handles the modal trainer menu before travel, debug keys or combat input. */
     private void handleTrainerDialogueInput() {
         if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
-                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                || menuBack()) {
             dialogueOpen = false;
             activeNpc = null;
             return;
         }
         var choices = ClassTrainer.Choice.values();
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+        if (MenuKeys.up()) {
             trainerChoice = Math.floorMod(trainerChoice - 1, choices.length);
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+        } else if (MenuKeys.down()) {
             trainerChoice = (trainerChoice + 1) % choices.length;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (menuConfirm()) {
             saveMenu.notify(classTrainer.select(choices[trainerChoice])
                     ? "Applied: " + classTrainer.label(choices[trainerChoice])
                     : "Unchanged: already selected or an ability is still active.");
@@ -639,19 +734,19 @@ public final class GameScreen extends ScreenAdapter {
      */
     private void handlePortalDialogueInput() {
         if (session.getCurrentMap().getType() != MapType.HUB || !session.getPlayer().isAlive()
-                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                || menuBack()) {
             dialogueOpen = false;
             activeNpc = null;
             return;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+        if (MenuKeys.up()) {
             var choices = PortalGuide.Destination.values();
             portalChoice = choices[Math.floorMod(portalChoice.ordinal() - 1, choices.length)];
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+        } else if (MenuKeys.down()) {
             var choices = PortalGuide.Destination.values();
             portalChoice = choices[(portalChoice.ordinal() + 1) % choices.length];
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+        if (menuConfirm()) {
             try {
                 portalGuide.select(portalChoice);
                 saveMenu.notify("Portal ready: " + portalGuide.destinationLabel(portalChoice) + "; step into the portal");
@@ -679,11 +774,11 @@ public final class GameScreen extends ScreenAdapter {
     /** Handles the completed Sage's optional credits without changing quest or reward state. */
     private void handleCreditsInput() {
         if (session.getCurrentMap().getType() != MapType.MEMORIAL
-                || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                || menuBack()) {
             credits.close();
         } else {
-            credits.select(Gdx.input.isKeyJustPressed(Input.Keys.UP), Gdx.input.isKeyJustPressed(Input.Keys.DOWN));
-            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) { credits.confirm(); }
+            credits.select(MenuKeys.up(), MenuKeys.down());
+            if (menuConfirm()) { credits.confirm(); }
         }
         if (!credits.isOpen()) {
             dialogueOpen = false;
@@ -798,11 +893,11 @@ public final class GameScreen extends ScreenAdapter {
         var dummy = practice.orElseThrow();
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = Math.max(1f, h / 720f);
+        float scale = Math.max(0.1f, Math.min(1.4f, Math.min(w / 960f, h / 720f)));
         float x = 12f * scale;
         float top = h - 85f * scale;
-        float boxW = 280f * scale;
-        float boxH = 150f * scale;
+        float boxW = 330f * scale;
+        float boxH = 225f * scale;
         dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
         dialogueShapes.setColor(0.04f, 0.07f, 0.10f, 1);
@@ -816,6 +911,10 @@ public final class GameScreen extends ScreenAdapter {
                         + "Total damage: " + dummy.getTotalDamage() + "\n"
                         + "Last damage: " + dummy.getLastDamage() + "\n"
                         + "Damage hits: " + dummy.getHitCount() + "\n"
+                        + String.format(java.util.Locale.ROOT, "Move speed: %.1f units/s\n", session.getPlayer().getSpeed())
+                        + "Incoming hit: " + session.getPlayer().getTrainingLastDamage() + " HP\n"
+                        + "Target fires UP: 25 base damage / 2s\n"
+                        + "No damage for 5s: full recovery\n"
                         + "[R] Reset practice\nTalk to Return to Hub NPC [E] to leave",
                 x + 10f * scale, top - 12f * scale, boxW - 20f * scale, Align.left, true);
         dialogueBatch.end();
@@ -989,22 +1088,16 @@ public final class GameScreen extends ScreenAdapter {
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
         if (w <= 0 || h <= 0) { return; }
-        boolean last = dialogueLine >= lines.size() - 1;
-        String closeHint = activeNpc.getRewardItemId() == null || activeNpc.hasInteracted() ? "[E] Close" : "[E] Take reward";
-        boolean completedSage = activeNpc == GameConfig.GUIDE
-                && session.getCurrentMap().getType() == MapType.MEMORIAL
-                && quests.getCompleted().size() == BossChallenge.values().length;
-        String hint = credits.isOpen() ? credits.hint()
-                : endingOpen ? "[E] Continue"
-                : isMerchantDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Close"
-                : isQuestDialogueOpen() ? "[Up/Down] Choose   [E] Accept   [Esc] Close"
-                : isTrainingExitDialogueOpen() ? "[E] Return to Hub   [Esc] Cancel"
-                : isTrainerDialogueOpen() ? "[Up/Down] Choose   [E] Apply   [Esc] Close"
-                : isPortalDialogueOpen() ? "[Up/Down] Choose   [E] Confirm   [Esc] Cancel"
-                : last && !completedSage ? closeHint : "[E] Next";
+        String confirmHint = "E/Enter: Confirm / Next\nW/S or Up/Down: select";
+        String backHint = "Esc: Back / Close\nClick: select; right-click: confirm";
+        String hint = confirmHint + backHint;
         String body = lines.get(dialogueLine);
         DialogueLayout layout = DialogueLayout.fit(w, h, isMerchantDialogueOpen() || isTrainerDialogueOpen() || isQuestDialogueOpen() || credits.isOpen(),
-                activeNpc.getName(), body, hint, this::measureDialogueText);
+                activeNpc.getName(), body, hint, (value, scale, width) -> value.equals(hint)
+                        ? Math.max(measureDialogueText(confirmHint, scale, width / 2),
+                                measureDialogueText(backHint, scale, width / 2))
+                        : measureDialogueText(value, scale, width));
+        cacheDialogueHits(layout, body);
         float boxW = layout.width(), boxH = layout.height(), x = layout.x(), y = layout.y();
         float scale = layout.scale();
         dialogueFont.getData().setScale(scale);
@@ -1029,7 +1122,8 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch, body,
                 x + pad, layout.bodyTop(), layout.textWidth(), Align.left, true);
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
-        dialogueFont.draw(dialogueBatch, hint, x + pad, layout.hintTop(), layout.textWidth(), Align.left, true);
+        dialogueFont.draw(dialogueBatch, confirmHint, x + pad, layout.hintTop(), layout.textWidth() / 2, Align.left, true);
+        dialogueFont.draw(dialogueBatch, backHint, x + pad + layout.textWidth() / 2, layout.hintTop(), layout.textWidth() / 2, Align.right, true);
         dialogueBatch.end();
         if (isQuestDialogueOpen()) {
             drawQuestChecks(x + pad, layout.bodyTop(), scale, body, layout.textWidth());
@@ -1140,12 +1234,13 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
-        dialogueFont.draw(dialogueBatch, "BAG " + (inventoryPage + 1) + "/" + pageCount(false), p.x, p.y + p.boxH - p.pad);
+        dialogueFont.draw(dialogueBatch, "BAG " + (inventoryPage + 1) + "/" + pageCount(false) + " | W/S or Up/Down: select", p.x, p.y + p.boxH - p.pad);
         float cursor = p.y + p.boxH - p.pad - p.lineH * 1.6f;
         if (inventory.isEmpty()) {
             dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
             dialogueFont.draw(dialogueBatch, "(empty)", p.x + p.pad, cursor);
         } else {
+            int row = 0;
             for (Inventory.ItemStack stack : visibleEntries(inventory, false)) {
                 boolean equipped = equipment.isEquipped(stack.materialId());
                 if (equipped) {
@@ -1155,15 +1250,14 @@ public final class GameScreen extends ScreenAdapter {
                 } else {
                     dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
                 }
-                String label = prettyName(stack.materialId()) + "  x" + stack.quantity()
+                String label = (row++ == bagRow ? "> " : "  ") + prettyName(stack.materialId()) + "  x" + stack.quantity()
                         + (equipped ? " [Worn]" : "") + "  " + ItemCatalog.effect(stack.materialId());
                 dialogueFont.draw(dialogueBatch, label, p.x + p.pad, cursor);
                 cursor -= p.lineH;
             }
         }
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, "[B/Esc] Close  [Left/Right] Page",
-                p.x + p.pad, p.y + p.pad + 4f);
+        drawItemFooter(p.x, p.y, p.boxW, p.pad);
         dialogueFont.setColor(0.9f, 0.85f, 0.6f, 1);
         dialogueFont.draw(dialogueBatch, "ATK +" + equipment.attackPercent() + "%  DEF "
                 + equipment.defencePercent() + "%  Set " + equipment.setPieces() + "/4",
@@ -1176,7 +1270,7 @@ public final class GameScreen extends ScreenAdapter {
     }
     /**
      * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
-     * Screen-space only; both panels and text stop growing at the reference window size.
+     * Screen-space only; the expanded panel follows window size while text stays readable.
      * Memorial Hall fits one view and omits the minimap so that all five stones remain visible.
      * A living Boss is marked with a red square so battle maps show where the guardian currently is;
      * the green player square is drawn last so the two never hide each other while closing in.
@@ -1193,13 +1287,14 @@ public final class GameScreen extends ScreenAdapter {
         GameMap map = session.getCurrentMap();
         CollisionBox bounds = map.getBounds();
 
-        float boxW = bigMap ? GameConfig.HUD_REFERENCE_WIDTH * 0.8f * ui / GameConfig.HUD_MAX_SCALE : 200f * ui;
-        float boxH = bigMap ? GameConfig.HUD_REFERENCE_HEIGHT * 0.8f * ui / GameConfig.HUD_MAX_SCALE : 140f * ui;
+        float boxW = bigMap ? w * 0.92f : 200f * ui;
+        float boxH = bigMap ? h * 0.88f : 140f * ui;
         float x = bigMap ? (w - boxW) / 2f : w - boxW - 12f * ui;
         float y = bigMap ? (h - boxH) / 2f : 12f * ui;
         float pad = 7f * ui;
+        float band = bigMap ? 32f * ui : 0;
         float s = Math.min((boxW - pad * 2) / (float) bounds.width(),
-                (boxH - pad * 2) / (float) bounds.height());
+                (boxH - pad * 2 - 2 * band) / (float) bounds.height());
         float ox = x + pad + ((boxW - pad * 2) - (float) bounds.width() * s) / 2f;
         float oy = y + pad + ((boxH - pad * 2) - (float) bounds.height() * s) / 2f;
 
@@ -1261,10 +1356,53 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
         dialogueFont.draw(dialogueBatch, map.getName(), x + pad, y + boxH - pad);
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, bigMap ? "[M] Close" : "[M] Expand",
-                x + pad, y + pad + 2f);
+        dialogueFont.draw(dialogueBatch, bigMap ? "[M / Esc] Close   |   Yellow: NPC   Green: You   Red: Boss   Purple: Portal" : "[M] Expand",
+                x + pad, y + pad + dialogueFont.getCapHeight());
+        if (bigMap) {
+            drawMapNpcLabels(bounds, s, ox, oy, x + pad, y + pad + band,
+                    boxW - 2 * pad, boxH - 2 * pad - 2 * band, ui);
+        }
         dialogueBatch.end();
     }
+    /** Draws NPC names beside markers, shifting nearby labels to avoid each other.
+     * @param bounds world bounds
+     * @param zoom world-to-map scale
+     * @param ox map origin x
+     * @param oy map origin y
+     * @param left label area left
+     * @param bottom label area bottom
+     * @param width label area width
+     * @param height label area height
+     * @param ui text scale
+     */
+    private void drawMapNpcLabels(CollisionBox bounds, float zoom, float ox, float oy,
+            float left, float bottom, float width, float height, float ui) {
+        var occupied = new ArrayList<com.badlogic.gdx.math.Rectangle>();
+        float gap = 5 * ui;
+        dialogueFont.setColor(1f, 0.90f, 0.40f, 1f);
+        for (NPC npc : currentNpcs()) {
+            var text = new com.badlogic.gdx.graphics.g2d.GlyphLayout(dialogueFont, npc.getName());
+            float labelWidth = Math.min(text.width, width);
+            float markerX = ox + (float) (npc.getX() + npc.getWidth() / 2 - bounds.x()) * zoom;
+            float markerTop = oy + (float) (npc.getY() + npc.getHeight() - bounds.y()) * zoom;
+            float labelX = Math.max(left, Math.min(left + width - labelWidth, markerX - labelWidth / 2));
+            float labelY = Math.max(bottom, Math.min(bottom + height - text.height, markerTop + gap));
+            var box = new com.badlogic.gdx.math.Rectangle(labelX - gap, labelY - gap,
+                    labelWidth + 2 * gap, text.height + 2 * gap);
+            for (int attempt = 0; attempt < currentNpcs().size() * 2; attempt++) {
+                boolean overlap = false;
+                for (var previous : occupied) { if (box.overlaps(previous)) { overlap = true; break; } }
+                if (!overlap) { break; }
+                float direction = attempt % 2 == 0 ? 1 : -1;
+                float offset = (attempt / 2 + 1) * (text.height + 3 * gap) * direction;
+                box.y = Math.max(bottom, Math.min(bottom + height - text.height, labelY + offset)) - gap;
+            }
+            occupied.add(box);
+            dialogueFont.draw(dialogueBatch, npc.getName(), labelX, box.y + gap + text.height,
+                    labelWidth, Align.left, false);
+        }
+    }
+
     /**
      * Screen-space geometry of the chest transfer panel.
      *
@@ -1321,45 +1459,108 @@ public final class GameScreen extends ScreenAdapter {
         return -1;
     }
 
-    /** Moves one stack between the inventory and the chest, unequipping weapons on deposit. */
-    private void handleChestRightClick() {
-        int h = Gdx.graphics.getHeight();
-        float mouseX = Gdx.input.getX();
-        float mouseY = h - Gdx.input.getY();
-        ChestLayout p = chestLayout();
-        float firstLine = p.y + p.boxH - p.pad - p.lineH * 2.5f;
-
-        var bag = visibleEntries(inventory, true);
-        int row = hitRow(mouseX, mouseY, p.x + p.pad, p.colW, firstLine, p.lineH, bag.size());
-        if (row >= 0) {
-            Inventory.ItemStack stack = bag.get(row);
-            if ((long) chestStorage.quantityOf(stack.materialId()) + stack.quantity() > Integer.MAX_VALUE) {
-                travelStatus = "Chest stack is full";
-                return;
-            }
-            int moved = inventory.removeItem(stack.materialId(), stack.quantity());
-            chestStorage.addItem(stack.materialId(), moved);
-            if (equipment.isEquipped(stack.materialId())) {
-                equippedWeapon = "";
-            }
-            travelStatus = "Stored: " + prettyName(stack.materialId()) + " x" + moved;
-            updateMapView();
-            return;
+    /** Moves the selected full stack through the same path for keyboard and mouse.
+     * @param row visible row
+     * @param fromChest whether to withdraw instead of deposit
+     */
+    private void transferItem(int row, boolean fromChest) {
+        Inventory source = fromChest ? chestStorage : inventory;
+        Inventory target = fromChest ? inventory : chestStorage;
+        var entries = visibleEntries(source, true);
+        if (row < 0 || row >= entries.size()) { return; }
+        var stack = entries.get(row);
+        if ((long) target.quantityOf(stack.materialId()) + stack.quantity() > Integer.MAX_VALUE) {
+            saveMenu.notify("Destination stack is full"); return;
         }
+        int moved = source.removeItem(stack.materialId(), stack.quantity());
+        target.addItem(stack.materialId(), moved);
+        equipment.reconcile();
+        saveMenu.notify((fromChest ? "Taken: " : "Stored: ") + prettyName(stack.materialId()) + " x" + moved);
+    }
 
-        var stored = visibleEntries(chestStorage, true);
-        row = hitRow(mouseX, mouseY, p.x + p.pad * 2 + p.colW, p.colW, firstLine, p.lineH, stored.size());
-        if (row >= 0) {
-            Inventory.ItemStack stack = stored.get(row);
-            if ((long) inventory.quantityOf(stack.materialId()) + stack.quantity() > Integer.MAX_VALUE) {
-                travelStatus = "Bag stack is full";
-                return;
-            }
-            int moved = chestStorage.removeItem(stack.materialId(), stack.quantity());
-            inventory.addItem(stack.materialId(), moved);
-            travelStatus = "Taken: " + prettyName(stack.materialId()) + " x" + moved;
-            updateMapView();
+    /** Executes one clicked footer button for pagination, activation or closing.
+     * @return whether a click was consumed
+     */
+    private boolean itemFooterClick() {
+        if (!Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) { return false; }
+        float x, y, width, pad, line;
+        if (chestOpen) { var p = chestLayout(); x = p.x; y = p.y; width = p.boxW; pad = p.pad; line = p.lineH; }
+        else { var p = inventoryLayout(); x = p.x; y = p.y; width = p.boxW; pad = p.pad; line = p.lineH; }
+        float mx = Gdx.input.getX(), my = Gdx.graphics.getHeight() - Gdx.input.getY();
+        if (mx < x + pad || mx >= x + width - pad || my > y + pad + 4 || my < y + pad + 4 - line) { return false; }
+        int button = (int) ((mx - x - pad) / ((width - 2 * pad) / 4));
+        if (button < 2) {
+            int step = button == 0 ? -1 : 1;
+            if (chestOpen) { chestPage = Math.max(0, Math.min(pageCount(true) - 1, chestPage + step)); storageRow = 0; }
+            else { inventoryPage = Math.max(0, Math.min(pageCount(false) - 1, inventoryPage + step)); bagRow = 0; }
+        } else if (button == 2) {
+            if (chestOpen) { transferItem(storageRow, storageRight); } else { useBagRow(bagRow); }
+        } else { chestOpen = false; inventoryOpen = false; }
+        return true;
+    }
+
+    /** Draws four equally spaced buttons sharing itemFooterClick geometry.
+     * @param x panel left
+     * @param y panel bottom
+     * @param width panel width
+     * @param pad panel padding
+     */
+    private void drawItemFooter(float x, float y, float width, float pad) {
+        String[] names = {"Prev [Q]", "Next [R]", "Use [E]", "Close [Esc]"};
+        float buttonWidth = (width - 2 * pad) / 4;
+        for (int i = 0; i < names.length; i++) {
+            dialogueFont.draw(dialogueBatch, names[i], x + pad + i * buttonWidth, y + pad + 4,
+                    buttonWidth, Align.center, false);
         }
+    }
+
+    /** Owns all bag/storage input, preventing actions from reaching gameplay that frame. */
+    private void handleItemPanelInput() {
+        if (itemFooterClick()) { return; }
+        int pages = pageCount(chestOpen);
+        if (chestOpen) {
+            chestPage = Math.max(0, Math.min(pages - 1, chestPage + MenuKeys.page()));
+            if (MenuKeys.left()) { storageRight = false; }
+            if (MenuKeys.right()) { storageRight = true; }
+        } else { inventoryPage = Math.max(0, Math.min(pages - 1, inventoryPage + MenuKeys.page())); }
+        var entries = visibleEntries(chestOpen && storageRight ? chestStorage : inventory, chestOpen);
+        int row = chestOpen ? storageRow : bagRow;
+        row = Math.max(0, Math.min(entries.size() - 1, row));
+        if (!entries.isEmpty()) {
+            if (MenuKeys.up()) { row = Math.floorMod(row - 1, entries.size()); }
+            else if (MenuKeys.down()) { row = (row + 1) % entries.size(); }
+        }
+        if (chestOpen) { storageRow = row; } else { bagRow = row; }
+        boolean left = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT);
+        boolean right = Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT);
+        boolean activate = MenuKeys.confirm();
+        if (left || right) {
+            int mouseX = Gdx.input.getX(), mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
+            int hit;
+            if (chestOpen) {
+                var p = chestLayout();
+                float first = p.y + p.boxH - p.pad - p.lineH * 2.5f;
+                hit = hitRow(mouseX, mouseY, p.x + p.pad, p.colW, first, p.lineH, visibleEntries(inventory, true).size());
+                if (hit >= 0) { storageRight = false; }
+                else {
+                    hit = hitRow(mouseX, mouseY, p.x + p.pad * 2 + p.colW, p.colW, first, p.lineH, visibleEntries(chestStorage, true).size());
+                    if (hit >= 0) { storageRight = true; }
+                }
+                if (hit >= 0) { storageRow = hit; }
+            } else {
+                var p = inventoryLayout();
+                hit = hitRow(mouseX, mouseY, p.x + p.pad, p.boxW - 2 * p.pad,
+                        p.y + p.boxH - p.pad - p.lineH * 1.6f, p.lineH, entries.size());
+                if (hit >= 0) { bagRow = hit; }
+            }
+            activate = hit >= 0 && right;
+        }
+        if (activate) {
+            if (chestOpen) { transferItem(storageRow, storageRight); }
+            else { useBagRow(bagRow); }
+        }
+        bagRow = Math.max(0, Math.min(visibleEntries(inventory, false).size() - 1, bagRow));
+        storageRow = Math.max(0, Math.min(visibleEntries(storageRight ? chestStorage : inventory, true).size() - 1, storageRow));
     }
 
     /** Draws the chest transfer panel, distinguishing storage transfers from equipping in the B bag. */
@@ -1388,7 +1589,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(0.85f, 0.65f, 0.30f, 1);
-        dialogueFont.draw(dialogueBatch, "STORAGE " + (chestPage + 1) + "/" + pageCount(true), p.x + p.pad, top);
+        dialogueFont.draw(dialogueBatch, "STORAGE " + (chestPage + 1) + "/" + pageCount(true) + " | W/S: row | A/D: column", p.x + p.pad, top);
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
         dialogueFont.draw(dialogueBatch, "INVENTORY", p.x + p.pad, top - p.lineH * 1.2f);
         dialogueFont.setColor(0.95f, 0.80f, 0.40f, 1);
@@ -1399,11 +1600,12 @@ public final class GameScreen extends ScreenAdapter {
             dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
             dialogueFont.draw(dialogueBatch, "(empty)", p.x + p.pad, cursor);
         } else {
+            int row = 0;
             for (Inventory.ItemStack stack : visibleEntries(inventory, true)) {
                 boolean equipped = equipment.isEquipped(stack.materialId());
                 dialogueFont.setColor(equipped ? 0.40f : 0.85f,
                         equipped ? 1f : 0.85f, equipped ? 0.55f : 0.85f, 1);
-                dialogueFont.draw(dialogueBatch, prettyName(stack.materialId())
+                dialogueFont.draw(dialogueBatch, (row++ == storageRow && !storageRight ? "> " : "  ") + prettyName(stack.materialId())
                                 + "  x" + stack.quantity() + (equipped ? "  [Worn]" : ""),
                         p.x + p.pad, cursor);
                 cursor -= p.lineH;
@@ -1415,17 +1617,17 @@ public final class GameScreen extends ScreenAdapter {
             dialogueFont.setColor(0.85f, 0.85f, 0.85f, 1);
             dialogueFont.draw(dialogueBatch, "(empty)", rightCol, cursor);
         } else {
+            int row = 0;
             for (Inventory.ItemStack stack : visibleEntries(chestStorage, true)) {
                 dialogueFont.setColor(0.95f, 0.90f, 0.55f, 1);
-                dialogueFont.draw(dialogueBatch, prettyName(stack.materialId())
+                dialogueFont.draw(dialogueBatch, (row++ == storageRow && storageRight ? "> " : "  ") + prettyName(stack.materialId())
                         + "  x" + stack.quantity(), rightCol, cursor);
                 cursor -= p.lineH;
             }
         }
 
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, "Right-click: transfer | B: open bag to equip | Left/Right: page | E/Esc: close",
-                p.x + p.pad, p.y + p.pad + 4f);
+        drawItemFooter(p.x, p.y, p.boxW, p.pad);
         dialogueBatch.end();
     }
     /**
@@ -1476,46 +1678,24 @@ public final class GameScreen extends ScreenAdapter {
                 : "Requires a health potion and a living, injured player";
     }
 
-    /**
-     * Toggles equipment or uses a potion in the inventory row under the mouse cursor.
-     * Screen y is flipped because input reports a top-left origin.
+    /** Applies one selected bag item, shared by keyboard and mouse.
+     * @param row visible item index
      */
-    private void handleInventoryRightClick() {
-        int h = Gdx.graphics.getHeight();
-        float mouseX = Gdx.input.getX();
-        float mouseY = h - Gdx.input.getY();
-        PanelLayout p = inventoryLayout();
-        float firstLine = p.y + p.boxH - p.pad - p.lineH * 1.6f;
+    private void useBagRow(int row) {
         var entries = visibleEntries(inventory, false);
-        for (int i = 0; i < entries.size(); i++) {
-            float baseline = firstLine - i * p.lineH;
-            boolean insideRow = mouseX >= p.x && mouseX <= p.x + p.boxW
-                    && mouseY <= baseline && mouseY >= baseline - p.lineH;
-            if (!insideRow) {
-                continue;
-            }
-            String id = entries.get(i).materialId();
-            if (ItemCatalog.POTION.equals(id)) {
-                useHealthPotion();
-                updateMapView();
-                return;
-            }
-            if (ItemCatalog.gear(id).isEmpty()) {
-                travelStatus = prettyName(id) + " cannot be equipped";
-            } else if (equipment.isEquipped(id)) {
-                equipment.toggle(id);
-                equippedWeapon = "";
-                travelStatus = "Unequipped: " + prettyName(id);
-            } else {
-                equipment.toggle(id);
-                equippedWeapon = id;
-                travelStatus = "Equipped: " + prettyName(id);
-            }
-            inventoryFeedback = travelStatus;
-            updateMapView();
-            return;
+        if (row < 0 || row >= entries.size()) { return; }
+        String id = entries.get(row).materialId();
+        if (ItemCatalog.POTION.equals(id)) { useHealthPotion(); }
+        else if (ItemCatalog.gear(id).isEmpty()) { inventoryFeedback = prettyName(id) + " cannot be equipped"; }
+        else {
+            boolean wasWorn = equipment.isEquipped(id);
+            equipment.toggle(id);
+            inventoryFeedback = (wasWorn ? "Unequipped: " : "Equipped: ") + prettyName(id);
         }
+        equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
+        saveMenu.notify(inventoryFeedback);
     }
+
     /** Calculates rows that fit above the panel footer.
      * @param chest whether the two-column chest layout is active
      * @return positive number of visible rows

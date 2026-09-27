@@ -76,8 +76,10 @@ public final class CombatDemo {
     private Combatant player;
     /** Optional current-scope encounter; battle maps contain a Boss and no ordinary enemies. */
     private Boss boss;
-    /** Training-only receiver and damage score; no navigation, attacks, rewards or battle outcome. */
+    /** Training-only receiver and damage score; no navigation, rewards or battle outcome; the coordinator launches fixed practice shots. */
     private TrainingDummy trainingDummy;
+    /** Simulation countdown for the fixed upward practice shot. */
+    private double trainingShotSeconds = 2;
     /** Last synchronized transition stamp, including re-entry to the same map. */
     private long transitionVersion = Long.MIN_VALUE;
     /** Latest completed failure return, retained for read-only diagnostics, never quest mutation. */
@@ -247,6 +249,7 @@ public final class CombatDemo {
             combat.clear();
             combat.bindWorld(session.getCurrentMap());
             session.getPlayer().getHealth().restoreFull();
+            session.getPlayer().resetTrainingMetrics();
             combat.register(player);
             abilities.reset();
             createEncounter();
@@ -267,6 +270,17 @@ public final class CombatDemo {
                 || player.getStatus().blocksActions() ? PlayerCommand.NONE : command);
         if (boss != null) {
             boss.update(player, delta);
+        }
+        session.getPlayer().updateTrainingRecovery(delta);
+        if (trainingDummy != null) {
+            trainingShotSeconds -= delta;
+            if (trainingShotSeconds <= 0) {
+                trainingShotSeconds = 2;
+                combat.tryProjectiles(trainingDummy.getCombatant(),
+                        new au.edu.anu.comp2120.combat.AttackSpec("training-shot", 25, 0.1, 0),
+                        new au.edu.anu.comp2120.combat.ProjectileSpec(180, 12, 4, 1, 0),
+                        720, 0, 1, session.getCurrentMap());
+            }
         }
         combat.update(delta);
         if (trainingDummy != null) {
@@ -491,7 +505,7 @@ public final class CombatDemo {
 
     /**
      * Creates a fresh target after scope clear/reset, without changing map definitions.
-     * Training always receives a stationary dummy, with no Boss AI, rewards or battle admission.
+     * Training receives a stationary target with fixed upward shots, no Boss AI, rewards or battle admission.
      * Production Battle scopes require exact task portal admission; unrelated travel creates no Boss.
      * Tries the exact map centre first, then nearby safe candidates if blocked or player-occupied.
      * No invalid Boss or training target is forced into a map.
@@ -502,6 +516,7 @@ public final class CombatDemo {
     private void createEncounter() {
         boss = null;
         trainingDummy = null;
+        trainingShotSeconds = 2;
         if (session.getCurrentMap().getType() == MapType.TRAINING) {
             for (CollisionBox placement : GameConfig.encounterPlacements(session.getCurrentMap())) {
                 if (session.getCurrentMap().isWalkable(placement) && !placement.overlaps(session.getPlayer().getBounds())) {

@@ -107,6 +107,34 @@ final class SaveMenuTest {
         assertFalse(press(menu, -1, false));
     }
 
+    /** WASD navigation and E confirmation retain overwrite protection and consume close frames.
+     * @throws IOException if isolated save files cannot be read
+     */
+    @Test void keyboardAliasesSaveWithoutBypassingConfirmation() throws IOException {
+        var menu = menu();
+        assertTrue(press(menu, Input.Keys.ESCAPE, false));
+        assertTrue(press(menu, Input.Keys.S, false));
+        assertTrue(press(menu, Input.Keys.E, false));
+        assertFalse(menu.isOpen());
+        byte[] original = Files.readAllBytes(store.path(SaveSlot.MANUAL));
+        session.getPlayer().takeDamage(20);
+        press(menu, Input.Keys.ESCAPE, false);
+        press(menu, Input.Keys.S, false);
+        assertTrue(press(menu, Input.Keys.E, false));
+        assertTrue(menu.isOpen());
+        assertArrayEquals(original, Files.readAllBytes(store.path(SaveSlot.MANUAL)));
+        assertTrue(press(menu, Input.Keys.E, false));
+        assertFalse(menu.isOpen());
+        assertEquals("80", store.load(SaveSlot.MANUAL).get("location.hp"));
+        press(menu, Input.Keys.ESCAPE, false);
+        press(menu, Input.Keys.W, false);
+        press(menu, Input.Keys.D, false);
+        assertEquals(51, volume);
+        press(menu, Input.Keys.A, false);
+        assertEquals(50, volume);
+        assertTrue(press(menu, Input.Keys.ESCAPE, false));
+    }
+
     /** Confirmations prevent accidental overwrites and loading never writes either slot.
      * @throws IOException if test files cannot be inspected
      */

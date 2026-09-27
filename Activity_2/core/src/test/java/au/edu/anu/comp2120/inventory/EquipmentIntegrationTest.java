@@ -234,9 +234,9 @@ final class EquipmentIntegrationTest {
         var player = session().getPlayer();
         double base = player.getSpeed();
         player.getInventory().addItem("guardian_boots+2"); player.getEquipment().toggle("guardian_boots+2");
-        assertEquals(base * 1.2, player.getSpeed(), 1e-8);
+        assertEquals(base * 1.3, player.getSpeed(), 1e-8);
         double x = player.getX(); player.updateMovement(1, 0, 0.01);
-        assertEquals(base * 1.2 * 0.01, player.getX() - x, 1e-8);
+        assertEquals(base * 1.3 * 0.01, player.getX() - x, 1e-8);
         assertEquals(0, player.getEquipment().defencePercent());
         player.getEquipment().toggle("guardian_boots+2"); assertEquals(base, player.getSpeed());
     }

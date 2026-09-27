@@ -586,7 +586,7 @@ The five campaign guardians fire their matching element while in CHASE and withi
 12 provisional damage, 300 units/second speed, 2-second cooldown, 2-second maximum lifetime and
 20-unit collision size. Bolts use the existing non-piercing Projectile/CombatSystem swept collision,
 including wall-wins ties, elemental attachment, parry, expiry and encounter cleanup. Custom maps
-without a BossChallenge mapping remain melee-only. TrainingDummy remains stationary and never attacks.
+without a BossChallenge mapping remain melee-only. TrainingDummy remains stationary; CombatDemo launches a fixed upward physical practice projectile every two seconds through CombatSystem. Player applies the 1 HP floor only in Training and restores full HP after five simulation seconds without positive damage. Leaving the map clears practice metrics and removes these health rules.
 The renderer uses independent copies of Mage bolt art at twice its width and height; gameplay has
 no texture dependency. GameScreen and combat damage rules are unchanged by these attack additions.
 

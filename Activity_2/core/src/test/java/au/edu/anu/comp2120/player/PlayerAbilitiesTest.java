@@ -395,9 +395,9 @@ final class PlayerAbilitiesTest {
         assertEquals(Optional.of(slot), abilities.update(0, command));
         double expected = switch (slot) {
             case LIGHT -> 0.5;
-            case SPECIAL -> 1.6;
-            case DASH -> 0.8;
-            case ULTIMATE -> 6.4;
+            case SPECIAL -> 1.4;
+            case DASH -> 0.7;
+            case ULTIMATE -> 5.6;
         };
         assertEquals(expected, abilities.getCooldownRemaining(slot), EPSILON);
         player.getEquipment().toggle("guardian_gloves+2");

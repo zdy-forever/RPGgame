@@ -14,13 +14,13 @@ the subsequent team change `721f9e6`, using the same potion rules.
 - The existing player now owns the bag and equipment, preserving their identity across map changes.
   GameScreen reuses that bag, the existing merchant reward, and the existing chest interface.
 - B opens the bag. Right-click a wearable to equip/unequip it, or a health potion to use it.
-  Left/Right changes pages; B or Escape closes it. Rows show item effects and `[Worn]` status.
+  W/S or Up/Down selects a row; E/Enter uses or toggles it. Q/R or PageUp/PageDown changes pages; B or Escape closes it. Rows show item effects and `[Worn]` status.
 - P uses one health potion directly during gameplay, including Boss battles, without opening the bag.
   It triggers once per press, not continuously while held; it is disabled while a modal panel is open.
   The existing bag right-click action remains available. Both paths use the same health/ownership checks.
 - The bag footer shows total attack/reduction percentages and guardian set progress.
 - E near the Storage Chest opens it. Right-click transfers the entire selected stack.
-  Left/Right pages both columns; E or Escape closes it. B closes storage and opens the bag
+  A/D or Left/Right selects the column; W/S or Up/Down selects a row. E/Enter transfers the stack. Q/R or PageUp/PageDown pages both columns; Escape closes it. B closes storage and opens the bag
   for equipping. The footer explicitly distinguishes transfer from equip. Moving the last owned unit of worn gear
   to the chest removes its equipment benefit. Equipped items remain part of bag counts.
 - The initial chest contains four guardian armour pieces and three health potions. These are
@@ -123,7 +123,7 @@ CoreGameplayIntegrationTest and PlayerDefeatTest. They were not bypassed or rewr
 5. Store a worn item in the chest; reopen the bag and confirm its bonus has disappeared.
 6. Use a potion while injured; confirm healing and quantity. Try again at full HP: no consumption.
 7. Complete a Boss encounter; confirm its material enters the bag once and survives travel.
-8. Resize the window and use Left/Right pages; confirm displayed rows match right-click targets.
+8. Resize the window and use Q/R or PageUp/PageDown pages; confirm displayed rows match right-click targets.
 
 The original feature is merged. The later storage-help and empty-weapon-label refinement
 passed core compilation and the core JavaDoc audit on 2026-09-25. Its visual regression
@@ -170,9 +170,9 @@ save manually afterwards. Returning to a previous save restores its items and ma
 | --- | --- | --- | --- |
 | Lightning Staff | ATK +20% | +25% | +30% |
 | Guardian hood | Max HP +20 | +30 | +40 |
-| Guardian gloves | Skill CDR 10% | 15% | 20% |
+| Guardian gloves | Skill CDR 10% | 20% | 30% |
 | Guardian coat | DEF 8% | 10% | 12% |
-| Guardian boots | Move speed +10% | +15% | +20% |
+| Guardian boots | Move speed +10% | +20% | +30% |
 
 Hoods scale current and maximum HP together, preserving the health percentage. A stored
 ratio prevents repeated swaps from generating HP or accumulating rounding loss. Living players
@@ -184,5 +184,7 @@ DEF +5%, 4 pieces: ATK +10%; only coats contribute individual armour reduction.
 NPC action results (quest acceptance, class selection, portal selection, merchant rewards,
 potion supplies and upgrades) now share the save menu's translucent four-second toast,
 including repeated identical actions. Dialogue instructions and live item/quest statuses
-remain visible. While dialogue is open, the toast appears above it instead of covering its
-options. The HP bar now reads actual current/max HP, including headgear bonuses.
+remain in their panels. Toasts are centred horizontally and vertically in the game window,
+including during dialogue and pause menus. The HP bar now reads actual current/max HP, including headgear bonuses.
+
+Both item panels show a selection marker and support left-click selection, right-click action and clickable page/action/close controls. Keyboard and mouse share the same equip/use/transfer operations. Opening, closing and interacting with these panels consumes the frame; storage now pauses simulation alongside the bag.
