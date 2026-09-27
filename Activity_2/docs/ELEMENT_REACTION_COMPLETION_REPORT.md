@@ -1,5 +1,9 @@
 # Element reaction completion report
 
+> Current integration note (2026-09-26): The reaction table below is still current. Its test counts and "no VFX/UI/assets" boundary describe 11 September; status overlays and imported art were added later (see [art integration](ART_INTEGRATION.md) and [guardian traits](BOSS_TRAIT_REPORT.md)). F4 remains the Hub-only debug element key.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 Implemented 2026-09-11 by Daoyan Zhu (u7782042). This replaces the two production prototype
 rules with the supplied first-version reaction behaviours. Numbers remain provisional balance.
 No Git/GitLab writes, formal assets, renderer/VFX work, Quest/Inventory implementation or second

@@ -1,5 +1,9 @@
 # Guardian traits, status overlay and Boss visibility
 
+> Current integration note (2026-09-26): The Wind blink rule was corrected on 24 September (issue #49, `36ce30d`) and is already described in place below. The balance measurements were recorded on 22 September, before that correction and before inventory/equipment bonuses and merchant upgrades existed; they have not been re-measured.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 Validated 22 September 2026. Scope: Developer A's per-guardian combat behaviour, the shared
 control/immunity applications it needs, and the readable status presentation for both sides.
 No Git/GitLab operations, new art or audio assets, quest data, save format or NPC logic were added.
