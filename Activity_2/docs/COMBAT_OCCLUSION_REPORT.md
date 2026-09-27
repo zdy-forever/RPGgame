@@ -1,5 +1,9 @@
 # Unified combat wall occlusion
 
+> Current integration note (2026-09-26): The occlusion contract below is still current. Its test counts belong to the original checkout; equipment modifiers now also enter the same shared damage calculation.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 ## Result
 
 Gameplay attacks now use the existing world collision data at settlement. No class-specific

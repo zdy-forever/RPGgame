@@ -13,8 +13,9 @@ reaction statuses/ground fields and bounded one-generation derived attacks. Mage
 The imported pixel-art pack supplies characters, arenas, portals, skills and icons; streamed background music follows the map and guardian progress.
 Hub keeps its procedural background at 1080 x 400. Battle/Training maps are 1600 x 1200; Training randomly selects an elemental
 background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
-See [Art integration](docs/ART_INTEGRATION.md) for resource layout, verification and the five Boss
-projectile images awaiting actual Boss projectile mechanics. Historical placeholder-only descriptions
+Bosses fire their arena's elemental bolt through the shared projectile pipeline; the older pack
+`*_projectile.png` images remain archived. See [Art integration](docs/ART_INTEGRATION.md) for resource
+layout and verification. Historical placeholder-only descriptions (shape colours, "no art/animation")
 in the development notes below are superseded by that document; collision remains geometric.
 
 ## Inventory, equipment and save/load
@@ -274,6 +275,8 @@ does not automatically unlock fast travel; future quest/discovery code can call
 independent. Restarting creates an initial live state; F9 explicitly restores a saved snapshot.
 Startup does not overwrite either save slot.
 
+*Placeholder colours below describe the shape fallback; production rendering draws the imported
+pixel art (see [Art integration](docs/ART_INTEGRATION.md)).*
 Hub has a blue-green floor and Battle Maps have a red-brown floor. Grey rectangles
 are obstacles when configured (built-in test walls have been removed), a gold circle marks
 only the default spawn anchor, and the green rectangle is the
@@ -283,7 +286,7 @@ view, instead of fitting the entire map into the window.
 
 | Portal | Source trigger (x, y, width, height) | Destination |
 | --- | --- | --- |
-| hub-training (stable ID for the single portal) | Hub (160, 64, 48, 64) | NPC-selected Training or Crossroads `entry` |
+| hub-training (stable ID for the single portal) | Hub (160, 64, 48, 64) | NPC-selected Training Ground, Memorial Hall, or the accepted guardian's arena |
 
 - Hold W/A/S/D to move up/left/down/right. Releasing keys stops movement.
 - Movement supports eight directions. Opposite keys cancel on each axis. W+D
@@ -418,9 +421,11 @@ To check manually:
 
 ## Shared health API
 
-- `combat/Health` owns immutable positive `maxHp` and private `currentHp` in
+- `combat/Health` owns positive `maxHp` and private `currentHp` in
   `[0, maxHp]`. Both are integers, matching the existing `Damageable` contract;
   fractional values, NaN, and infinity are not accepted by the Java API.
+  `setMaxHp(maximum)` changes capacity for equipment (Guardian hood) while preserving the
+  health fraction; living entities keep at least 1 HP and dead entities stay dead.
 - `new Health(maxHp)` starts full and alive. Zero/negative capacity throws
   `IllegalArgumentException`; `Integer.MAX_VALUE` is supported.
 - `takeDamage(amount)` accepts non-negative integers and stops at zero. Zero is
@@ -527,7 +532,8 @@ AttackSpec + registered source + world hitbox
   before mutation. Registration order and attack creation order make resolution deterministic;
   if an earlier strike kills an attacker, its later queued strike is cancelled.
 - Damage calculation adds any configured reaction bonus to raw damage with integer saturation.
-  Health performs lethal clamping. Armour, critical hits and class-specific modifiers are absent.
+  Health performs lethal clamping. Equipment attack/defence bonuses enter through
+  `EquipmentModifiers` in the same calculation; there are no critical hits.
   All future damage formulas should extend the shared calculation boundary.
 - Cooldown is per registered source across attack types, measured from creation.
   A zero cooldown intentionally allows distinct invocations; it does not remove the
@@ -637,7 +643,7 @@ cooldowns. Battle death now returns to Hub and restores HP automatically.
 
 Ability limitations: Archer, Mage and Katana use the first-version skills below.
 No targeting cursor, energy economy, combo buffer,
-animation, invulnerability, enemy-body collision or art assets are implemented.
+invulnerability or enemy-body collision is implemented; skill art is covered by the art integration.
 Portal checks use final body overlap, not a swept dash/portal trigger; a thin trigger
 may be crossed without arrival. World obstacles still use swept collision and cannot
 be tunnelled through. A future class can reuse the command slots/timing and submit
@@ -685,10 +691,10 @@ activity, targetability overrides and defensive registrations, without replacing
 Only one stateful K/O execution runs at a time. Fields/buffs permit ordinary actions;
 casting and Katana defensive/recovery/forced-movement stages lock ordinary inputs.
 
-The window title exposes Mage element, O mode and skill state. Existing yellow rectangles
-show active attack geometry; no textures, fonts, sprites, animation or audio are loaded.
-The fresh production screen still needs Developer B's external encounter acceptance before
-a task Boss can spawn; fast travel does not bypass that boundary.
+The window title exposes Mage element, O mode and skill state. Debug yellow rectangles
+show active attack geometry beneath the imported skill art.
+A task Boss spawns only after a Quest Keeper acceptance and Portal Guide Battle confirmation;
+fast travel does not bypass that boundary.
 
 Full tuning, changed files, automated verification and manual checks:
 [First-version class skills report](docs/FINAL_CLASS_SKILLS_REPORT.md).
@@ -741,11 +747,9 @@ The shared template's pattern cycles, used unchanged by four of the five guardia
 - Defeat stops decisions and cancels remaining Boss attacks. Exactly one immutable
   `MaterialDrop` is generated at the last valid Boss position: a unique reward instance
   ID, material ID `sentinel-core`, quantity 1, owning map ID and a small rectangle.
-  The existing renderer shows it in gold; no icon, texture, font or effect is loaded.
-- Inventory is still a placeholder. `getDrop()` supports inspection and `claimDrop()`
-  transfers a reward at most once. A future pickup/inventory adapter must check distance
-  and capacity/acceptance before claiming on the game-loop thread. There is deliberately
-  no automatic pickup or fake inventory storage in this branch.
+- `getDrop()` supports inspection and `claimDrop()` transfers a reward at most once. In
+  production, `InventoryRewards` moves the settled reward into the bag automatically after a
+  successful return (capacity-checked); the core is spent on merchant equipment upgrades.
 - Loot is encounter-scoped, not saved: travel/reset discards unclaimed rewards and
   returning creates a fresh encounter. R restores the living player and replaces the
   Boss with a fresh, safely placed instance. Dead Battle players return to Hub instead.
@@ -755,9 +759,9 @@ The shared template's pattern cycles, used unchanged by four of the five guardia
 
 Manual checks: approach the Sentinel, attack with J/K/O and observe HP/phase in the
 title. Check that the second phase starts once at 200 HP and has a short pause.
-Defeat it and verify one gold drop remains after further updates. Try attacking then
-travelling with 1, or pressing R, to confirm cancellation and fresh encounter state.
-Boss bodies and attacks remain simple rectangles; no formal Boss UI or art is added.
+Defeat it and verify that the victory return adds one `sentinel-core` to the bag. R is ignored
+in production Battle; travel/R cancellation is exercised by the isolated `CombatDemo(session)`
+harness and `CombatDemoTest`. Boss sprites, melee warnings and bolts use the imported art.
 
 ### Guardian traits
 
@@ -784,8 +788,8 @@ a guardian you freeze with a water-plus-ice reaction is labelled as well. Burnin
 lightning countdown, the frostbite counter and the blink cooldown also appear in the window title.
 A living Boss is a red square on the minimap and on the expanded `[M]` map.
 
-Limitations: two fixed-rectangle pattern cycles, no projectile Boss pattern, cutscene,
-animation or phase immunity. Shared elemental reactions can affect Boss health. The full-body navigation corridor can be
+Limitations: two fixed-rectangle melee cycles (with a 0.8-second warning) plus the arena's elemental
+pursuit bolt; no cutscene or phase immunity. Shared elemental reactions can affect Boss health. The full-body navigation corridor can be
 conservative in narrow passages. Once cast, fixed hitboxes do not follow targets or
 clip visually against walls; all candidate targets now require clear origin-to-centre
 segments at settlement, in addition to initial AI clearance. Actors have no mutual body collision.
@@ -849,7 +853,7 @@ fields and charged effects; existing map/encounter clear cancels everything, inc
 references. A target dying does not relocate or erase another living source's fixed field; normal
 Boss outcome return clears that entire encounter.
 
-No assets, VFX, audio, renderer changes or weapon-enchantment system were introduced. Mage still
+The reaction branch itself added no assets, VFX, audio or weapon-enchantment system. Mage still
 uses K-selected elements, independent rapid-shot RNG and cast-locked circle element. Existing F4
 is only the previously present debug tag path, not a new weapon-enchantment mechanic.
 
@@ -932,13 +936,13 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `MainGame`: application lifecycle and active-screen selection.
 - `GameSession`: map registration, current map, player ownership, and safe transitions.
 - `TravelSystem`: portal triggering, arrival protection, unlock state, and fast-travel checks.
-- `GameScreen`: coordinates input, simulation, lifecycle, and the temporary view.
+- `GameScreen`: coordinates input, simulation, lifecycle, NPC menus, HUD and rendering calls.
 - `Player`: validated position/size/speed, eight-direction movement, and owned shared health.
 - `PlayerClass`: stable Archer/Mage/Katana identity independent of visuals and Java subclasses.
 - `ClassDefinition`: composition of identity and immutable common ability tuning.
 - `PlayerClasses`: centralized class prototypes, with Mage as the default identity.
 - `AttackShape`: pure interchangeable area/forward hitbox strategies, not separate damage pipelines.
-- `Health`: bounded integer HP, damage, healing, life status, and explicit restoration.
+- `Health`: bounded integer HP, damage, healing, life status, ratio-preserving capacity changes, and explicit restoration.
 - `Damageable`: common validated damage/life-status contract for combat targets.
 - `Combatant`: entity/faction adapter with independently supplied hurtbox geometry.
 - `Faction`: minimal player/enemy friendly-fire distinction.
@@ -963,8 +967,8 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `AStarPathfinder`: bounded full-body grid search, clear direct approaches, and safe route segments.
 - `EnemyState`: IDLE, CHASE, ATTACK, and DEAD diagnostics.
 - `GameMap`: map identity/type, dimensions, obstacles, named spawns, and existing collision.
-- `MapCatalog`: built-in Hub and Battle Map definitions.
-- `MapType`: Hub/Battle metadata.
+- `MapCatalog`: built-in Hub, Memorial Hall, Training Ground and five Battle arena definitions.
+- `MapType`: HUB/TRAINING/MEMORIAL/BATTLE role metadata.
 - `SpawnPoint`: validated world-space placement anchor.
 - `Portal`: source map/region, destination map/spawn, and enabled snapshot.
 - `FastTravelDestination`: named destination and unlocked snapshot.
@@ -979,21 +983,26 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `CombatStatus`: freeze/stagger/vulnerability and queued displacement for one Combatant.
 - `HitInterceptor` / `HitFeedback`: defensive-hit interception boundary and its resolution.
 - `Boss`: two-phase Sentinel encounter composing `Enemy` and `EnemyAI`, with pattern cycles and drops.
-- `BossConfig` / `BossScaling`: validated Boss tuning and phase-threshold scaling.
+- `BossConfig` / `BossScaling`: validated Boss tuning and rematch HP/attack-rate scaling by previous wins.
+- `BossTrait` / `BossTraits`: each campaign guardian's composed signature behaviour and movement tuning.
 - `BossState`: CHASE/ATTACK/TRANSITION/DEAD Boss lifecycle diagnostics.
-- `BossChallenge`: one admitted Boss encounter's outcome/reward bookkeeping for `EncounterFlow`.
+- `BossChallenge`: the five guardian identities and their arena maps.
 - `TrainingDummy`: the stationary, non-hostile, self-healing Training Ground practice target.
 - `Inventory`: overflow-safe item stacks in acquisition order, used by the player bag and chest.
 - `Equipment` / `EquipmentSlot` / `ItemCatalog`: owned wearable slots, item effects and guardian set bonuses.
 - `EquipmentModifiers`: equipment boundary used by the shared combat damage calculation.
 - `InventoryRewards`: one-time transfer from the settled encounter outbox, retaining overflowed rewards.
+- `PotionSupply`: merchant potion top-up to a combined bag+chest total of three.
+- `GearUpgrades`: one-core, per-item equipment upgrades up to +2.
 - `GameSaves`: safe-state capture, complete validation and restoration through module APIs.
-- `SaveFile` / `SaveStore` / `SaveSlot`: versioned bounded files, atomic writes and independent slots.
-- `SaveMenu`: paused Esc menu, confirmations, save slots, volume slider and timed translucent toasts.
+- `SaveFile` / `SaveStore` / `SaveSlot`: versioned bounded files, atomic writes, deletion and independent slots.
+- `InventorySnapshot` / `LocationSnapshot` / `SaveMetadata` / `SaveFields`: validated snapshot parts and strict field reading.
+- `SaveMenu`: paused Esc menu, confirmations, save management (load/delete), restart, volume slider and timed translucent toasts.
 - `MaterialDrop`: one immutable claimable Boss reward instance.
 - `NPC`: shared identity/interaction-range base for Hub non-player characters.
 - `PortalGuide`: Hub NPC adapter that selects and opens the shared Hub portal's destination.
 - `ClassTrainer`: Hub NPC (Class Master) adapter for profession/ultimate-mode selection.
+- `MerchantServices`: Weapon Merchant menu choices (weapon, potions, upgrades).
 - `ClassSkills`: composes each class's stateful K/O execution into `PlayerAbilities`.
 - `SkillKind` / `SkillTuning`: stateful skill identifiers and their validated numeric tuning.
 - `UltimateMode`: a class's selectable A/B ultimate configuration.
@@ -1001,11 +1010,12 @@ check moving-target replanning, and verify that repeated no-route queries are th
 - `EncounterFlow`: the external-adapter boundary for admitting encounters and claiming results.
 - `BossQuests`: this session's NPC guardian-task acceptance, completion and reward tracking.
 - `DialogueLayout`: shared self-sizing NPC dialogue panel presentation.
-- `CreditsDialogue`: the one-time Old Sage ending dialogue shown in Memorial Hall.
+- `CreditsDialogue`: credits menu offered after the completed Memorial Hall Sage conversation.
 - `HudLayout`: responsive HP/position/minimap/weapon HUD sizing and visibility thresholds.
+- `StatusLabels`: status text (burning, frozen, invulnerable, ...) shown above actors.
 - `SceneArt` / `ArtAssets`: imported pixel-art texture lookup used by `PlaceholderRenderer`.
 - `TrainingAppearance`: randomized Training background/Boss-appearance selection per visit.
-- `BackgroundMusic`: map- and guardian-progress-driven background music playback.
+- `BackgroundMusic`: map- and guardian-progress-driven background music playback and menu volume.
 - `Lwjgl3Launcher`: desktop window configuration and application entry point.
 
 ## Scope
@@ -1041,7 +1051,8 @@ skill cooldowns. Inventory paging and item/equipment actions remain available. C
 ### Repeatable potion supplies
 
 Talk to the **Weapon Merchant** in the Hub to open his service menu. Use Up/Down to
-select **Claim Lightning Staff** or **Replenish potions**, E to confirm, and Esc to leave.
+select **Claim Lightning Staff**, **Replenish potions** or **Upgrade equipment**, E to confirm,
+and Esc to leave.
 The weapon row shows Available/Claimed from the existing saved reward flag. The potion
 row shows bag, chest and combined quantities, plus the shortfall or Full status. Statuses
 refresh immediately and the menu stays open after each service.

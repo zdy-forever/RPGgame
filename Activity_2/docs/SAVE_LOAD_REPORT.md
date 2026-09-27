@@ -54,7 +54,7 @@ The initial component-only prototype files are not complete gameplay snapshots a
 
 ## Scope of changes
 
-New save coordination and menu files reuse existing screen drawing resources and public module APIs. Existing gameplay owners gained small explicit snapshot/restoration methods; there is no reflection, serialized Java object graph, file deletion, Git operation or project restructuring. Existing named-spawn travel, normal healing/damage and interactive class-selection behavior remain available.
+New save coordination and menu files reuse existing screen drawing resources and public module APIs. Existing gameplay owners gained small explicit snapshot/restoration methods; there is no reflection, serialized Java object graph, Git operation or project restructuring. (Explicit per-slot file deletion was added later through Manage saves; see below.) Existing named-spawn travel, normal healing/damage and interactive class-selection behavior remain available.
 
 The architecture's earlier descriptions of save/load as future work are historical. The implementation described here supersedes those persistence limitations for the states listed above. There is no implemented separate achievement subsystem to persist; guardian completion and ending progress are covered.
 
@@ -120,8 +120,8 @@ successful Boss battle will replace the automatic slot. Until those writes, olde
 remain available. The Esc menu now offers Restart game with explicit confirmation. It rebuilds
 player/map/quest/combat state and starter chest contents, resets NPC reward flags, and disposes
 the old screen after its render completes. Music volume carries over. It performs no save-file
-read, write or deletion; users can still load either older slot afterwards. There is no
-reset-both-slots/delete-files command.
+read, write or deletion; users can still load either older slot afterwards. There is no single
+reset-both-slots command, but each slot can be deleted individually from Manage saves (see below).
 
 Saving only supports Hub and Memorial Hall, not every non-combat location: Training is
 excluded even when idle. Arbitrary mid-battle recovery, live Boss HP/AI, current skill effects,
