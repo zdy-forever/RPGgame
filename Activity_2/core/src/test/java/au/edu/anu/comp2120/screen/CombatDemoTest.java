@@ -315,6 +315,56 @@ final class CombatDemoTest {
         assertTrue(demo.getBoss().isEmpty());
     }
 
+    /** Repeated resets under or beside the target clear practice state without respawning elsewhere. */
+    @Test void practiceResetPreservesTargetEvenWhenPlayerOverlaps() {
+        var session = session(MapCatalog.TRAINING);
+        var demo = new CombatDemo(session);
+        var position = demo.getTrainingDummy().orElseThrow().getCombatant().getHurtbox();
+        var appearance = demo.getTrainingAppearance();
+        for (int attempt = 0; attempt < 4; attempt++) {
+            double x = attempt % 2 == 0 ? position.x() : position.x() - 50;
+            session.getPlayer().enterArea(session.getCurrentMap(), x, position.y());
+            var playerPosition = session.getPlayer().getBounds();
+            var old = demo.getTrainingDummy().orElseThrow();
+            old.takeDamage(123);
+            session.getPlayer().takeDamage(20);
+            demo.update(0, PlayerCommand.NONE, true);
+            var target = demo.getTrainingDummy().orElseThrow();
+            assertNotSame(old, target);
+            assertEquals(position, target.getCombatant().getHurtbox());
+            assertEquals(position, demo.getMapTargetBounds().orElseThrow());
+            assertEquals(playerPosition, session.getPlayer().getBounds());
+            assertEquals(appearance, demo.getTrainingAppearance());
+            assertEquals(0, target.getTotalDamage());
+            assertEquals(0, session.getPlayer().getTrainingLastDamage());
+            assertEquals(session.getPlayer().getHealth().getMaxHp(), session.getPlayer().getHealth().getCurrentHp());
+            assertTrue(demo.getActiveAttacks().isEmpty());
+            assertFalse(demo.getCombatants().contains(old.getCombatant()));
+            assertEquals(2, demo.getCombatants().size());
+        }
+    }
+
+    /** Paused dialogue synchronization cannot advance shots/recovery and still clears old maps on travel. */
+    @Test void pausedMapSyncDoesNotSimulateTraining() {
+        var session = session(MapCatalog.TRAINING);
+        var demo = new CombatDemo(session);
+        session.getPlayer().takeDamage(30);
+        for (int i = 0; i < 1000; i++) { demo.synchronizePausedMap(); }
+        assertEquals(70, session.getPlayer().getHealth().getCurrentHp());
+        assertTrue(demo.getActiveAttacks().isEmpty());
+        demo.update(2, PlayerCommand.NONE, false);
+        var attacks = demo.getActiveAttacks(); assertFalse(attacks.isEmpty());
+        var box = attacks.get(0).getHitbox();
+        for (int i = 0; i < 1000; i++) { demo.synchronizePausedMap(); }
+        assertEquals(box, attacks.get(0).getHitbox());
+        assertTrue(attacks.get(0).isActive());
+        session.switchMap(MapCatalog.HUB); demo.synchronizePausedMap();
+        assertTrue(demo.getTrainingDummy().isEmpty());
+        assertTrue(demo.getActiveAttacks().isEmpty());
+        assertFalse(attacks.get(0).isActive());
+        assertEquals(70, session.getPlayer().getHealth().getCurrentHp());
+    }
+
     /** A portal transition uses the same cleanup path and does not automatically heal the player. */
     @Test
     void portalArrivalClearsPendingCombat() {

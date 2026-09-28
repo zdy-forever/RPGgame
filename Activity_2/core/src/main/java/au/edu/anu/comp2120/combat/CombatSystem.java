@@ -518,6 +518,9 @@ public final class CombatSystem {
         if (target.getEntity() instanceof EquipmentModifiers equipment) {
             total *= equipment.equipmentDefenceMultiplier();
         }
+        if (total >= 1 && target.getFaction() == Faction.ENEMY
+                && attack.getSource().getEntity() instanceof au.edu.anu.comp2120.player.Player player
+                && player.getDebugOptions().oneShot()) { return Integer.MAX_VALUE; }
         return (int) Math.min(Integer.MAX_VALUE, total);
     }
 

@@ -129,11 +129,11 @@ names and arena routing differ in this first content version. No second damage e
 elemental Boss mechanics are introduced. Progress and the ending-consumed flag are included in save snapshots.
 
 `MapType.TRAINING` is separate from `BATTLE`. It contains one `enemy.TrainingDummy`, with
-no AI, movement, attacks, Boss reward or battle outcome. Damage is delivered by the existing
+no AI, movement, Boss reward or battle outcome; CombatDemo supplies fixed upward practice shots. Damage is delivered by the existing
 CombatSystem; the dummy records actual positive delivered damage and restores its Health
 after every hit. CombatDemo discards its knockback requests to keep the target stationary.
 GameScreen draws total/last damage and hit count using existing debug text. R clears the
-practice combat scope/cooldowns and restores player HP. The Training-only Return to Hub NPC
+practice combat scope/cooldowns and restores player HP while retaining target/player positions. The Training-only Return to Hub NPC
 uses `PortalGuide.returnFromTraining()` after E confirmation, reusing validated travel and
 arrival protection without healing or creating BattleResult/rewards. U/1/2/3 debug travel
 bindings are removed; the underlying fast-travel API and its contract tests remain supported.
@@ -1294,3 +1294,26 @@ commit message.
 - ~~Decide which P2 features will be dropped if the P0/P1 schedule slips.~~ Resolved: see the
   Status column in Section 6 (achievements and NPC following dropped; crafting and the tutorial
   flow reduced). Remaining open: the gameplay smoke tester (#40) and Docker (#42).
+
+
+Save management is a nested `SaveMenu` page. Confirmed per-slot deletion passes through
+`GameSaves` safety checks to synchronized `SaveStore.delete`; it never restores or mutates
+live state. Only the selected enum-bound file is removed, directories are rejected, and
+missing files are idempotent. The submenu refreshes summaries after deletion and retains
+pause/input ownership until the player returns to gameplay.
+
+### Runtime debug console
+
+F10 or backtick opens the in-game command console and temporarily owns gameplay input. Enter executes a command; Esc, F10 or backtick closes it. Opening and closing consume their frames, and the prior input processor is restored on close. `DebugOptions` belongs to Player and is excluded from snapshots. Commands `god`, `freeupgrade`, `oneshot`, and `nocd` toggle their states (optional explicit `on/off`), plus `help`, `status`, and `debug off`.
+
+God mode rejects player HP loss; free upgrades retain item ownership/capacity and +2 limits. One-shot applies only after normal enemy hit eligibility, invulnerability/interception and positive damage calculation. It delivers lethal damage through the existing receiver and settlement pipeline. No-CD clears J/K/L/O cooldown timers without clearing active actions, dash, projectiles or launch guards; normal cooldowns resume for future casts when disabled. Once any cheat is enabled, a sticky per-game flag blocks both manual and automatic writes, including after loading or disabling cheats. Creating a fresh game/player clears debug state; existing saves are neither modified nor deleted by the console.
+
+Debug console shortcuts: type `god`, `oneshot`, `freeupgrade` or `nocd` and press Enter to toggle that feature. Command rows are green when enabled and white when disabled, with ON/OFF text. Explicit `on/off` syntax remains supported. Disabling cheats does not remove the current game’s save protection.
+
+`screen.DebugConsole` separates bounded text editing, processor ownership, command submission and
+colour markup from GameScreen rendering, allowing the production input path to run in headless
+tests. See [current coverage and manual checks](DEBUG_TRAINING_UI_REPORT.md).
+
+NPC modal handlers synchronize map changes through `CombatDemo.synchronizePausedMap()` without
+advancing combat time. Cooldown restoration validates snapshot values first, then applies the active
+no-CD override to live timers; persisted bytes and normal-game restoration remain unchanged.

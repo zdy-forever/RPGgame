@@ -87,7 +87,7 @@ lights the corresponding stone at its socket, while unearned stones remain dim. 
 on the hall's left side for progress/ending dialogue and separately in Hub at (184, 221) as a
 beginner guide, using the same existing artwork. The return portal sits at (32, 32); arrival at (100, 48) is outside
 its trigger, preserving the existing arrival protection. These pictures do not change collision.
-The Hall-only minimap is hidden and the circle fits beneath the weapon panel, keeping every stone visible.
+The Hall-only minimap is hidden and the circle fits the viewport, keeping every stone visible; the legacy weapon panel is now disabled.
 Elsewhere the minimap and the expanded `[M]` map mark a living Boss with a red square, drawn after the
 NPC markers and before the green player marker so neither hides the other.
 

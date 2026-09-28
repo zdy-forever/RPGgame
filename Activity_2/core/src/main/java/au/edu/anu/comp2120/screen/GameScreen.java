@@ -127,6 +127,8 @@ public final class GameScreen extends ScreenAdapter {
     private boolean storageRight;
     /** Pointer activation sampled once for the current modal frame. */
     private boolean pointerConfirm;
+    /** Testable modal input and presentation state for the debug console. */
+    private final DebugConsole debugConsole = new DebugConsole();
     /** Pointer back action sampled once for the current modal frame. */
     private boolean pointerBack;
     /** Choice hitboxes from the last rendered dialogue, in logical window coordinates. */
@@ -271,7 +273,7 @@ public final class GameScreen extends ScreenAdapter {
         renderer.render(currentMap, session.getPlayer(),
                 currentNpcs(),
                 travel.getPortals(currentMap.getId()),
-                combatDemo, paused || saveMenu.isOpen() || dialogueOpen || inventoryOpen || chestOpen || bigMap
+                combatDemo, paused || debugConsole.isOpen() || saveMenu.isOpen() || dialogueOpen || inventoryOpen || chestOpen || bigMap
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
                 combatDemo.getDrops(), quests.getCompleted());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
@@ -289,6 +291,7 @@ public final class GameScreen extends ScreenAdapter {
         drawDialogue();
         drawOutcome(delta);
         saveMenu.draw(dialogueBatch, dialogueFont, dialogueShapes);
+        drawDebugInput();
     }
 
     /**
@@ -317,6 +320,41 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.end();
     }
 
+    /** Opens the console and captures input without relying on native dialogs. */
+    private void openDebugInput() { debugConsole.open(Gdx.input, session.getPlayer().getDebugOptions()); }
+
+    /** Restores the input processor when the console closes or the screen is disposed. */
+    private void closeDebugInput() { debugConsole.close(); }
+
+    /** Draws the modal command entry, command reference and latest response. */
+    private void drawDebugInput() {
+        if (!debugConsole.isOpen()) { return; }
+        int w = Gdx.graphics.getWidth(), h = Gdx.graphics.getHeight();
+        if (w <= 0 || h <= 0) { return; }
+        float scale = Math.min(1.4f, Math.min(w / 720f, h / 440f));
+        float width = w * 0.92f, height = h * 0.8f;
+        float x = (w - width) / 2, y = (h - height) / 2, pad = 16 * scale;
+        String text = debugConsole.text(session.getPlayer().getDebugOptions());
+        boolean previousMarkup = dialogueFont.getData().markupEnabled;
+        dialogueFont.getData().markupEnabled = true;
+        dialogueFont.getData().setScale(scale);
+        while (scale > 0.02f && new GlyphLayout(dialogueFont, text,
+                com.badlogic.gdx.graphics.Color.WHITE, width - 2 * pad, Align.left, true).height > height - 2 * pad) {
+            scale *= 0.9f; dialogueFont.getData().setScale(scale);
+        }
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.025f, 0.035f, 0.055f, 1);
+        dialogueShapes.rect(x, y, width, height);
+        dialogueShapes.end();
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        dialogueFont.setColor(1f, 1f, 1f, 1);
+        dialogueFont.draw(dialogueBatch, text, x + pad, y + height - pad, width - 2 * pad, Align.left, true);
+        dialogueBatch.end();
+        dialogueFont.getData().markupEnabled = previousMarkup;
+    }
+
     /**
      * Arbitrates one frame, settling player death then Boss victory before travel and debug input.
      * A post-combat outcome return skips all remaining portal/input processing in the arrival frame.
@@ -325,6 +363,17 @@ public final class GameScreen extends ScreenAdapter {
      * @throws IllegalArgumentException if the configured failure Hub/spawn is invalid
      */
     private void updateGameplay(double delta) {
+        boolean consoleKey = Gdx.input.isKeyJustPressed(Input.Keys.F10) || Gdx.input.isKeyJustPressed(Input.Keys.GRAVE);
+        if (debugConsole.isOpen()) {
+            if (consoleKey || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) { closeDebugInput(); }
+            else if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+                debugConsole.submit(session.getPlayer().getDebugOptions());
+                combatDemo.getAbilities().applyDebugCooldowns();
+                updateMapView();
+            }
+            return;
+        }
+        if (consoleKey) { openDebugInput(); return; }
         sampleDialoguePointer();
         if (isMerchantDialogueOpen() && menuBack()) {
             if (!pendingUpgrade.isEmpty()) { pendingUpgrade = ""; }
@@ -377,25 +426,25 @@ public final class GameScreen extends ScreenAdapter {
         }
         if (isQuestDialogueOpen()) {
             handleQuestDialogueInput();
-            combatDemo.update(delta, PlayerCommand.NONE, false);
+            combatDemo.synchronizePausedMap();
             updateMapView();
             return;
         }
         if (isPortalDialogueOpen()) {
             handlePortalDialogueInput();
-            combatDemo.update(delta, PlayerCommand.NONE, false);
+            combatDemo.synchronizePausedMap();
             updateMapView();
             return;
         }
         if (isTrainerDialogueOpen()) {
             handleTrainerDialogueInput();
-            combatDemo.update(delta, PlayerCommand.NONE, false);
+            combatDemo.synchronizePausedMap();
             updateMapView();
             return;
         }
         if (isTrainingExitDialogueOpen()) {
             handleTrainingExitInput();
-            combatDemo.update(delta, PlayerCommand.NONE, false);
+            combatDemo.synchronizePausedMap();
             updateMapView();
             return;
         }
@@ -678,7 +727,7 @@ public final class GameScreen extends ScreenAdapter {
         if (upgradeMenu) {
             if (!pendingUpgrade.isEmpty()) {
                 if (menuConfirm()) {
-                    saveMenu.notify(GearUpgrades.upgrade(pendingUpgrade, inventory, chestStorage, equipment));
+                    saveMenu.notify(GearUpgrades.upgrade(pendingUpgrade, inventory, chestStorage, equipment, session.getPlayer().getDebugOptions().freeUpgrade()));
                     pendingUpgrade = "";
                 }
                 return;
@@ -1059,7 +1108,7 @@ public final class GameScreen extends ScreenAdapter {
             String base = level == 0 ? pendingUpgrade : pendingUpgrade.substring(0, pendingUpgrade.lastIndexOf('+'));
             return "Confirm upgrade: " + ItemCatalog.name(pendingUpgrade) + " -> +" + (level + 1)
                     + "\n" + ItemCatalog.effect(pendingUpgrade) + " -> " + ItemCatalog.effect(base + "+" + (level + 1))
-                    + "\nCost: 1 " + ItemCatalog.name(material)
+                    + (session.getPlayer().getDebugOptions().freeUpgrade() ? "\nDEBUG: free upgrade" : "\nCost: 1 " + ItemCatalog.name(material))
                     + "\nAvailable: " + GearUpgrades.count(material, inventory, chestStorage)
                     + "\nBag before chest.\n[E] Spend material and upgrade  [Esc] Cancel";
         }
@@ -1272,7 +1321,7 @@ public final class GameScreen extends ScreenAdapter {
      * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
      * Screen-space only; the expanded panel follows window size while text stays readable.
      * Memorial Hall fits one view and omits the minimap so that all five stones remain visible.
-     * A living Boss is marked with a red square so battle maps show where the guardian currently is;
+     * A living Boss or training target is marked with a red square;
      * the green player square is drawn last so the two never hide each other while closing in.
      * @param hud current size and visibility policy
      */
@@ -1329,8 +1378,7 @@ public final class GameScreen extends ScreenAdapter {
                     Math.max((float) npc.getWidth() * s, 3f),
                     Math.max((float) npc.getHeight() * s, 3f));
         }
-        combatDemo.getBoss().filter(Boss::isAlive).ifPresent(boss -> {
-            CollisionBox bossBody = boss.getBounds();
+        combatDemo.getMapTargetBounds().ifPresent(bossBody -> {
             dialogueShapes.setColor(0.95f, 0.16f, 0.16f, 1);
             dialogueShapes.rect(ox + (float) (bossBody.x() - bounds.x()) * s,
                     oy + (float) (bossBody.y() - bounds.y()) * s,
@@ -1356,7 +1404,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.setColor(0.60f, 0.90f, 1f, 1);
         dialogueFont.draw(dialogueBatch, map.getName(), x + pad, y + boxH - pad);
         dialogueFont.setColor(0.55f, 0.60f, 0.70f, 1);
-        dialogueFont.draw(dialogueBatch, bigMap ? "[M / Esc] Close   |   Yellow: NPC   Green: You   Red: Boss   Purple: Portal" : "[M] Expand",
+        dialogueFont.draw(dialogueBatch, bigMap ? "[M / Esc] Close   |   Yellow: NPC   Green: You   Red: Boss/Target   Purple: Portal" : "[M] Expand",
                 x + pad, y + pad + dialogueFont.getCapHeight());
         if (bigMap) {
             drawMapNpcLabels(bounds, s, ox, oy, x + pad, y + pad + band,
@@ -1737,7 +1785,7 @@ public final class GameScreen extends ScreenAdapter {
         GameMap map = session.getCurrentMap();
         combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.graphics.setTitle(map.getName() + " | " + combatStatus + " | " + travelStatus);
+        Gdx.graphics.setTitle(map.getName() + (session.getPlayer().getDebugOptions().blocksSaving() ? " | DEBUG - SAVING DISABLED" : "") + " | " + combatStatus + " | " + travelStatus);
     }
 
     /**
@@ -1771,6 +1819,7 @@ public final class GameScreen extends ScreenAdapter {
      */
     @Override
     public void dispose() {
+        closeDebugInput();
         music.dispose();
         renderer.dispose();
         dialogueBatch.dispose();

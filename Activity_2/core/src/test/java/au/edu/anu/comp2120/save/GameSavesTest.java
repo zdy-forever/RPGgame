@@ -82,6 +82,70 @@ final class GameSavesTest {
         }
     }
 
+    /** Debug victories settle rewards normally but cannot replace either normal save slot.
+     * @throws IOException if save files cannot be read
+     */
+    @Test void debugVictoryPreservesBothSaveFiles() throws IOException {
+        var game = new Game(directory);
+        game.win(BossChallenge.FIRE);
+        assertTrue(game.saves.saveManual());
+        byte[] automatic = Files.readAllBytes(game.store.path(SaveSlot.AUTO));
+        byte[] manual = Files.readAllBytes(game.store.path(SaveSlot.MANUAL));
+        game.session.getPlayer().getDebugOptions().execute("oneshot on");
+        game.enter(BossChallenge.FIRE);
+        game.combat.getBoss().orElseThrow().getHealth().takeDamage(Integer.MAX_VALUE);
+        game.combat.update(0, PlayerCommand.NONE, false);
+        new InventoryRewards(game.flow, game.session.getPlayer().getInventory()).collect();
+        game.quests.synchronize(); game.saves.afterSettlement();
+        assertEquals(MapCatalog.HUB, game.session.getCurrentMap().getId());
+        assertEquals(BattleResult.Outcome.SUCCESS, game.flow.getLastResult().orElseThrow().outcome());
+        assertTrue(game.saves.status().contains("debug"));
+        assertArrayEquals(automatic, Files.readAllBytes(game.store.path(SaveSlot.AUTO)));
+        assertArrayEquals(manual, Files.readAllBytes(game.store.path(SaveSlot.MANUAL)));
+        game.session.getPlayer().getDebugOptions().execute("debug off");
+        assertFalse(game.saves.saveManual());
+        assertTrue(game.saves.load(SaveSlot.MANUAL));
+        assertTrue(game.session.getPlayer().getDebugOptions().blocksSaving());
+    }
+
+    /** Summaries use Sydney standard/daylight time without rewriting UTC timestamps.
+     * @throws IOException if isolated save files cannot be inspected
+     */
+    @Test void summaryDisplaysSydneyTimeWithoutChangingFiles() throws IOException {
+        var game = new Game(directory);
+        assertTrue(game.saves.saveManual());
+        String[][] cases = {
+            {"2026-09-27T14:45:50.583510Z", "2026-09-28 00:45:50 AEST"},
+            {"2026-12-01T14:45:50Z", "2026-12-02 01:45:50 AEDT"}
+        };
+        for (var example : cases) {
+            var fields = new HashMap<>(game.store.load(SaveSlot.MANUAL));
+            fields.put("metadata.savedAt", example[0]);
+            game.store.save(SaveSlot.MANUAL, fields);
+            byte[] before = Files.readAllBytes(game.store.path(SaveSlot.MANUAL));
+            assertTrue(game.saves.summary(SaveSlot.MANUAL).contains(example[1]), game.saves.summary(SaveSlot.MANUAL));
+            assertArrayEquals(before, Files.readAllBytes(game.store.path(SaveSlot.MANUAL)));
+        }
+    }
+
+    /** Loading with no-CD enabled cannot resurrect hidden saved cooldowns when the toggle is disabled. */
+    @Test void debugNoCooldownAppliesToRestoredTimers() {
+        var game = new Game(directory);
+        var timers = new EnumMap<AbilitySlot, Double>(AbilitySlot.class);
+        for (var slot : AbilitySlot.values()) { timers.put(slot, 5.0); }
+        game.combat.getAbilities().restoreCooldowns(timers);
+        assertTrue(game.saves.saveManual());
+        var options = game.session.getPlayer().getDebugOptions();
+        options.execute("nocd");
+        assertTrue(game.saves.load(SaveSlot.MANUAL));
+        options.execute("nocd");
+        for (var slot : AbilitySlot.values()) { assertEquals(0, game.combat.getAbilities().getCooldownRemaining(slot)); }
+        assertTrue(options.blocksSaving());
+        // Without no-CD, the original file retains its normal cooldown data.
+        var fresh = new Game(directory); assertTrue(fresh.saves.load(SaveSlot.MANUAL));
+        for (var slot : AbilitySlot.values()) { assertEquals(5, fresh.combat.getAbilities().getCooldownRemaining(slot)); }
+    }
+
     /** Fresh runtime restores choices, cooldowns, storage, NPC flags and accepted quest.
      * @throws IOException if snapshot inspection fails
      */

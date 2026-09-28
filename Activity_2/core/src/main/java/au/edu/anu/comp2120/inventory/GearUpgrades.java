@@ -53,17 +53,31 @@ public final class GearUpgrades {
      * @return feedback, including rejection without consuming anything
      */
     public static String upgrade(String id, Inventory bag, Inventory chest, Equipment equipment) {
+        return upgrade(id, bag, chest, equipment, false);
+    }
+
+    /** Performs a debug-aware upgrade while retaining ownership, capacity and level checks.
+     * @param id carried item ID
+     * @param bag player bag
+     * @param chest stored items
+     * @param equipment worn equipment
+     * @param free whether to skip material requirements and consumption
+     * @return operation feedback
+     */
+    public static String upgrade(String id, Inventory bag, Inventory chest, Equipment equipment, boolean free) {
         var gear = ItemCatalog.gear(id);
         if (bag == chest || gear.isEmpty() || bag.quantityOf(id) == 0) { return "Upgrade blocked: carry the equipment in your bag."; }
         int current = level(id);
         if (current >= MAX_LEVEL) { return "Already at maximum level +2."; }
         String material = "sentinel-core";
-        if (count(material, bag, chest) == 0) { return "Upgrade blocked: missing material."; }
+        if (!free && count(material, bag, chest) == 0) { return "Upgrade blocked: missing material."; }
         String next = (current == 0 ? id : id.substring(0, id.lastIndexOf('+'))) + "+" + (current + 1);
         if (bag.quantityOf(next) == Integer.MAX_VALUE) { return "Upgrade blocked: destination stack is full."; }
         boolean worn = equipment.isEquipped(id);
-        if (bag.quantityOf(material) > 0) { bag.removeItem(material, 1); }
-        else { chest.removeItem(material, 1); }
+        if (!free) {
+            if (bag.quantityOf(material) > 0) { bag.removeItem(material, 1); }
+            else { chest.removeItem(material, 1); }
+        }
         bag.addItem(next);
         if (worn) { equipment.toggle(next); }
         bag.removeItem(id, 1);
