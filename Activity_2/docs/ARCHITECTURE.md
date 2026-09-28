@@ -1,5 +1,13 @@
 # Stage 2 Architecture
 
+## Current state (2026-09-26)
+
+This document matches `main` at `ab76422` (!42). Since the 2026-09-25 update, Hao Liu's
+pause menu, save-slot management, merchant services, potion top-up and bounded gear upgrades
+(`npc.MerchantServices`, `inventory.PotionSupply`, `inventory.GearUpgrades`) and adjustable
+health capacity (`Health.setMaxHp`, driven by equipped headgear) are merged. Sections 5 and 6
+remain the original pre-implementation plan; Section 6 notes what was actually delivered.
+
 ## Inventory and persistence integration (2026-09-25)
 
 The current production loop includes Hao Liu's inventory/equipment and save/load work.
@@ -245,12 +253,15 @@ core/src/main/java/au/edu/anu/comp2120/
 ├── inventory/
 │   ├── Equipment.java
 │   ├── EquipmentSlot.java
+│   ├── GearUpgrades.java
 │   ├── ItemCatalog.java
 │   ├── InventoryRewards.java
 │   ├── Inventory.java
-│   └── MaterialDrop.java
+│   ├── MaterialDrop.java
+│   └── PotionSupply.java
 ├── npc/
 │   ├── ClassTrainer.java
+│   ├── MerchantServices.java
 │   ├── NPC.java
 │   └── PortalGuide.java
 ├── player/
@@ -312,8 +323,8 @@ lwjgl3/src/main/java/au/edu/anu/comp2120/lwjgl3/
 ```
 
 Dialogue rendering (`DialogueLayout`, `CreditsDialogue`) remains part of `screen`,
-and equipment/crafting remain part of `inventory` until either area contains
-enough behaviour to justify another package. `quest` and `audio` now exist as
+and equipment and gear upgrades remain part of `inventory` until either area contains
+enough behaviour to justify another package. No crafting package exists. `quest` and `audio` now exist as
 small, single-class packages (`BossQuests` and `BackgroundMusic`); UI beyond
 `screen`/`HudLayout` is still a documented boundary without its own package.
 
@@ -331,8 +342,8 @@ small, single-class packages (`BossQuests` and `BackgroundMusic`); UI beyond
   transition methods. Model classes do not require a graphics context.
 - A transition validates the target ID, spawn ID, and full-body occupancy before
   changing player state or current map. Failure preserves the previous state.
-- Fast-travel/debug-unlock keys and window-title feedback belong to `GameScreen`;
-  geometric rendering and role colours belong to `PlaceholderRenderer`.
+- Input handling and window-title feedback belong to `GameScreen` (the former U/1/2/3
+  debug travel keys are removed); geometric rendering and role colours belong to `PlaceholderRenderer`.
 - `CameraFollow` calculates a visible rectangle using only subject/map bounds and
   viewport world dimensions. `PlaceholderRenderer` applies its centre before
   drawing; the player, map, and travel modules have no camera dependencies.
@@ -492,13 +503,15 @@ small, single-class packages (`BossQuests` and `BackgroundMusic`); UI beyond
 
 - Owns shared hit-point validation, lifetimes, cooldowns, hit detection/occlusion, generic
   hit interception, ordered reaction calculation, physical vulnerability and final delivery.
-  Equipment/armour integration and broader balance modifiers remain separate future work.
+  Equipment bonuses enter through `EquipmentModifiers` in the same damage calculation.
 - Does not handle input, rendering, movement collision, loot storage, or AI.
 - Depends on stable combat contracts rather than concrete entity types.
 - Public surface: `Damageable.takeDamage(int)` and `Damageable.isAlive()`.
 - `Health` implements that contract and provides `getMaxHp()`, `getCurrentHp()`,
-  `isDead()`, `heal(int)`, and `restoreFull()`. Capacity is a fixed positive integer;
-  current HP stays within `[0, maxHp]`. Every new instance starts full and alive.
+  `isDead()`, `heal(int)`, `restoreFull()` and `setMaxHp(int)`. Capacity is a positive
+  integer; `setMaxHp` (used by Player when equipped headgear changes) preserves the health
+  fraction, keeps living entities at one HP or more and never revives or records a hit.
+  Current HP stays within `[0, maxHp]`. Every new instance starts full and alive.
 - Negative damage/healing throws before mutation, zero is harmless, and positive
   amounts saturate without overflow. Healing returns the actual HP restored.
   Death is derived from zero HP. Healing does not revive; only explicit
@@ -882,15 +895,22 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 
 - Owns NPC identity, interaction, dialogue data, and dialogue flow.
 - Does not implement movement, map collision, combat, or enemy AI.
-- Depends only on read-only player information and the future Quest boundary.
-- Public surface is currently the constructor.
+- Depends only on read-only player information and the `quest.BossQuests` boundary.
+- `NPC` exposes identity, position, dialogue lines, adjacency (`isAdjacent`) and a one-time
+  reward flag (`hasInteracted`/`setInteracted`/`restoreInteracted`, persisted by saves).
+  `PortalGuide`, `ClassTrainer` and `MerchantServices` are small Hub adapters; Hub NPCs,
+  including the Notice Board and Storage Chest entries, are defined in `GameConfig`.
+- `MerchantServices` offers three independent choices: the once-only Lightning Staff, a repeatable
+  potion top-up (`PotionSupply`: bag plus chest to a combined three, never farming more) and the
+  equipment upgrade menu (`GearUpgrades`).
 
 ### Quest
 
-- Will own quest acceptance, progress, completion, and reward requests.
-- Will not render UI or implement inventory, combat, or map loading.
-- Will depend on stable World/NPC/Combat events and Inventory reward operations.
-- No public surface or package exists until objective/reward data is agreed.
+- `quest.BossQuests` owns acceptance, the active target, distinct completions, per-guardian
+  success counts and the one-time ending (`accept`, `synchronize`, `getCompleted`,
+  `getSuccessCount`, `consumeEnding`). See "Portal admission and quest progress" above.
+- Does not render UI or implement inventory, combat, or map loading; material rewards are
+  claimed separately through `InventoryRewards`.
 
 ### Inventory / Equipment
 
@@ -906,6 +926,12 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
   Overflowed rewards stay pending and are included in the next save.
 - GameScreen presents B-bag equip/unequip/potion actions and E-chest transfers. Storage input
   never equips; B switches to the bag. WEAPON reads only EquipmentSlot.WEAPON.
+- `ItemCatalog.Gear` derives slot effects from the upgrade level: headgear adds maximum HP,
+  gloves reduce K/L/O cooldowns and boots amplify ordinary movement. Equipment reports summed
+  health bonuses through a capacity observer; Player applies them with `Health.setMaxHp`.
+- `GearUpgrades` raises one carried item by one level (maximum +2), consuming one
+  `sentinel-core` from the bag before the chest; a worn item stays worn and upgraded IDs
+  (`id+1`, `id+2`) persist through saves and chest transfers. There is no crafting or enchanting.
 
 ### UI
 
@@ -952,12 +978,20 @@ See [the current skill report](FINAL_CLASS_SKILLS_REPORT.md) for tuning and test
 - Startup and loading never write either slot. Manual save only writes MANUAL; successful
   settled Boss returns only write AUTO. Failure and simultaneous player/Boss death do not autosave.
   Loading an older timeline does not merge progress; its next victory may replace a newer AUTO.
+- Save management is a nested `SaveMenu` page. Confirmed per-slot deletion passes through
+  `GameSaves.deleteSlot` safety checks to synchronized `SaveStore.delete`; it never restores or
+  mutates live state. Only the selected enum-bound file is removed, directories are rejected and
+  missing files are idempotent. The submenu refreshes summaries after deletion and retains
+  pause/input ownership until the player returns to gameplay.
 - No arbitrary mid-battle snapshot, automatic startup load or separate achievement subsystem
   is implemented. The menu restart creates fresh live state without deleting save files. See [Save/load](SAVE_LOAD_REPORT.md) for verification.
 
-### Achievement
+### Achievement (planned, dropped)
 
-- Will own achievement definitions, progress, and unlock state.
+Not implemented; no achievement package or code exists. The bullets below record the
+original boundary only.
+
+- Would have owned achievement definitions, progress, and unlock state.
 - Will consume stable gameplay events and expose read-only progress to UI.
 - Will not duplicate quest progress or combat calculations.
 - No package exists until the initial achievement list is agreed.
@@ -971,6 +1005,9 @@ SaveMenu -> GameSaves, HudLayout (input/confirmation/presentation only)
 GameSaves -> SaveStore, snapshots, public player/session/travel/quest/encounter/NPC APIs
 SaveStore -> SaveSlot, SaveFile (independent paths and atomic disk IO)
 Player -> Inventory, Equipment; Equipment -> Inventory, ItemCatalog, EquipmentSlot
+Equipment -> capacity observer (Player applies Health.setMaxHp)
+MerchantServices -> NPC, Inventory, ItemCatalog, PotionSupply
+GearUpgrades -> ItemCatalog, Inventory, Equipment, EquipmentSlot
 InventoryRewards -> EncounterFlow, Inventory (capacity-checked one-time transfer)
 CombatSystem -> EquipmentModifiers (shared damage calculation)
 GameScreen -> GameSession, TravelSystem, PlayerInput, CombatDemo, PlaceholderRenderer
@@ -998,7 +1035,7 @@ Quest      -> World/NPC/Combat events, Inventory reward API
 UI         -> read-only feature APIs
 Combat     -> Damageable
 World      -> no concrete Player, Enemy, NPC, or UI classes
-Achievement -> stable gameplay events
+Achievement -> stable gameplay events (planned only; not implemented)
 Save       -> snapshot contracts supplied by feature modules
 ```
 
@@ -1069,6 +1106,10 @@ Use one focused branch per feature instead of one long-lived branch per person.
 Priority 0 is the minimum playable loop, Priority 1 completes the planned game,
 and Priority 2 is optional polish if time remains.
 
+> **Status (2026-09-26).** These tables are the original plan written on 2026-09-04 and are
+> kept unchanged except for the added Status column. Actual owners and evidence are in
+> Section 7; GitLab issue numbers are given where one exists.
+
 ### Developer A — Daoyan Zhu (`u7782042`)
 
 The table below is the original branch-planning breakdown, not a list of missing features.
@@ -1076,45 +1117,45 @@ The current placeholder baseline includes these core systems, finalized first-ve
 and reactions, wall occlusion, death recovery and the task-portal/reward boundary described above.
 This integration stage adds regression coverage and hardens lifecycle contracts, not new gameplay.
 
-| Priority | Feature | Suggested branch |
-| --- | --- | --- |
-| P0 | Player position, WASD movement, and collision checks | `feature/player-movement` |
-| P0 | Hub/combat maps, boundaries, and map switching | `feature/map-system` |
-| P0 | Portals and fast travel between maps | `feature/portal-fast-travel` |
-| P0 | Health, shared damage rules, and attack resolution | `feature/combat-system` |
-| P0 | Enemy state, movement/following, and basic AI | `feature/enemy-ai` |
-| P1 | Camera following and horizontal/room scrolling | `feature/world-camera` |
-| P1 | J/K/L/O actions: light attack, special, dash, and ultimate | `feature/player-actions` |
-| P1 | Archer, mage, and katana class behaviour | `feature/player-classes` |
-| P1 | Boss combat and boss-material drop events | `feature/boss-combat` |
-| P2 | Derived attacks and elemental reactions | `feature/advanced-attacks` |
+| Priority | Feature | Suggested branch | Status |
+| --- | --- | --- | --- |
+| P0 | Player position, WASD movement, and collision checks | `feature/player-movement` | Delivered (#1) |
+| P0 | Hub/combat maps, boundaries, and map switching | `feature/map-system` | Delivered (#2) |
+| P0 | Portals and fast travel between maps | `feature/portal-fast-travel` | Delivered (#3) |
+| P0 | Health, shared damage rules, and attack resolution | `feature/combat-system` | Delivered (#5, #6) |
+| P0 | Enemy state, movement/following, and basic AI | `feature/enemy-ai` | Delivered (#7) |
+| P1 | Camera following and horizontal/room scrolling | `feature/world-camera` | Delivered (#4); no room snapping |
+| P1 | J/K/L/O actions: light attack, special, dash, and ultimate | `feature/player-actions` | Delivered (#8, #19) |
+| P1 | Archer, mage, and katana class behaviour | `feature/player-classes` | Delivered (#9–#12) |
+| P1 | Boss combat and boss-material drop events | `feature/boss-combat` | Delivered (#13) |
+| P2 | Derived attacks and elemental reactions | `feature/advanced-attacks` | Delivered early (#14, #20) |
 
 ### Developer B — `u7998420`
 
-| Priority | Feature | Suggested branch |
-| --- | --- | --- |
-| P0 | NPC identity, interaction range, and interaction flow | `feature/npc-interaction` |
-| P0 | Dialogue data and dialogue progression | `feature/npc-dialogue` |
-| P0 | Quest acceptance, progress, completion, and rewards | `feature/quest-system` |
-| P1 | Quest manager, priest, and beginner-guide hub flows | `feature/hub-npcs` |
-| P1 | NPC movement and player-following behaviour | `feature/npc-following` |
-| P1 | Save/load of player, map, quest, inventory, and achievement state, including the agreed special-save rule | `feature/save-load` |
-| P1 | Achievement definitions, progress, and unlock events | `feature/achievements` |
-| P2 | Guided tutorial/onboarding sequence | `feature/tutorial-flow` |
+| Priority | Feature | Suggested branch | Status |
+| --- | --- | --- | --- |
+| P0 | NPC identity, interaction range, and interaction flow | `feature/npc-interaction` | Delivered by Jiaqi Chen (#22) |
+| P0 | Dialogue data and dialogue progression | `feature/npc-dialogue` | Delivered by Jiaqi Chen (#30); layout by Daoyan Zhu (#25) |
+| P0 | Quest acceptance, progress, completion, and rewards | `feature/quest-system` | Delivered by Daoyan Zhu (#18, #21, !23) |
+| P1 | Quest manager, priest, and beginner-guide hub flows | `feature/hub-npcs` | Delivered by Daoyan Zhu and Jiaqi Chen (#28, !22) |
+| P1 | NPC movement and player-following behaviour | `feature/npc-following` | Dropped |
+| P1 | Save/load of player, map, quest, inventory, and achievement state, including the agreed special-save rule | `feature/save-load` | Delivered by Hao Liu (#48), without achievements |
+| P1 | Achievement definitions, progress, and unlock events | `feature/achievements` | Dropped |
+| P2 | Guided tutorial/onboarding sequence | `feature/tutorial-flow` | Reduced to tutorial NPC and Notice Board (#36) |
 
 ### Developer C — `u7851266`
 
-| Priority | Feature | Suggested branch |
-| --- | --- | --- |
-| P0 | Item model and inventory add/remove/use operations | `feature/inventory-items` |
-| P0 | Weapon/armour equipment and stat values | `feature/equipment-system` |
-| P0 | HUD, menus, dialogue view, and inventory view | `feature/game-ui` |
-| P1 | Four armour slots and two-/four-piece set bonuses | `feature/armour-set-bonuses` |
-| P1 | Boss-material crafting, weapon forging, and enchanting | `feature/crafting-enchanting` |
-| P1 | Minimap presentation using read-only world data | `feature/minimap-ui` |
-| P1 | Health-bar and damage-number display settings | `feature/combat-display-settings` |
-| P1 | Automated gameplay smoke tester for the main loop | `feature/gameplay-smoke-tester` |
-| P2 | Debug-mode controls and diagnostic overlay | `feature/debug-mode-ui` |
+| Priority | Feature | Suggested branch | Status |
+| --- | --- | --- | --- |
+| P0 | Item model and inventory add/remove/use operations | `feature/inventory-items` | Delivered: prototype Jiaqi Chen, integration Hao Liu (#47) |
+| P0 | Weapon/armour equipment and stat values | `feature/equipment-system` | Delivered: prototype Jiaqi Chen (#33), integration Hao Liu (#47) |
+| P0 | HUD, menus, dialogue view, and inventory view | `feature/game-ui` | Delivered (#29–#32, #47) |
+| P1 | Four armour slots and two-/four-piece set bonuses | `feature/armour-set-bonuses` | Delivered by Hao Liu (#47) |
+| P1 | Boss-material crafting, weapon forging, and enchanting | `feature/crafting-enchanting` | Reduced to merchant gear upgrades (`GearUpgrades`, !42) |
+| P1 | Minimap presentation using read-only world data | `feature/minimap-ui` | Delivered by Jiaqi Chen (#34); Boss marker #45 |
+| P1 | Health-bar and damage-number display settings | `feature/combat-display-settings` | Health bar delivered (#31, #32); damage-number settings not implemented |
+| P1 | Automated gameplay smoke tester for the main loop | `feature/gameplay-smoke-tester` | Deferred to M4 (#40) |
+| P2 | Debug-mode controls and diagnostic overlay | `feature/debug-mode-ui` | Partial: coordinate HUD (#29) |
 
 ### Shared integration
 
@@ -1125,25 +1166,30 @@ This integration stage adds regression coverage and hardens lifecycle contracts,
 
 ## 7. Contribution evidence
 
-### Current update: 2026-09-25
+### Current update: 2026-09-26
 
-The older allocation below predates Hao Liu's merged work and is not a statement about the
-current contributor list. Read-only inspection at `721f9e6` confirms these Hao Liu commits:
+Read from `git shortlog -sne --no-merges` and `git log` at `ab76422`. Three people have
+committed; `u8350466` has no commits and is not allocated work.
 
-| Commit | Contribution |
-| --- | --- |
-| `21de2898` | Inventory/equipment integration, shared combat bonuses, reward collection and tests. |
-| `82f6a450` | Save-file foundations and validated inventory/location snapshots. |
-| `c8d14bc9` | Automatic checkpoints, manual save/load, cross-module restoration, menu and tests. |
-| `d47a1f6b` | Merge of save/load into team main. |
+| Contributor | Non-merge commits | Main areas | GitLab issues authored |
+| --- | --- | --- | --- |
+| Daoyan Zhu (`u7782042`; commits appear under both the `Daoyan Zhu` and `u7782042` names) | 62 | Skeleton/build/CI, `player`, `combat`, `world`, `enemy`, `quest`, `audio`, most of `screen`, tests, docs | #1–#21, #24–#28, #37–#46, #49, #50 |
+| Jiaqi Chen (`u7851266`) | 15 | Hub NPCs and dialogue box, coordinate HUD, health bar, minimap, inventory/weapon prototypes, storage chest, Notice Board (`screen`, `npc`, `inventory`) | #22, #29–#36 |
+| Hao Liu (`u7998420`) | 8 | Inventory/equipment integration, `save`, SaveMenu pause menu and slot management, merchant services, potion supply, gear upgrades, health capacity | #47, #48 |
 
-The subsequent save-notification, storage-help and empty-weapon-label refinements are in the
-working branch, alongside this documentation update. They are not assigned a nonexistent
-commit hash. Existing NPC/quest, combat, art and world ownership by teammates is retained;
-using their APIs for persistence does not imply authorship of those original systems.
-The team's later P potion shortcut is `721f9e6`; Wind fixes are `36ce30d`.
+Hao Liu's commits: `21de289` (inventory/equipment, !38), `82f6a45` and `c8d14bc` (save/load,
+!39), `534cb93` (save UI and docs, !41), `ec0a8fb`, `a4c7e9f`, `bbe814b` (pause menu, save
+management, merchant services and equipment progression, !42) and `aa2a8d5` (root README).
+Jiaqi Chen's work was committed directly to `main` on 2026-09-15 – 09-18 rather than through MRs.
+The P potion shortcut is `721f9e6` (#50); Wind fixes are `36ce30d` (#49). Using another
+module's API for integration does not imply authorship of that module. Commit counts are not a
+measure of effort; non-code contributions are not visible in `git log`.
 
-### Historical allocation snapshot (before inventory/save integration)
+### Historical allocation snapshot (before inventory/save integration) — superseded
+
+> Superseded by the 2026-09-26 update above. Retained unchanged as evidence of the repository
+> state at that time (before Hao Liu's first commit on 2026-09-23). Statements such as
+> "save/load were not started" or "equipment ... not built" were true then and are no longer current.
 
 Sections 5 and 6 above record the **planned** three-developer split, written
 before implementation started. This section records the **actual** split, read
@@ -1228,7 +1274,7 @@ commit message.
 ## Decisions still requiring the team
 
 - Developer B is Hao Liu (`u7998420`); Developer C is Jiaqi Chen (`u7851266`).
-  Keep future task allocation aligned with the current contribution evidence above.
+  Keep future task allocation aligned with the current contribution evidence in Section 7.
 - Current maps use Java rectangle data and named bottom-left spawn anchors in
   world units. Agree on any future external file format and portal triggers when
   those features are implemented.
@@ -1237,15 +1283,17 @@ commit message.
 - First-version class behaviours and reaction rules are now fixed and implemented. Agree on
   balance refinements and future art/presentation mapping separately; those must preserve the
   shared damage, world-collision, Hub-only selection and one-generation reaction contracts.
-- Define migration before changing the implemented version-1 save schema. Decide separately
-  whether to add explicit save-file deletion, more profiles or new safe-save locations.
-  The existing Restart game action intentionally preserves both files.
+- Define migration before changing the implemented version-1 save schema. Per-slot deletion is
+  now implemented in the SaveMenu management page; decide separately whether to add more
+  profiles or new safe-save locations. Restart game intentionally preserves both files.
 - Agree on final guardian balance. Scripted fights show mobile classes winning every arena, while
   a deliberately stationary caster loses to the ice and wind guardians; measurements and the
   single-constant levers are recorded in [Boss trait report](BOSS_TRAIT_REPORT.md).
 - Decide whether burning deserves its own status icon; the overlay currently uses text only and
   adds no asset.
-- Decide which P2 features will be dropped if the P0/P1 schedule slips.
+- ~~Decide which P2 features will be dropped if the P0/P1 schedule slips.~~ Resolved: see the
+  Status column in Section 6 (achievements and NPC following dropped; crafting and the tutorial
+  flow reduced). Remaining open: the gameplay smoke tester (#40) and Docker (#42).
 
 
 Save management is a nested `SaveMenu` page. Confirmed per-slot deletion passes through

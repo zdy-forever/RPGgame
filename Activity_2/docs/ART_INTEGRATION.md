@@ -1,5 +1,9 @@
 # Art integration (2026-09-19)
 
+> Current integration note (2026-09-26): This report records the 19 September art import. Its statement that no save/load was added describes that stage; inventory/equipment, save/load and the Esc pause menu are now implemented. Hub coordinates below still match `GameConfig`.
+> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
+> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+
 ## Resource organization
 
 - Imported `assets/art_resources/art/` to `assets/art/`, preserving category-relative paths.
