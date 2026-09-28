@@ -93,6 +93,20 @@ final class SaveMenuTest {
         finally { Gdx.input = previous; Gdx.graphics = previousGraphics; }
     }
 
+    /** Debug-altered gameplay cannot overwrite a normal save, even after cheats are disabled.
+     * @throws IOException if isolated files cannot be read
+     */
+    @Test void debugSaveProtectionIsSticky() throws IOException {
+        menu();
+        assertTrue(saves.saveManual());
+        byte[] previous = Files.readAllBytes(store.path(SaveSlot.MANUAL));
+        session.getPlayer().getDebugOptions().execute("freeupgrade on");
+        assertFalse(saves.saveManual());
+        session.getPlayer().getDebugOptions().execute("debug off");
+        assertFalse(saves.saveManual());
+        assertArrayEquals(previous, Files.readAllBytes(store.path(SaveSlot.MANUAL)));
+    }
+
     /** Escape owns both opening and closing frames, and respects existing gameplay panels. */
     @Test void escapeMenuAndPanelPriority() {
         var menu = menu();

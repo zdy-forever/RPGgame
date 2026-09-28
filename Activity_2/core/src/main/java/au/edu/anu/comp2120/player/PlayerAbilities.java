@@ -280,7 +280,7 @@ public final class PlayerAbilities {
             skills.clear();
         }
         for (int i = 0; i < cooldowns.length; i++) {
-            cooldowns[i] = Math.max(0, cooldowns[i] - delta);
+            cooldowns[i] = player.getDebugOptions().noCooldown() ? 0 : Math.max(0, cooldowns[i] - delta);
             launchWindows[i] = Math.max(0, launchWindows[i] - delta);
         }
         return triggered;
@@ -308,6 +308,11 @@ public final class PlayerAbilities {
         return getCooldownRemaining(slot) > 0 ? AbilityState.COOLDOWN : AbilityState.READY;
     }
 
+    /** Applies a debug cooldown reset without altering active skills, dash or projectiles. */
+    public void applyDebugCooldowns() {
+        if (player.getDebugOptions().noCooldown()) { Arrays.fill(cooldowns, 0); }
+    }
+
     /**
      * Returns time until this slot's cooldown expires; active duration is reported separately.
      * @param slot ability slot
@@ -315,7 +320,8 @@ public final class PlayerAbilities {
      * @throws NullPointerException if slot is null
      */
     public double getCooldownRemaining(AbilitySlot slot) {
-        return cooldowns[Objects.requireNonNull(slot, "slot").ordinal()];
+        Objects.requireNonNull(slot, "slot");
+        return player.getDebugOptions().noCooldown() ? 0 : cooldowns[slot.ordinal()];
     }
 
     /**
@@ -371,6 +377,7 @@ public final class PlayerAbilities {
      * @return actual timer, leaving ordinary attacks unchanged
      */
     private double adjustedCooldown(AbilitySlot slot, double seconds) {
+        if (player.getDebugOptions().noCooldown()) { return 0; }
         return seconds * (slot == AbilitySlot.LIGHT ? 1 : 1 - player.getEquipment().cooldownPercent() / 100.0);
     }
 
@@ -481,6 +488,7 @@ public final class PlayerAbilities {
             throw new IllegalArgumentException("Invalid saved cooldowns");
         }
         for (var slot : AbilitySlot.values()) { cooldowns[slot.ordinal()] = copy.get(slot); }
+        applyDebugCooldowns();
     }
 
 }

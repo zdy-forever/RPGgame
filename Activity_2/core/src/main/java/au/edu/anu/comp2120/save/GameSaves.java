@@ -19,6 +19,11 @@ import java.util.*;
  * @author Hao Liu (u7998420)
  */
 public final class GameSaves {
+    /** Sydney display time with seasonal zone label; persisted timestamps remain UTC. */
+    private static final java.time.format.DateTimeFormatter DISPLAY_TIME =
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z", java.util.Locale.ENGLISH)
+                    .withZone(java.time.ZoneId.of("Australia/Sydney"));
+
     /** Persistent map and player owner. */
     private final GameSession session;
     /** Route owner. */
@@ -114,7 +119,7 @@ public final class GameSaves {
             for (var boss : BossChallenge.values()) {
                 if (Boolean.parseBoolean(fields.get("quest.done." + boss.name()))) { wins++; }
             }
-            return slot + ": " + meta.savedAt() + " | " + location.mapId() + " | " + wins + "/5 guardians";
+            return slot + ": " + DISPLAY_TIME.format(meta.savedAt()) + " | " + location.mapId() + " | " + wins + "/5 guardians";
         } catch (IOException | IllegalArgumentException error) {
             return slot + ": unavailable (" + error.getMessage() + ")";
         }
@@ -160,6 +165,9 @@ public final class GameSaves {
      * @return write success
      */
     private boolean save(SaveSlot slot) {
+        if (session.getPlayer().getDebugOptions().blocksSaving()) {
+            report("Save blocked: debug used in this game. Start a new game/restart to save again."); return false;
+        }
         if (!isSafe()) { report("Save blocked: use Hub / Memorial after active skills finish."); return false; }
         try {
             var fields = capture(slot);

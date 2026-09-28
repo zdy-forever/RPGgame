@@ -25,10 +25,10 @@ the subsequent team change `721f9e6`, using the same potion rules.
   to the chest removes its equipment benefit. Equipped items remain part of bag counts.
 - The initial chest contains four guardian armour pieces and three health potions. These are
   provisional starter contents so the feature can be exercised without a new crafting system.
-- Weapon Merchant at Hub (650,250) grants the Lightning staff once: E opens/advances the
-  dialogue and collects the reward. Close dialogue, press B and right-click the staff to equip.
-- The WEAPON HUD shows only the weapon slot. `No weapon equipped` does not mean the bag is
-  empty or that armour failed to equip; check `[Worn]` rows and bag totals for armour.
+- Weapon Merchant at Hub (650,250) grants the Lightning staff once: E opens the service menu; select the weapon
+  service and confirm with E/Enter. Close dialogue, press B and right-click the staff to equip.
+- The legacy WEAPON HUD rendering call is commented out; its implementation is retained.
+  Check `[Worn]` rows and bag totals to inspect equipment.
 - Settled Boss rewards are consumed from EncounterFlow's existing outbox on the game-loop thread.
   Overflow is checked before claiming. Unaccepted rewards remain pending; repeated polling cannot
   duplicate them. Existing material IDs, quantities and quest ownership remain unchanged.
@@ -188,3 +188,7 @@ remain in their panels. Toasts are centred horizontally and vertically in the ga
 including during dialogue and pause menus. The HP bar now reads actual current/max HP, including headgear bonuses.
 
 Both item panels show a selection marker and support left-click selection, right-click action and clickable page/action/close controls. Keyboard and mouse share the same equip/use/transfer operations. Opening, closing and interacting with these panels consumes the frame; storage now pauses simulation alongside the bag.
+
+For the free-upgrade debug toggle, Training equipment checks and the coverage matrix, see
+[Debug, Training and UI refinement](DEBUG_TRAINING_UI_REPORT.md). Free upgrades never bypass
+ownership, stack capacity or +2 limits, and enabling the toggle prevents save writes in that live game.

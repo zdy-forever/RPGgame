@@ -1,6 +1,22 @@
 # Project documentation
 
-Updated 2026-09-25 for the inventory/equipment, save/load and related UI work.
+Updated 2026-09-28 for current debug, Training, map, input and save-display refinements.
+
+## Current verification — 2026-09-28
+
+`./Activity_2/gradlew -p Activity_2 test javadocAudit lwjgl3:classes` passed:
+**1,235 core + 4 desktop = 1,239 tests**, zero failures, errors or skipped tests.
+JavaDoc audits and desktop compilation passed. This audit adds nine test cases for console input
+ownership/editing/colour state, one-shot boundaries, all four no-CD slots, non-revival/isolation,
+and free-upgrade safety. `git diff --check` is clean.
+
+The [coverage matrix and manual regression cases](DEBUG_TRAINING_UI_REPORT.md) distinguish model
+verification from actual window/key/mouse rendering checks. These results do not claim a fresh
+manual playthrough, and no commit/MR identity is assigned to uncommitted work.
+
+Follow-up interaction audit on the same date fixed NPC dialogue simulation and no-CD save
+restoration. Full verification now passes **1,237 core + 4 desktop = 1,241 tests**; JavaDoc
+and desktop compilation also pass. See the follow-up section in the coverage report.
 
 ## Where to start
 
@@ -10,6 +26,7 @@ Updated 2026-09-25 for the inventory/equipment, save/load and related UI work.
 | [Architecture](ARCHITECTURE.md) | Ownership, game-loop integration, persistence boundaries and contribution evidence. |
 | [Inventory and equipment](INVENTORY_EQUIPMENT_REPORT.md) | Obtaining/equipping items, storage transfers, bonuses, potions and one-time rewards. |
 | [Save and load](SAVE_LOAD_REPORT.md) | Esc menu, restart, volume, transient feedback, slot independence, safe-state rules and regression checks. |
+| [Debug, Training and UI](DEBUG_TRAINING_UI_REPORT.md) | Current commands, training rules, feature-to-test coverage and manual regression cases. |
 | [Art integration](ART_INTEGRATION.md) | Runtime artwork, HUD presentation and asset coverage. |
 | [Guardian traits](BOSS_TRAIT_REPORT.md) | Boss mechanics, status display and balance measurements. |
 | [Asset attribution](../assets/README.md) | Visual/audio provenance and licensing references. |

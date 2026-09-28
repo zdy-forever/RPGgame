@@ -18,7 +18,7 @@ See [the game README](../README.md) for launch instructions and
 - On macOS the keyboard may require **Fn+F5 / Fn+F9**.
 - Close dialogue, inventory, chest, enlarged map, ending and credits before requesting either operation.
 - Save and load require a living player in Hub or Memorial Hall. Training and Battle are excluded. Executing skills, dashes, launch windows and projectiles block both operations; inactive cooldowns are allowed and preserved.
-- The timed translucent notification reports completion, blocked operations and disk/validation failures. The selection panel shows UTC save time, map and distinct guardian completion count.
+- The timed translucent notification reports completion, blocked operations and disk/validation failures. The selection panel shows Sydney local save time (AEST/AEDT; UTC remains on disk), map and distinct guardian completion count.
 
 ## Independent slots and automatic checkpoints
 
@@ -246,3 +246,15 @@ live state. Inventory/equipment restores before exact location/HP. Older snapsho
 base maximum HP with a hood are accepted and retain their saved current HP; other mismatched
 capacities are rejected before mutation. Boots and glove modifiers are derived from worn IDs;
 remaining cooldowns restore exactly without a second reduction.
+
+Save-slot summaries display `yyyy-MM-dd HH:mm:ss` in `Australia/Sydney`, including AEST/AEDT according to daylight saving rules. Metadata remains a UTC Instant on disk, so existing saves need no migration and viewing a summary never rewrites a file.
+
+
+## Debug-session save protection
+
+Enabling any console cheat blocks both manual and automatic writes for the remainder of that live
+game. Disabling cheats or loading a file does not remove the block. A fresh game/player restores
+normal saving. Reads and existing slot files remain available; normal victory and reward processing
+still occurs. `GameSavesTest.debugVictoryPreservesBothSaveFiles` and
+`SaveMenuTest.debugSaveProtectionIsSticky` verify file preservation. See the
+[consolidated coverage report](DEBUG_TRAINING_UI_REPORT.md) for console and UI validation boundaries.

@@ -246,13 +246,21 @@ public final class CombatDemo {
         resolvePlayerDisplacement();
         player.setHurtbox(playerHurtbox());
         if (reset && (encounterFlow == null || session.getCurrentMap().getType() != MapType.BATTLE)) {
+            // Reset the existing practice placement; only initial entry chooses a safe spawn.
+            CollisionBox practiceBounds = trainingDummy == null ? null : trainingDummy.getCombatant().getHurtbox();
             combat.clear();
             combat.bindWorld(session.getCurrentMap());
             session.getPlayer().getHealth().restoreFull();
             session.getPlayer().resetTrainingMetrics();
             combat.register(player);
             abilities.reset();
-            createEncounter();
+            if (practiceBounds != null && session.getCurrentMap().getType() == MapType.TRAINING) {
+                trainingDummy = new TrainingDummy(practiceBounds);
+                trainingShotSeconds = 2;
+                combat.register(trainingDummy.getCombatant());
+            } else {
+                createEncounter();
+            }
             return;
         }
         if (cycleUltimateMode) {
@@ -411,6 +419,15 @@ public final class CombatDemo {
         return Optional.ofNullable(trainingDummy);
     }
 
+    /** Supplies one live encounter marker for both compact and expanded maps.
+     * @return current Boss or practice-target geometry, empty outside encounters
+     */
+    public Optional<CollisionBox> getMapTargetBounds() {
+        return getBoss().filter(Boss::isAlive).map(Boss::getBounds)
+                .or(() -> getTrainingDummy().filter(TrainingDummy::isAlive)
+                        .map(dummy -> dummy.getCombatant().getHurtbox()));
+    }
+
     /**
      * Returns unclaimed current-map reward data for the geometry-only view.
      * @return immutable list containing zero or one Boss material drop
@@ -477,6 +494,9 @@ public final class CombatDemo {
         ElementType element = combat.getElementStatus(actor).element();
         return element == ElementType.NONE ? "" : " [" + element.name() + "]";
     }
+
+    /** Synchronizes a dialogue-triggered map transition without advancing attacks or simulation timers. */
+    public void synchronizePausedMap() { syncMap(); }
 
     /**
      * Rebuilds only debug registrations after a map transition and cancels every old invocation.

@@ -58,6 +58,33 @@ final class EquipmentIntegrationTest {
         return before - (outgoing ? enemy.getCurrentHp() : player.getHealth().getCurrentHp());
     }
 
+    /** One-shot follows the normal hit pipeline and disables cleanly without buffing enemies. */
+    @Test void debugLethalHitIsPlayerOnly() {
+        var player = session().getPlayer();
+        player.getDebugOptions().execute("oneshot on");
+        assertEquals(1000, hit(player, true));
+        assertEquals(40, hit(player, false));
+        player.getDebugOptions().execute("oneshot off");
+        assertEquals(40, hit(player, true));
+    }
+
+    /** Lethal debug hits still respect target invulnerability and zero-damage attacks. */
+    @Test void debugDoesNotBypassInvulnerabilityOrZeroDamage() {
+        var player = session().getPlayer(); player.getDebugOptions().execute("oneshot");
+        var health = new Health(100);
+        var source = new Combatant(player, Faction.PLAYER, new CollisionBox(0, 0, 20, 20));
+        var target = new Combatant(health, Faction.ENEMY, new CollisionBox(40, 0, 20, 20));
+        var combat = new CombatSystem(); combat.register(source); combat.register(target);
+        target.getStatus().applyInvulnerability(1);
+        combat.tryAttack(source, new AttackSpec("blocked", 10, 0.1, 0), target.getHurtbox());
+        combat.update(0); assertEquals(100, health.getCurrentHp());
+        combat.update(2);
+        combat.tryAttack(source, new AttackSpec("zero", 0, 0.1, 0), target.getHurtbox());
+        combat.update(0); assertEquals(100, health.getCurrentHp());
+        combat.tryAttack(source, new AttackSpec("valid", 1, 0.1, 0), target.getHurtbox());
+        combat.update(0); assertFalse(health.isAlive());
+    }
+
     /** Equipping modifies actual damage and unequipping restores baseline without duplicating items. */
     @Test
     void weaponChangesRealDamageAndUnequipRestoresIt() {

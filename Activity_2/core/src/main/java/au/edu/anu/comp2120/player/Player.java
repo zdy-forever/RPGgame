@@ -20,6 +20,13 @@ import au.edu.anu.comp2120.combat.ElementType;
  * @author Daoyan Zhu (u7782042)
  */
 public final class Player implements Damageable, EquipmentModifiers {
+    /** Runtime-only debug state, recreated with a new player. */
+    private final DebugOptions debug = new DebugOptions();
+    /** Returns the current game's debug switches.
+     * @return non-persistent testing options
+     */
+    public DebugOptions getDebugOptions() { return debug; }
+
     /** Persistent item storage, shared with the existing screen UI. */
     private final Inventory inventory = new Inventory();
     /** Equipment survives map transitions with this player. */
@@ -248,6 +255,7 @@ public final class Player implements Damageable, EquipmentModifiers {
     public void takeDamage(int damage) {
         equipment.reconcile();
         if (damage < 0) { throw new IllegalArgumentException("Damage must be non-negative"); }
+        if (debug.god()) { return; }
         if (inTraining() && damage > 0 && health.isAlive()) {
             trainingQuietSeconds = 0;
             trainingLastDamage = damage;

@@ -383,6 +383,40 @@ final class PlayerAbilitiesTest {
             case DASH -> throw new IllegalArgumentException("Dash does not deal damage");
         };
     }
+    /** Zero cooldown clears old timers but never cancels an active attack or permits overlapping casts. */
+    @Test void debugCooldownRetainsActiveSkillGuards() {
+        var command = new PlayerCommand(0, 0, true, false, false, false);
+        assertEquals(Optional.of(AbilitySlot.LIGHT), abilities.update(0, command));
+        assertTrue(abilities.getCooldownRemaining(AbilitySlot.LIGHT) > 0);
+        player.getDebugOptions().execute("nocd on");
+        abilities.applyDebugCooldowns();
+        assertEquals(0, abilities.getCooldownRemaining(AbilitySlot.LIGHT));
+        assertTrue(abilities.update(0, command).isEmpty());
+        combat.update(1);
+        assertEquals(Optional.of(AbilitySlot.LIGHT), abilities.update(0, command));
+        assertEquals(0, abilities.getCooldownRemaining(AbilitySlot.LIGHT));
+        combat.update(1);
+        player.getDebugOptions().execute("debug off");
+        assertEquals(Optional.of(AbilitySlot.LIGHT), abilities.update(0, command));
+        assertEquals(0.5, abilities.getCooldownRemaining(AbilitySlot.LIGHT), EPSILON);
+    }
+
+    /** Every slot suppresses new cooldowns and clearing debug restores its ordinary tuning.
+     * @param slot tested skill
+     */
+    @ParameterizedTest @EnumSource(AbilitySlot.class)
+    void zeroCooldownCoversEverySlot(AbilitySlot slot) {
+        player.getDebugOptions().execute("nocd");
+        var command = new PlayerCommand(0, 0, slot == AbilitySlot.LIGHT, slot == AbilitySlot.SPECIAL,
+                slot == AbilitySlot.DASH, slot == AbilitySlot.ULTIMATE);
+        assertEquals(Optional.of(slot), abilities.update(0, command));
+        assertEquals(0, abilities.getCooldownRemaining(slot));
+        combat.update(1); abilities.update(1, PlayerCommand.NONE);
+        player.getDebugOptions().execute("nocd");
+        assertEquals(Optional.of(slot), abilities.update(0, command));
+        assertTrue(abilities.getCooldownRemaining(slot) > 0);
+    }
+
     /** Gloves shorten newly requested K/L/O timers while leaving J and running timers unchanged.
      * @param slot tested action
      */

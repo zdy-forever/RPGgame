@@ -45,10 +45,23 @@ final class BossDemoTest {
             CollisionBox body = map.getType() == MapType.TRAINING
                     ? encounter.getTrainingDummy().orElseThrow().getCombatant().getHurtbox()
                     : encounter.getBoss().orElseThrow().getBounds();
+            assertEquals(body, encounter.getMapTargetBounds().orElseThrow(), map.getId());
             assertEquals(800,body.x()+body.width()/2,map.getId());
             assertEquals(600,body.y()+body.height()/2,map.getId());
             assertTrue(map.isWalkable(body));
         }
+    }
+
+    /** Target markers are rebound on travel and disappear in the Hub. */
+    @Test void mapTargetFollowsEncounterTransitions() {
+        assertEquals(demo.getBoss().orElseThrow().getBounds(), demo.getMapTargetBounds().orElseThrow());
+        session.switchMap(MapCatalog.TRAINING);
+        demo.update(0, PlayerCommand.NONE, false);
+        assertEquals(demo.getTrainingDummy().orElseThrow().getCombatant().getHurtbox(),
+                demo.getMapTargetBounds().orElseThrow());
+        session.switchMap(MapCatalog.HUB);
+        demo.update(0, PlayerCommand.NONE, false);
+        assertTrue(demo.getMapTargetBounds().isEmpty());
     }
 
     /**

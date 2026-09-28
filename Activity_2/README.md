@@ -24,7 +24,7 @@ These features are integrated into the production game. See the
 
 | Action | Control and result |
 | --- | --- |
-| Obtain a weapon | Talk to Weapon Merchant in Hub at (650,250), press E to advance the dialogue and collect the Lightning staff once. |
+| Obtain a weapon | Talk to Weapon Merchant in Hub at (650,250), choose the weapon service and confirm with E/Enter to collect the Lightning staff once. |
 | Equip / unequip | B opens the bag; select with W/S or Up/Down, then E/Enter to equip or unequip. Mouse: left-click selects, right-click acts. Equipped rows show `[Worn]`; the footer shows attack, defence and set bonuses. |
 | Use a potion | Right-click a health potion in the bag, or P during gameplay. Heals up to 30 HP; full-health or dead players do not consume it. |
 | Transfer items | E near Storage Chest opens STORAGE; A/D or Left/Right selects a column; W/S or Up/Down selects a row; E/Enter or right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
@@ -34,6 +34,7 @@ These features are integrated into the production game. See the
 | Load | Esc → Manage saves → Load automatic / Load manual, then confirm. F9 and 1/2 remain shortcuts. |
 | Delete save | Esc → Manage saves → Delete automatic / Delete manual → Confirm. Only the selected file is removed; current gameplay and the other slot remain unchanged. |
 | Restart game | Esc → Restart game → Confirm: fresh Hub/player/quests/inventory/chest/NPC rewards; both save files and music volume are kept. |
+| Debug console | F10 or backtick; Enter executes; Esc closes. See the debug section below. |
 | Music volume | Drag the menu slider from 0 to 100, or select it with W/S or Up/Down and adjust with A/D or Left/Right. |
 
 On macOS, function keys may require Fn. Close dialogue, bag, chest, enlarged map,
@@ -315,11 +316,11 @@ NPC and confirm E to leave; Escape cancels. Returning clears the practice scope.
 
 ## Camera behaviour and verification
 
-The persistent HP, position and minimap HUD scales down with the smaller window axis.
+The persistent HP and minimap HUD scales down with the smaller window axis.
 Its maximum size is the existing **960 x 540** layout: larger windows move the anchored panels
 but do not enlarge them. Configuration is centralized in `GameConfig.HUD_*`:
 
-- Width below **640** or height below **360**: hide position and minimap; keep HP.
+- Width below **640** or height below **360**: hide minimap and other detail HUDs; keep HP. Coordinate rendering is disabled.
 - Width below **320** or height below **180**: hide HP as well.
 - At the exact thresholds the relevant elements stay visible; enlarging restores them.
 - Shrinking below the minimap threshold closes an expanded M map and releases its movement lock.
@@ -1099,12 +1100,24 @@ including during dialogue and pause menus. The HP bar now reads actual current/m
 
 All menus accept W/S (or Up/Down) to select and E/Enter to confirm; Escape returns or closes. NPC options support left-click selection and right-click confirmation, with clickable confirm/back footer areas. Gameplay still uses E to interact. Bag/storage input pauses gameplay and consumes the opening and closing frames, so menu navigation does not move the character or trigger skills. Storage E now transfers the selected stack; use Escape to close.
 
-Expanded map (M): the panel uses 92% of window width and 88% of its height, retaining world proportions. NPC names appear beside yellow markers; nearby labels are staggered and kept within the panel. M or Escape closes it. The compact minimap retains its existing size.
+Expanded map (M): the panel uses 92% of window width and 88% of its height, retaining world proportions. NPC names appear beside yellow markers; nearby labels are staggered and kept within the panel. M or Escape closes it. The compact minimap retains its existing size. Both sizes show live Boss/Training targets in red and clear the target marker in the Hub.
 
 ### Training defence and movement checks
 
 The practice target remains stationary and fires a 25-base-damage physical projectile straight upward every two seconds. Stand above it to test armour, or move to either side to practise attacks safely. Hits use the normal combat mitigation pipeline; the scoreboard includes post-mitigation incoming damage and current walking speed (including boots).
 
-Training damage cannot reduce a living player below 1 HP. Five seconds without a positive hit restores full HP; further hits at 1 HP also restart that delay. The bag, storage and pause menu pause simulation and recovery. These protections end immediately when leaving Training and grant no rewards or Boss completion.
+Training damage cannot reduce a living player below 1 HP. Five seconds without a positive hit restores full HP; further hits at 1 HP also restart that delay. The bag, storage and pause menu pause simulation and recovery. These protections end immediately when leaving Training and grant no rewards or Boss completion. R resets scores, feedback, HP and attack/skill timers without moving the player or target, even when they overlap.
 
 The legacy coordinate HUD is disabled by commenting out its rendering call; its implementation is retained. Training keeps its 1 HP protection without advertising that rule in the status panel.
+
+### Debug console
+
+F10 (Fn+F10 if needed on macOS) or backtick opens the in-game console. Type `god`, `oneshot`,
+`freeupgrade` or `nocd`, then Enter, to toggle that feature. Green ON means enabled; white OFF
+means disabled. Explicit `on/off` forms remain supported. `help` lists commands, `status` shows
+state, and `debug off` disables all four. Esc, F10 or backtick closes the console.
+
+Enabling any cheat blocks both manual and automatic saving for that live game, even after turning
+cheats off or loading. Start a fresh game/restart to restore saving. Existing files remain loadable.
+See [debug, Training and UI verification](docs/DEBUG_TRAINING_UI_REPORT.md) for exact rules,
+automated test coverage and the remaining manual checks.
