@@ -656,7 +656,7 @@ public final class SceneArt implements Disposable {
      * @param path asset path
      * @param box visual bounds
      */
-    private void draw(SpriteBatch batch, String path, CollisionBox box) { art.draw(batch,path,box,time,true,false); }
+    void draw(SpriteBatch batch, String path, CollisionBox box) { art.draw(batch,path,box,time,true,false); }
 
     /**
      * Keeps visual feet at the collision body's bottom while centering wider artwork.

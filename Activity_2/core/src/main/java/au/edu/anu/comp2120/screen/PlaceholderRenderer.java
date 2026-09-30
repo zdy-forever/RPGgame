@@ -49,6 +49,15 @@ public final class PlaceholderRenderer implements Disposable {
     private static final float NAME_SCALE = 0.45f;
     /** Display name shown above the player. */
     private static final String PLAYER_NAME = "Adventurer";
+    /** NPC ids that show an interaction marker above the head. */
+    private static final Set<String> INTERACTION_MARKER_NPCS = Set.of(
+            GameConfig.CLASS_MASTER.getId(),
+            GameConfig.QUEST_KEEPER.getId(),
+            GameConfig.PORTAL_GUIDE.getId());
+    /** Size of the NPC interaction marker (exclamation) in world units. */
+    private static final float HEAD_MARKER_SIZE = 24f;
+    /** Gap above the visual body top before the interaction marker appears. */
+    private static final float HEAD_MARKER_OFFSET = 12f;
     /** Font scale for negative-status labels; larger than a name tag so it reads at a glance. */
     private static final float STATUS_SCALE = 0.62f;
     /** Vertical spacing between stacked status labels in world units. */
@@ -323,6 +332,9 @@ public final class PlaceholderRenderer implements Disposable {
                 debugFont.setColor(1f, 0.90f, 0.40f, 1);
                 drawNameTag(npc.getName(), npc.getX(),
                         npc.getY() + 54, npc.getWidth());
+                if (INTERACTION_MARKER_NPCS.contains(npc.getId())) {
+                    drawHeadMark(npc.getX(), npc.getY() + 54, npc.getWidth());
+                }
             }
         }
         debugFont.setColor(0.60f, 0.95f, 1f, 1);
@@ -347,6 +359,22 @@ public final class PlaceholderRenderer implements Disposable {
                 (float) (x + width / 2 - NAME_TAG_WIDTH / 2),
                 (float) top + NAME_OFFSET,
                 NAME_TAG_WIDTH, Align.center, false);
+    }
+
+    /**
+     * Draws the exclamation interaction marker centred above an NPC's head.
+     *
+     * @param x     left edge of the subject in world units
+     * @param top   top edge of the subject in world units
+     * @param width subject width, used to centre the marker
+     */
+    private void drawHeadMark(double x, double top, double width) {
+        float size = HEAD_MARKER_SIZE;
+        CollisionBox marker = new CollisionBox(
+                x + width / 2 - size / 2,
+                top + HEAD_MARKER_OFFSET,
+                size, size);
+        art.draw(debugBatch, SceneArt.BOSS_WARNING_IMAGE, marker);
     }
     /**
      * Draws the main road and the branch leading to the weapon merchant.
