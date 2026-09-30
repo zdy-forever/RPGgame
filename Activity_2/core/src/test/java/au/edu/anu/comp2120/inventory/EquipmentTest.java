@@ -9,6 +9,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class EquipmentTest {
+    /** Creates a new {@code EquipmentTest} instance. */
+    EquipmentTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** Independent inventory and equipment per test. */
     private final Inventory inventory = new Inventory();
     /** Binds equipment to the shared inventory. */

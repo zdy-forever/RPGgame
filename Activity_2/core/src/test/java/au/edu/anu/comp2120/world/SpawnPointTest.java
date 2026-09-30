@@ -9,6 +9,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class SpawnPointTest {
+    /** Creates a new {@code SpawnPointTest} instance. */
+    SpawnPointTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** Valid coordinates are exposed. */
     @Test void buildsWithValidCoordinates() {
         var spawn = new SpawnPoint(10, 20);

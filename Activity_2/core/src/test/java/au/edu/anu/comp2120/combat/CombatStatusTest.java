@@ -10,6 +10,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class CombatStatusTest {
+    /** Creates a new {@code CombatStatusTest} instance. */
+    CombatStatusTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** Independent status per test. */
     private final CombatStatus status = new CombatStatus();
 

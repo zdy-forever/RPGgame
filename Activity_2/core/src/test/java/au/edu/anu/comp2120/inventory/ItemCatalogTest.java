@@ -11,6 +11,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class ItemCatalogTest {
+    /** Creates a new {@code ItemCatalogTest} instance. */
+    ItemCatalogTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** Shared catalogue constants are exposed. */
     @Test void definesConstants() {
         assertEquals("health_potion", ItemCatalog.POTION);

@@ -9,6 +9,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class SaveSlotTest {
+    /** Creates a new {@code SaveSlotTest} instance. */
+    SaveSlotTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** Each slot maps to its fixed disk filename. */
     @Test void hasDistinctFixedFilenames() {
         assertEquals("automatic.properties", SaveSlot.AUTO.fileName());

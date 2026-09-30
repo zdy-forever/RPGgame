@@ -11,6 +11,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class MapCatalogTest {
+    /** Creates a new {@code MapCatalogTest} instance. */
+    MapCatalogTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** Catalog dimensions are positive. */
     @Test void catalogExposesDimensions() {
         assertTrue(MapCatalog.MAP_WIDTH > 0);

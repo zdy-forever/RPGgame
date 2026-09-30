@@ -12,6 +12,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class SaveFieldsTest {
+    /** Creates a new {@code SaveFieldsTest} instance. */
+    SaveFieldsTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** A present text field is returned. */
     @Test void textReturnsPresentValue() {
         var fields = new SaveFields(Map.of("name", "hero"));

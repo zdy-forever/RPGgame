@@ -9,6 +9,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class ActiveEncounterTest {
+    /** Creates a new {@code ActiveEncounterTest} instance. */
+    ActiveEncounterTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** A valid record exposes each identifier unchanged. */
     @Test void buildsWithValidIdentifiers() {
         var encounter = new ActiveEncounter("e1", "battle-training", "entry", "hub-portal");

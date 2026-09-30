@@ -9,6 +9,11 @@ import org.junit.jupiter.api.Test;
  * @author COMP2120 Assignment 3 group
  */
 final class PortalTest {
+    /** Creates a new {@code PortalTest} instance. */
+    PortalTest() {
+        // Test instances are created by JUnit.
+    }
+
     /** A valid trigger rectangle for tests. */
     private final CollisionBox trigger = new CollisionBox(0, 0, 10, 10);
 
