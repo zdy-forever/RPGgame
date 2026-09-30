@@ -53,6 +53,13 @@ not an unbounded event history. Each retry has a different session stamp.
 
 ## O-mode compatibility boundary
 
+Current review (2026-09-30): Player now owns per-class A/B UltimateMode choices; Class Master
+changes them only in Hub. Defeat retains those choices, bag/equipment and remaining potion stock.
+Consumed potions are not refunded by full-HP recovery. Failure does not autosave. New stock/retry
+regressions are in GameSavesTest; see [test status](TEST_COVERAGE_REVIEW.md).
+
+The following paragraph records the original pre-selector implementation, not the current API:
+
 The inspected checkout has no independent O-mode selector, enum, field or mode-switch input.
 This branch therefore does not claim to test a nonexistent mode-selection API or invent one.
 It preserves the entire existing selected ultimate configuration and class object exactly.

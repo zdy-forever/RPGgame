@@ -1,8 +1,15 @@
 # Project documentation
 
-Updated 2026-09-28 for current debug, Training, map, input and save-display refinements.
+Updated 2026-09-30 for potion HUD/feedback, current controls, save/load onboarding and test coverage.
 
-## Current verification — 2026-09-28
+## Current working-tree verification — 2026-09-30
+
+See [Test coverage review](TEST_COVERAGE_REVIEW.md). The full `test javadocAudit` run was attempted,
+but sandbox access to the Gradle cache lock was denied; the elevated request is awaiting authorization.
+There is no new passing total, JavaDoc result or native visual acceptance to report for this checkout.
+New tests and the coverage map are not substitutes for execution. Historical evidence below is retained.
+
+## Recorded verification — 2026-09-28
 
 `./Activity_2/gradlew -p Activity_2 test javadocAudit lwjgl3:classes` passed:
 **1,235 core + 4 desktop = 1,239 tests**, zero failures, errors or skipped tests.
@@ -23,6 +30,7 @@ and desktop compilation also pass. See the follow-up section in the coverage rep
 | Document | Purpose |
 | --- | --- |
 | [Game README](../README.md) | Setup, launch, current controls, gameplay and module overview. |
+| [Test coverage review](TEST_COVERAGE_REVIEW.md) | Current test inventory, new cross-module regressions, execution blockers and manual QA gaps. |
 | [Architecture](ARCHITECTURE.md) | Ownership, game-loop integration, persistence boundaries and contribution evidence. |
 | [Inventory and equipment](INVENTORY_EQUIPMENT_REPORT.md) | Obtaining/equipping items, storage transfers, bonuses, potions, merchant supplies, +1/+2 upgrades and one-time rewards. |
 | [Save and load](SAVE_LOAD_REPORT.md) | Esc menu, save management (load/delete), restart, volume, transient feedback, slot independence, safe-state rules and regression checks. |
@@ -74,7 +82,7 @@ that every checklist item has been manually accepted.
 The team subsequently changed Wind Boss behavior and added the P potion shortcut; those
 are distinct from Hao Liu's inventory/save implementation.
 
-**Current verification (2026-09-26, `ab76422`):** `./gradlew clean build javadocAudit` with JDK 25.0.4.1
+**Recorded verification (2026-09-26, `ab76422`):** `./gradlew clean build javadocAudit` with JDK 25.0.4.1
 passed **1,211 core tests and 4 desktop tests** (0 failures, 0 skipped) plus the JavaDoc audit. This is an
 automated result only; it does not replace the outstanding manual/visual checks listed above.
 

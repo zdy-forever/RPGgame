@@ -49,6 +49,13 @@ it does not retain Boss objects, delay travel, change Quest state or consume mat
 
 ## What is displayed
 
+Current HUD follow-up (2026-09-30): every class has a procedural red potion bottle after the
+ability slots (and after Mage's element). P and carried stock are displayed separately; zero is
+grey and counts above 999 read 999+. The fixed count font follows capped HUD scaling without
+quantity-dependent shrinking. This icon is ShapeRenderer geometry, not an imported/generated PNG;
+the 232-image manifest is unchanged. HUD font metrics have additional automated checks, but the
+current native resize/overlap verification remains outstanding; see [coverage review](TEST_COVERAGE_REVIEW.md).
+
 - Three classes: directional idle/walk/J/Dash, K and both O modes, hit feedback and follow-through.
 - Five guardian appearances: idle/chase, existing sweep/slam/heavy attack pictures, phase/hit pictures.
 - Five elemental arena backgrounds. Their painted border is outside playable geometry; it does not
@@ -102,6 +109,8 @@ The centre is calculated from map bounds, not image dimensions or a fixed lower-
 Existing safety checks retain nearby fallback candidates when the centre is blocked/player-occupied.
 
 Training remains `MapType.TRAINING`, with one original TrainingDummy and no Boss AI/reward/outcome.
+The current target fires a fixed upward physical test bolt through CombatDemo. A living player
+retains at least 1 HP and recovers after five quiet simulation seconds; menus pause this timer.
 On entry, `TrainingAppearance` makes independent random choices for elemental arena and guardian art.
 Selection stays fixed during the visit and an R reset, while leaving/re-entering samples again (a repeat
 is possible). The dummy stays still, refills its own HP and scores delivered damage. CombatDemo now launches fixed upward practice shots; these use the existing enemy projectile artwork while retaining physical damage rules.

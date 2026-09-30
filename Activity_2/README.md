@@ -12,13 +12,19 @@ The shared combat pipeline supports the first-version ordered elemental reaction
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 The imported pixel-art pack supplies characters, arenas, portals, skills and icons; streamed background music follows the map and guardian progress.
 Hub keeps its procedural background at 1080 x 400. Battle/Training maps are 1600 x 1200; Training randomly selects an elemental
-background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
+background and a stationary Boss appearance per visit. The Training target fires a fixed upward
+test projectile; a living player retains at least 1 HP and recovers after five seconds without a positive hit.
 Bosses fire their arena's elemental bolt through the shared projectile pipeline; the older pack
 `*_projectile.png` images remain archived. See [Art integration](docs/ART_INTEGRATION.md) for resource
 layout and verification. Historical placeholder-only descriptions (shape colours, "no art/animation")
 in the development notes below are superseded by that document; collision remains geometric.
 
 ## Inventory, equipment and save/load
+
+Current working-tree documentation review: **2026-09-30**. See the
+[test coverage and verification status](docs/TEST_COVERAGE_REVIEW.md) for added regression tests,
+the attempted full-suite command and remaining manual checks. Earlier passing counts are dated history,
+not evidence that these latest changes have passed.
 
 These features are integrated into the production game. See the
 [documentation index](docs/README.md) for implementation reports and dated verification.
@@ -28,6 +34,7 @@ These features are integrated into the production game. See the
 | Obtain a weapon | Talk to Weapon Merchant in Hub at (650,250), choose the weapon service and confirm with E/Enter to collect the Lightning staff once. |
 | Equip / unequip | B opens the bag; select with W/S or Up/Down, then E/Enter to equip or unequip. Mouse: left-click selects, right-click acts. Equipped rows show `[Worn]`; the footer shows attack, defence and set bonuses. |
 | Use a potion | Right-click a health potion in the bag, or P during gameplay. Heals up to 30 HP; full-health or dead players do not consume it. |
+| Potion stock | Every class quickbar has a P bottle. It counts the bag only, shows x0 in grey when empty and 999+ above 999; the bag shows exact quantities. |
 | Transfer items | E near Storage Chest opens STORAGE; A/D or Left/Right selects a column; W/S or Up/Down selects a row; E/Enter or right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
 | Page / close | Q/R or PageUp/PageDown changes pages; B/Escape closes the bag, Escape closes storage. Clickable footer controls also page, act and close. |
 | Pause menu | Esc opens the menu; click a row or use W/S or Up/Down and E/Enter. Esc resumes, or cancels a confirmation back to the menu. |
@@ -43,6 +50,13 @@ ending and credits before saving/loading. A living player with no active skills,
 dash, launch window or projectile is required; Training and Battle are excluded.
 Remaining cooldowns are allowed and restored. F5 is reserved for saving in the
 production screen; choose O mode A/B through the **Class Master** in Hub.
+
+Hub **Old Sage** now teaches these save/load steps, and **Notice Board** has a repeatable
+SAVE / LOAD section. Both explain victory-only autosaves, independent slots and replacement
+of unsaved progress when loading. The notice board lists both O modes and current NPC services.
+Potion use produces a four-second toast showing actual HP recovered and remaining stock, or a
+specific full-health/death/empty-bag reason. P is edge-triggered and does not repeat while held.
+Bag, chest, dialogue and expanded map pause simulation; opening/closing frames do not leak gameplay commands.
 
 The chest initially contains four guardian armour pieces and three potions. Wearables
 stay in bag counts; storing the last copy removes its equipment bonus. View equipped items in the bag. The legacy top-right WEAPON panel is disabled;

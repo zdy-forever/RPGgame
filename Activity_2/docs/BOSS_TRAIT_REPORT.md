@@ -175,6 +175,11 @@ weakened or disabled to obtain green results.
 
 ## Verification
 
+2026-09-30 review: the Wind placement/arrival-frame tests remain in BossTraitTest. New save
+integration cases cover both slots and all five guardian IDs: repeat wins are restored independently
+and applied to a fresh, full-health phase-one Boss. This does not persist an active trait timer or
+Boss object. See [current execution status](TEST_COVERAGE_REVIEW.md); the totals below are historical.
+
 Executed from Activity_2:
 
 ```bash

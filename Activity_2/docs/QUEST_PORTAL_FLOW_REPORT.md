@@ -12,6 +12,14 @@ dialogue, UI, Inventory operations, save/load or formal art assets were added.
 
 ## External adapter contract
 
+Current integration (2026-09-30): BossQuests accepts via `EncounterFlow.prepare(...)`, keeping
+the portal closed until PortalGuide confirms Battle and calls activation. The production Hub
+uses `TravelCatalog.QUEST_PORTAL_ID`; Training is not a quest Battle map. InventoryRewards and
+GameSaves now consume/persist the result boundary. The API fragments below retain the original
+multi-portal prototype IDs and must not be copied as current configuration. U/1/2/3 travel keys
+are removed; the UI uses Portal Guide. See [current controls](../README.md) and
+[test coverage](TEST_COVERAGE_REVIEW.md) for current routing and verification limits.
+
 All calls run on the simulation/game-loop thread, not a worker or damage callback.
 
 ```text

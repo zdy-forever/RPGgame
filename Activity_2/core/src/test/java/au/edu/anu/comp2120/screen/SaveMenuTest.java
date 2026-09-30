@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Exercises real pause-menu input and persistence without OpenGL.
  * @author Hao Liu (u7998420)
+ * @author Daoyan Zhu (u7782042)
  */
 final class SaveMenuTest {
     /** Isolated disk state. */
@@ -35,6 +36,25 @@ final class SaveMenuTest {
 
     /** Creates independent test state. */
     SaveMenuTest() { }
+
+    /** Potion feedback uses the non-modal four-second toast without pausing or changing HP again. */
+    @Test void potionFeedbackExpiresWithoutOpeningMenuOrRepeatingHealing() {
+        var menu = menu();
+        var player = session.getPlayer();
+        player.getInventory().addItem(au.edu.anu.comp2120.inventory.ItemCatalog.POTION, 2);
+        player.takeDamage(50);
+        String message = GameScreen.consumePotionWithFeedback(player);
+        menu.notify(message);
+        assertFalse(menu.isOpen());
+        assertEquals(message, menu.notification());
+        menu.advanceHint(3.5f);
+        assertEquals(message, menu.notification());
+        menu.advanceHint(0.5f);
+        assertEquals("", menu.notification());
+        assertFalse(menu.isOpen());
+        assertEquals(80, player.getHealth().getCurrentHp());
+        assertEquals(1, player.getInventory().quantityOf(au.edu.anu.comp2120.inventory.ItemCatalog.POTION));
+    }
 
     /** Wires the production persistence coordinator and menu callbacks.
      * @return menu using isolated files
@@ -316,10 +336,8 @@ final class SaveMenuTest {
         assertArrayEquals(manual, Files.readAllBytes(store.path(SaveSlot.MANUAL)));
     }
 
-    /** Mouse navigation uses scaled submenu and confirmation bounds.
-     * @throws IOException if temporary files cannot be inspected
-     */
-    @Test void resizedMouseCanManageAndCancelDeletion() throws IOException {
+    /** Mouse navigation uses scaled submenu and confirmation bounds. */
+    @Test void resizedMouseCanManageAndCancelDeletion() {
         var menu = menu(); saves.saveManual();
         var box = SaveMenu.layout(480, 270);
         press(menu, Input.Keys.ESCAPE, false);

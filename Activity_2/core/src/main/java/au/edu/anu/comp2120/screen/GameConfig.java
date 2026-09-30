@@ -110,13 +110,18 @@ public final class GameConfig {
                     "Defeat all five guardians, then speak to me to complete your journey."),
             null
     );
-    /** Hub-local Sage offers repeatable beginner guidance, with no reward or ending trigger. */
+    /** Hub-local Sage offers repeatable gameplay and save/load guidance, with no reward or ending trigger. */
     public static final NPC HUB_GUIDE = new NPC(
             "hub_guide", "Old Sage",
             184.0, 221.0, 24.0, 24.0,
             List.of(
                     "Welcome, adventurer! This Hub is your safe base. Press E to read the next tip, and E on the last page to close this guide.",
                     "Use WASD to move. J is your light attack, K your class skill, L your dash, and O your ultimate.",
+                    "Before you leave: close this dialogue, then press Esc to open the pause menu. Choose Save manually to save, or Manage saves to load an automatic or manual save.",
+                    "F5 requests a manual save; F9 opens Manage saves. Close any dialogue, bag or other panel first. Use W/S or Up/Down to select and E/Enter to confirm.",
+                    "Save and load only while alive in Hub or Memorial Hall, after active skills finish. Battle and Training do not allow manual save/load.",
+                    "Boss victory triggers an automatic save after settlement. Defeat does not autosave. Automatic and manual saves are separate; check the save-complete message.",
+                    "Loading replaces unsaved progress, including Boss wins and items, with the selected save. Replacing a manual save or loading requires confirmation; Esc cancels.",
                     "Visit the Class Master to choose Archer, Mage or Katana and an O mode. Class and O mode selection are Hub-only.",
                     "Want to practise? Ask the Portal Guide for Training, then enter the portal. The target stays still and fires upward; the scoreboard shows damage and movement speed. Step aside for five seconds to recover.",
                     "For a real battle, accept a Boss task from the Quest Keeper FIRST. Then ask the Portal Guide to select Battle and open the portal. Accepting a task alone does not open it.",
@@ -125,7 +130,7 @@ public final class GameConfig {
                     "Each defeated guardian awakens one magic stone in Memorial Hall. Ask the Portal Guide to take you there. Once all five stones are lit, speak to me IN THE HALL to finish your journey."),
             null
     );
-    /** Notice board listing the controls; readable any number of times. */
+    /** Repeatable controls, save/load and NPC travel instructions, excluding removed debug travel shortcuts. */
     public static final NPC NOTICE_BOARD = new NPC(
             "notice_board", "Notice Board",
             250.0, 220.0, 24.0, 32.0,
@@ -137,23 +142,43 @@ public final class GameConfig {
                     "Menus: W/S or Up/Down select | E/Enter confirm | Esc back",
                     "Storage: A/D or Left/Right column | Q/R or PgUp/PgDn page",
                     "Items/NPC options: left-click select, right-click confirm",
-                    "J attack | L dash | U unlock travel | 1/2/3 travel",
+                    "J light attack | K class skill | L dash | O ultimate",
+                    "P use health potion",
+                    "Travel: speak to the Portal Guide, then enter the portal.",
+                    "Battle: accept a task from the Quest Keeper first.",
+                    "",
+                    "-- SAVE / LOAD --",
+                    "Close other panels, then Esc opens the pause menu.",
+                    "Save manually: save the current game. F5 is the shortcut.",
+                    "Manage saves: Load automatic or Load manual. F9 opens this menu.",
+                    "Save/load requires a living player in Hub or Memorial Hall with no active skills.",
+                    "No manual save/load in Battle or Training.",
+                    "Boss victory triggers an automatic save after settlement; defeat does not autosave.",
+                    "Automatic and manual saves are separate. Check the save-complete message.",
+                    "Loading replaces unsaved progress, including Boss wins and items.",
+                    "Overwrite/load confirmation: E/Enter confirms; Esc cancels.",
                     "",
                     "-- CLASS ABILITIES --",
-                    "ARCHER  J arrow | K spread shot | O arrow rain",
-                    "MAGE    J orb | K switch element | O summon",
-                    "BLADE   J slash | K parry + dash | O rising slash",
+                    "ARCHER: J arrow | K spread shot | L dash",
+                    "Archer O: Arrow Rain / Untargetable (not invincible)",
+                    "MAGE: J elemental orb | K switch element | L dash",
+                    "Mage O: fixed Magic Circle / Rapid Element Barrage",
+                    "KATANA: J slash | K parry into counter dash | L dash",
+                    "Katana O: Watermoon Stance / Rising Slash",
+                    "Choose your class and O mode at the Class Master in Hub only.",
                     "",
-                    "-- IN THE HAVEN --",
+                    "-- IN THE HUB --",
                     "Old Sage - start here | Quest Keeper - boss tasks",
-                    "Portal Guide - training or accepted battle",
-                    "Weapon Master - forge gear | Priest - portals",
+                    "Portal Guide - Training, accepted Battle or Memorial Hall",
+                    "Weapon Merchant - equipment upgrades and potion supplies",
                     "",
-                    "Heal at the spring. Store loot in the chest",
-                    "before you leave for a hunt.",
+                    "P uses one carried potion: up to 30 HP. Full HP consumes none.",
+                    "The quickbar counts carried potions only, not Storage Chest stock.",
+                    "Open B to manage items. Menus pause battle; close them to resume.",
+                    "Victory or defeat returns you to Hub with full HP.",
                     "",
-                    "The five elemental cores are corrupted.",
-                    "Reclaim them all."),
+                    "Defeat all five guardians to awaken the Memorial Hall stones.",
+                    "Then speak to Old Sage in Memorial Hall to complete your journey."),
             null
     );
     /** Storage chest that accepts and returns whatever the player carries. */

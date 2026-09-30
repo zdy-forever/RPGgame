@@ -1,5 +1,14 @@
 # Placeholder gameplay integration report
 
+## Current reading guide — 2026-09-30
+
+This report preserves the placeholder milestone, not today's production setup. Production has
+imported art/music, quest/NPC portal admission, one Boss per battle, inventory/equipment and saves.
+Training is a stationary damage target with an upward test bolt and five-second recovery, not a
+normal Boss encounter. Recent work adds a shared potion quickbar, immediate feedback and save/load
+onboarding. Use [README](../README.md) and [current test coverage](TEST_COVERAGE_REVIEW.md) for
+present behavior and verification status; do not treat the old numbers below as a fresh test run.
+
 > Current integration note (2026-09-25): Inventory reward transfer, equipment and save/load are now implemented; the original limitations and test counts below describe the September 10 placeholder baseline.
 > See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
 > and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.

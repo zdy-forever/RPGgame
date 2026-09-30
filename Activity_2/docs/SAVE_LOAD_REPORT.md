@@ -12,6 +12,14 @@ See [the game README](../README.md) for launch instructions and
 
 ## Player controls
 
+Updated 2026-09-30: Hub Old Sage includes save/load tutorial pages and Notice Board includes a
+repeatable SAVE / LOAD section. They explain the controls below, safe locations, victory-only
+autosave, independent slots and unsaved-progress replacement. Read the operation result: a debug-used
+session or disk failure can prevent a write. No persistence format changed in this onboarding update.
+New regression coverage restores per-guardian repeat wins from both slots and checks that the next
+Boss uses the restored scaling; potion stock is checked across consumption, recovery and restart.
+Execution status is in [Test coverage review](TEST_COVERAGE_REVIEW.md), not the historical counts below.
+
 - **Esc** opens the pause menu: Resume, Save manually, Manage saves, Restart game and music volume. Click rows or use W/S or Up/Down and E/Enter. Esc from a confirmation returns to the menu; Esc from the menu resumes. Ordinary dialogue/bag/chest/map panels close on the first Esc, before menu entry.
 - **F5** remains a shortcut to save the manual slot. An existing manual file, even an invalid one, requires E/Enter confirmation before replacement. Escape cancels.
 - **F9** opens the Manage saves submenu with the automatic-load row selected. **1** selects automatic, **2** selects manual. **E/Enter** confirms replacing current gameplay; **Escape** cancels.

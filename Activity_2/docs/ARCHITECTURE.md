@@ -1,6 +1,20 @@
 # Stage 2 Architecture
 
-## Current state (2026-09-26)
+## Current working-tree review (2026-09-30)
+
+The shared gameplay architecture is unchanged by the latest HUD/onboarding work. PlayerInput
+samples P on a key edge; GameScreen delegates to Player.useHealthPotion and publishes one
+four-second SaveMenu toast. The bag action uses the same rule. Modal early returns precede potion,
+movement and ability sampling; redundant frozen-state branches after these guards have been removed.
+SceneArt reads carried inventory each draw, adds the shared P slot after the optional Mage element,
+and uses HudLayout for centered geometry and bounded count labels (x0–x999, then 999+).
+Neither HUD nor toast owns inventory or a second health model. Old Sage and Notice Board teach
+the existing save APIs; no save schema or gameplay balance changed.
+
+[Test coverage review](TEST_COVERAGE_REVIEW.md) records the current audit and execution blocker.
+The snapshot and dated counts below remain historical evidence, not a claim of a fresh successful run.
+
+## Historical integration snapshot (2026-09-26)
 
 This document matches `main` at `ab76422` (!42). Since the 2026-09-25 update, Hao Liu's
 pause menu, save-slot management, merchant services, potion top-up and bounded gear upgrades

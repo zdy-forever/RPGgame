@@ -18,6 +18,80 @@ final class HudLayoutTest {
     HudLayoutTest() { }
 
     /**
+     * Quantity growth cannot create labels wider than four glyphs.
+     * @param quantity bag quantity
+     * @param expected compact HUD text
+     */
+    @ParameterizedTest
+    @CsvSource({"0,x0", "1,x1", "9,x9", "10,x10", "99,x99", "100,x100", "999,x999",
+            "1000,999+", "2147483647,999+"})
+    void potionLabelsStayCompact(int quantity, String expected) {
+        assertEquals(expected, HudLayout.potionCountLabel(quantity));
+        assertTrue(HudLayout.potionCountLabel(quantity).length() <= 4);
+    }
+
+    /** Invalid model data is rejected instead of displayed as a plausible stock count. */
+    @Test void negativePotionCountIsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> HudLayout.potionCountLabel(-1));
+    }
+
+    /** Class/element-slot changes cannot drift the bar or alter the shared icon scale. */
+    @Test void switchingClassLayoutsIsReversible() {
+        HudLayout hud = HudLayout.forWindow(960, 540);
+        float archerLeft = hud.skillSlotLeft(960, 0, false);
+        float mageLeft = hud.skillSlotLeft(960, 0, true);
+        assertTrue(mageLeft < archerLeft);
+        assertEquals(archerLeft - mageLeft,
+                hud.skillSlotLeft(960, 6, true) - hud.skillSlotLeft(960, 5, false), 0.001);
+        assertEquals(archerLeft, hud.skillSlotLeft(960, 0, false));
+    }
+
+    /** Window resize/hide/restore uses a fresh policy with no remembered potion-slot offset. */
+    @Test void quickbarResizeAndVisibilityRecoverWithoutDrift() {
+        HudLayout initial = HudLayout.forWindow(960, 540);
+        for (int[] window : new int[][] {{640, 360}, {639, 360}, {960, 359}, {0, 0}, {1920, 1080}}) {
+            HudLayout changed = HudLayout.forWindow(window[0], window[1]);
+            assertTrue(Float.isFinite(changed.skillIconSize()));
+            assertTrue(changed.skillIconSize() >= 0);
+            assertTrue(changed.skillIconSize() <= initial.skillIconSize());
+            assertEquals(window[0] >= 640 && window[1] >= 360, changed.detailsVisible());
+            for (boolean mage : new boolean[] {false, true}) {
+                int potion = mage ? 6 : 5;
+                assertTrue(Float.isFinite(changed.skillSlotLeft(window[0], potion, mage)));
+                assertEquals(initial.skillSlotLeft(960, potion, mage),
+                        HudLayout.forWindow(960, 540).skillSlotLeft(960, potion, mage));
+            }
+        }
+    }
+
+    /**
+     * All class layouts keep the potion at the right end, centre the whole bar and avoid overlap.
+     * @param width logical width
+     * @param height logical height
+     * @param elementVisible Mage's extra element slot
+     */
+    @ParameterizedTest
+    @CsvSource({"640,360,false", "640,360,true", "960,540,false", "960,540,true",
+            "1920,1080,false", "1920,1080,true"})
+    void quickbarFitsPotionAndOptionalElement(int width, int height, boolean elementVisible) {
+        HudLayout hud = HudLayout.forWindow(width, height);
+        int potionIndex = elementVisible ? 6 : 5;
+        float size = hud.skillIconSize();
+        float first = hud.skillSlotLeft(width, 0, elementVisible);
+        float right = hud.skillSlotLeft(width, potionIndex, elementVisible) + size;
+        assertTrue(first >= 0);
+        assertTrue(right <= width);
+        assertEquals(width, first + right, 0.001);
+        assertTrue(size <= HudLayout.forWindow(960, 540).skillIconSize());
+        for (int index = 1; index <= potionIndex; index++) {
+            assertTrue(hud.skillSlotLeft(width, index, elementVisible)
+                    > hud.skillSlotLeft(width, index - 1, elementVisible) + size);
+        }
+        assertThrows(IllegalArgumentException.class, () -> hud.skillSlotLeft(width, -1, elementVisible));
+        assertThrows(IllegalArgumentException.class, () -> hud.skillSlotLeft(width, potionIndex + 1, elementVisible));
+    }
+
+    /**
      * A window at or above both reference dimensions cannot enlarge any persistent HUD element.
      * @param width window width
      * @param height window height

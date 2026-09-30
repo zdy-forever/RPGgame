@@ -6,7 +6,6 @@ import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.npc.PortalGuide;
 import au.edu.anu.comp2120.npc.ClassTrainer;
-import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.quest.BossQuests;
 import au.edu.anu.comp2120.player.Player;
@@ -163,8 +162,6 @@ public final class GameScreen extends ScreenAdapter {
     private final Inventory chestStorage;
     /** Whether the chest transfer panel is open; freezes movement while true. */
     private boolean chestOpen;
-    /** Material id of the currently equipped weapon, empty when none is equipped. */
-    private String equippedWeapon = "";
     /** Prefix marking a material id as an equippable weapon. */
     private static final String WEAPON_PREFIX = "weapon_";
 
@@ -265,7 +262,6 @@ public final class GameScreen extends ScreenAdapter {
         int rewards = inventoryRewards.collect();
         if (rewards > 0) { inventoryFeedback = "Boss rewards added to your bag"; }
         equipment.reconcile();
-        equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
         quests.synchronize();
         saves.afterSettlement();
         music.update(session.getCurrentMap().getType(), quests.getCompleted().size() == BossChallenge.values().length);
@@ -277,13 +273,9 @@ public final class GameScreen extends ScreenAdapter {
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
                 combatDemo.getDrops(), quests.getCompleted());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
-        // Legacy coordinate HUD disabled; retain the original renderer for reference.
-        // drawCoordinates(hud);
         drawHealth(hud);
         drawTrainingScore();
         drawInventory();
-        // Legacy weapon HUD disabled; retain its renderer for reference. Equipment is shown in the bag.
-        // drawWeaponSlot(hud);
         drawInteractionPrompt();
         drawMinimap(hud);
         drawChest();
@@ -391,7 +383,6 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         if (saveMenu.update(dialogueOpen || inventoryOpen || chestOpen || bigMap || endingOpen || credits.isOpen())) {
-            equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
             inventoryPage = 0; chestPage = 0;
             updateMapView();
             return;
@@ -453,12 +444,10 @@ public final class GameScreen extends ScreenAdapter {
             inventoryOpen = !inventoryOpen;
             if (!inventoryOpen) { updateMapView(); return; }
             bagRow = 0;
-            if (inventoryOpen) {
-                bigMap = false;
-                dialogueOpen = false;
-                chestOpen = false;
-                activeNpc = null;
-            }
+            bigMap = false;
+            dialogueOpen = false;
+            chestOpen = false;
+            activeNpc = null;
             updateMapView(); return;
         }
         if (!inventoryOpen && !chestOpen && session.getCurrentMap().getType() != MapType.MEMORIAL
@@ -477,58 +466,52 @@ public final class GameScreen extends ScreenAdapter {
             updateMapView(); return;
         }
         if (bigMap) { updateMapView(); return; }
-        if ((dialogueOpen && menuConfirm()) || (!dialogueOpen && Gdx.input.isKeyJustPressed(Input.Keys.E))) {
-            if (chestOpen) {
-                chestOpen = false;
-            } else if (dialogueOpen) {
-                advanceDialogue();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            NPC near = nearestNpc(session.getPlayer());
+            if (near == null) {
+                travelStatus = "";
+            } else if (GameConfig.STORAGE_CHEST.getId().equals(near.getId())) {
+                chestOpen = true; storageRow = 0; storageRight = false; chestPage = 0;
+                dialogueOpen = false;
+                inventoryOpen = false;
+                activeNpc = null;
             } else {
-                NPC near = nearestNpc(session.getPlayer());
-                if (near == null) {
-                    travelStatus = "";
-                } else if (GameConfig.STORAGE_CHEST.getId().equals(near.getId())) {
-                    chestOpen = true; storageRow = 0; storageRight = false; chestPage = 0;
-                    dialogueOpen = false;
+                dialogueOpen = true;
+                dialogueLine = 0;
+                activeNpc = near;
+                if (isMerchantDialogueOpen()) {
+                    merchantChoice = 0; upgradeMenu = false; upgradeChoice = 0; pendingUpgrade = "";
+                    merchantFeedback = "Choose a service. Supplies count both bag and chest.";
+                    inventoryOpen = false; bigMap = false;
+                }
+                if (near.getId().equals(GameConfig.GUIDE.getId())
+                        && session.getCurrentMap().getType() == MapType.MEMORIAL) {
+                    endingOpen = quests.consumeEnding();
                     inventoryOpen = false;
-                    activeNpc = null;
-                } else {
-                    dialogueOpen = true;
-                    dialogueLine = 0;
-                    activeNpc = near;
-                    if (isMerchantDialogueOpen()) {
-                        merchantChoice = 0; upgradeMenu = false; upgradeChoice = 0; pendingUpgrade = "";
-                        merchantFeedback = "Choose a service. Supplies count both bag and chest.";
-                        inventoryOpen = false; bigMap = false;
-                    }
-                    if (near.getId().equals(GameConfig.GUIDE.getId())
-                            && session.getCurrentMap().getType() == MapType.MEMORIAL) {
-                        endingOpen = quests.consumeEnding();
-                        inventoryOpen = false;
-                        bigMap = false;
-                    }
-                    if (isPortalDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                        portalChoice = switch (travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId()) {
-                            case MapCatalog.TRAINING -> PortalGuide.Destination.TRAINING;
-                            case MapCatalog.MEMORIAL_HALL -> PortalGuide.Destination.MEMORIAL;
-                            default -> PortalGuide.Destination.BATTLE;
-                        };
-                    } else if (isTrainerDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                        trainerChoice = session.getPlayer().getPlayerClass().ordinal();
-                        trainerFeedback = "J/K/L follow your class; choose your O mode below.";
-                    } else if (isTrainingExitDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                    } else if (isQuestDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                        quests.synchronize();
-                        questChoice = quests.getActive().map(Enum::ordinal).orElse(0);
-                        questFeedback = "E accepts any Boss, including rematches; Esc closes.";
-                    }
+                    bigMap = false;
+                }
+                if (isPortalDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                    portalChoice = switch (travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId()) {
+                        case MapCatalog.TRAINING -> PortalGuide.Destination.TRAINING;
+                        case MapCatalog.MEMORIAL_HALL -> PortalGuide.Destination.MEMORIAL;
+                        default -> PortalGuide.Destination.BATTLE;
+                    };
+                } else if (isTrainerDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                    trainerChoice = session.getPlayer().getPlayerClass().ordinal();
+                    trainerFeedback = "J/K/L follow your class; choose your O mode below.";
+                } else if (isTrainingExitDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                } else if (isQuestDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                    quests.synchronize();
+                    questChoice = quests.getActive().map(Enum::ordinal).orElse(0);
+                    questFeedback = "E accepts any Boss, including rematches; Esc closes.";
                 }
             }
         }
@@ -538,33 +521,28 @@ public final class GameScreen extends ScreenAdapter {
             updateMapView();
             return;
         }
-        boolean frozen = dialogueOpen || bigMap || chestOpen;
-        if (!frozen && input.samplePotionUse()) {
+        if (input.samplePotionUse()) {
             useHealthPotion();
         }
         combatDemo.update(delta,
-                frozen ? PlayerCommand.NONE : input.sample(),
-                !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
-                frozen ? null : input.sampleClassSelection().orElse(null),
-                !frozen && input.sampleElementCycle(),
-                !frozen && input.sampleUltimateModeCycle());
+                input.sample(),
+                Gdx.input.isKeyJustPressed(Input.Keys.R),
+                input.sampleClassSelection().orElse(null),
+                input.sampleElementCycle(),
+                input.sampleUltimateModeCycle());
         if (session.getTransitionVersion() != beforeCombat) {
             showBattleReturn();
             return;
         }
-        if (frozen) {
-            updateMapView();
-        } else {
-            try {
-                if (travel.updatePortals()) {
-                    combatDemo.update(0, PlayerCommand.NONE, false);
-                    saveMenu.notify("Arrived by portal; leave the portal area before re-entry");
-                    updateMapView();
-                }
-            } catch (IllegalArgumentException | IllegalStateException failure) {
-                saveMenu.notify(failure.getMessage());
+        try {
+            if (travel.updatePortals()) {
+                combatDemo.update(0, PlayerCommand.NONE, false);
+                saveMenu.notify("Arrived by portal; leave the portal area before re-entry");
                 updateMapView();
             }
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            saveMenu.notify(failure.getMessage());
+            updateMapView();
         }
         if (!combatStatus.equals(combatDemo.getStatus())) {
             updateMapView();
@@ -978,28 +956,6 @@ public final class GameScreen extends ScreenAdapter {
      */
     private String currentHpText() { return "HP " + currentHp(); }
     /**
-     * Draws the live player coordinate in the top-left corner.
-     * Uses this screen's own font and batch, so no renderer change is needed.
-     * @param hud current size and visibility policy
-     */
-    private void drawCoordinates(HudLayout hud) {
-        if (!hud.detailsVisible()) {
-            return;
-        }
-        int w = Gdx.graphics.getWidth();
-        int h = Gdx.graphics.getHeight();
-        float scale = hud.scale();
-        dialogueFont.getData().setScale(scale);
-        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
-        dialogueBatch.begin();
-        dialogueFont.setColor(0.20f, 0.95f, 0.55f, 1);
-        dialogueFont.draw(dialogueBatch,
-                "Player x=" + (int) session.getPlayer().getX()
-                        + "  y=" + (int) session.getPlayer().getY(),
-                12f * scale, h - 40f * scale);
-        dialogueBatch.end();
-    }
-    /**
      * Draws an "[E] Talk" hint above the dialogue box while an NPC is within range.
      * Hidden while a dialogue or the inventory panel is open.
      */
@@ -1218,48 +1174,6 @@ public final class GameScreen extends ScreenAdapter {
         }
         dialogueShapes.end();
     }
-    /**
-     * Draws the persistent weapon slot in the top-right corner, within the capped HUD size.
-     * @param hud current size and visibility policy
-     */
-    private void drawWeaponSlot(HudLayout hud) {
-        if (!hud.detailsVisible()) {
-            return;
-        }
-        int w = Gdx.graphics.getWidth();
-        int h = Gdx.graphics.getHeight();
-        float scale = hud.scale();
-        float boxW = 200f * scale;
-        float boxH = 58f * scale;
-        float x = w - boxW - 12f * scale;
-        float y = h - boxH - 10f * scale;
-        float pad = 12f * scale;
-
-        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
-        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
-        dialogueShapes.setColor(0.05f, 0.06f, 0.10f, 0.88f);
-        dialogueShapes.rect(x, y, boxW, boxH);
-        dialogueShapes.end();
-        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
-        dialogueShapes.setColor(0.95f, 0.80f, 0.35f, 1);
-        dialogueShapes.rect(x, y, boxW, boxH);
-        dialogueShapes.end();
-
-        dialogueFont.getData().setScale(scale);
-        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
-        dialogueBatch.begin();
-        dialogueFont.setColor(0.95f, 0.80f, 0.35f, 1);
-        dialogueFont.draw(dialogueBatch, "WEAPON", x + pad, y + boxH - pad);
-        if (equippedWeapon.isEmpty()) {
-            dialogueFont.setColor(0.55f, 0.58f, 0.65f, 1);
-            dialogueFont.draw(dialogueBatch, "No weapon equipped", x + pad, y + pad + 6f);
-        } else {
-            dialogueFont.setColor(0.40f, 1f, 0.55f, 1);
-            dialogueFont.draw(dialogueBatch, prettyName(equippedWeapon),
-                    x + pad, y + pad + 6f);
-        }
-        dialogueBatch.end();
-    }
     /** Draws the inventory panel in the centre of the screen while it is open. */
     private void drawInventory() {
         if (!inventoryOpen) {
@@ -1442,7 +1356,9 @@ public final class GameScreen extends ScreenAdapter {
                 for (var previous : occupied) { if (box.overlaps(previous)) { overlap = true; break; } }
                 if (!overlap) { break; }
                 float direction = attempt % 2 == 0 ? 1 : -1;
-                float offset = (attempt / 2 + 1) * (text.height + 3 * gap) * direction;
+                // Each pair tries the same distance above and below before increasing the distance.
+                int step = attempt / 2 + 1;
+                float offset = step * (text.height + 3 * gap) * direction;
                 box.y = Math.max(bottom, Math.min(bottom + height - text.height, labelY + offset)) - gap;
             }
             occupied.add(box);
@@ -1720,10 +1636,28 @@ public final class GameScreen extends ScreenAdapter {
         return materialId != null && materialId.startsWith(WEAPON_PREFIX);
     }
 
-    /** Uses the shared potion rule for keyboard and bag actions, retaining feedback for the bag. */
+    /** Uses the shared potion rule and shows the same transient feedback for keyboard and bag actions. */
     private void useHealthPotion() {
-        inventoryFeedback = session.getPlayer().useHealthPotion() ? "Recovered up to " + ItemCatalog.POTION_HEAL + " HP"
-                : "Requires a health potion and a living, injured player";
+        inventoryFeedback = consumePotionWithFeedback(session.getPlayer());
+        saveMenu.notify(inventoryFeedback);
+    }
+
+    /**
+     * Formats one potion request while delegating all consumption/healing to the existing player rule.
+     * The actual healed amount is shown rather than claiming 30 HP when nearly full.
+     * @param player owner of the carried stock and shared health model
+     * @return success with actual healing/remaining stock, or a specific refusal reason
+     * @throws NullPointerException if player is null
+     */
+    static String consumePotionWithFeedback(Player player) {
+        int before = player.getHealth().getCurrentHp();
+        if (player.useHealthPotion()) {
+            return "Recovered " + (player.getHealth().getCurrentHp() - before) + " HP | Potions: "
+                    + player.getInventory().quantityOf(ItemCatalog.POTION);
+        }
+        if (!player.isAlive()) { return "Cannot use a potion while defeated"; }
+        if (before >= player.getHealth().getMaxHp()) { return "HP is already full - potion not consumed"; }
+        return "No health potions in your bag";
     }
 
     /** Applies one selected bag item, shared by keyboard and mouse.
@@ -1733,14 +1667,13 @@ public final class GameScreen extends ScreenAdapter {
         var entries = visibleEntries(inventory, false);
         if (row < 0 || row >= entries.size()) { return; }
         String id = entries.get(row).materialId();
-        if (ItemCatalog.POTION.equals(id)) { useHealthPotion(); }
+        if (ItemCatalog.POTION.equals(id)) { useHealthPotion(); return; }
         else if (ItemCatalog.gear(id).isEmpty()) { inventoryFeedback = prettyName(id) + " cannot be equipped"; }
         else {
             boolean wasWorn = equipment.isEquipped(id);
             equipment.toggle(id);
             inventoryFeedback = (wasWorn ? "Unequipped: " : "Equipped: ") + prettyName(id);
         }
-        equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
         saveMenu.notify(inventoryFeedback);
     }
 
@@ -1781,7 +1714,6 @@ public final class GameScreen extends ScreenAdapter {
 
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
-        if (equipment != null) { equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON); }
         GameMap map = session.getCurrentMap();
         combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());

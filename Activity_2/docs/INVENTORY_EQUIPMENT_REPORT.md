@@ -11,13 +11,25 @@ the subsequent team change `721f9e6`, using the same potion rules.
 
 ## Behaviour
 
+Working-tree review, 2026-09-30: new potion regression tests exercise all three classes,
+edge-triggered use, equipped maximum HP, independent bag/chest stock and save/recovery behavior.
+Both bag use and P report actual healing or a specific refusal in a four-second toast.
+The quickbar is a read-only presentation; compact 999+ text does not cap real stock.
+See [Test coverage review](TEST_COVERAGE_REVIEW.md) for current execution status and native QA limits.
+
 - The existing player now owns the bag and equipment, preserving their identity across map changes.
   GameScreen reuses that bag, the existing merchant reward, and the existing chest interface.
 - B opens the bag. Right-click a wearable to equip/unequip it, or a health potion to use it.
+- Every class quickbar includes a red potion bottle labelled P with the live bag quantity (`xN`).
+  Counts above 999 display `999+` at a fixed readable font scale; the bag retains the exact quantity.
+  Zero stock is greyed out; chest stock is excluded. The slot follows the existing capped HUD
+  scaling and visibility policy, and Mage keeps its separate element slot before the potion.
   W/S or Up/Down selects a row; E/Enter uses or toggles it. Q/R or PageUp/PageDown changes pages; B or Escape closes it. Rows show item effects and `[Worn]` status.
 - P uses one health potion directly during gameplay, including Boss battles, without opening the bag.
   It triggers once per press, not continuously while held; it is disabled while a modal panel is open.
   The existing bag right-click action remains available. Both paths use the same health/ownership checks.
+  Both actions show a four-second notification with actual healing and remaining stock, or a specific
+  full-health, defeated-player or empty-bag message. Inventory management pauses combat.
 - The bag footer shows total attack/reduction percentages and guardian set progress.
 - E near the Storage Chest opens it. Right-click transfers the entire selected stack.
   A/D or Left/Right selects the column; W/S or Up/Down selects a row. E/Enter transfers the stack. Q/R or PageUp/PageDown pages both columns; Escape closes it. B closes storage and opens the bag
