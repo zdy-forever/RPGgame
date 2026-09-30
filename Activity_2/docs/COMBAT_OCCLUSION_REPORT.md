@@ -66,7 +66,13 @@ adapters not using these controllers must bind their world before settlement.
 
 ## Arrow Rain / ElementField availability
 
-Neither a concrete Arrow Rain skill nor an ElementField class exists in this checkout.
+Current review (2026-09-30): both Arrow Rain and ElementField now exist. ClassSkills and
+CombatSystem route their finite ticks through the same world gate. Mage K cycles elements and
+is not an AoE attack; the table's Mage K entry describes the old prototype. Current regressions
+are CombatOcclusionTest, WorldOcclusionTest and ReactionCompletionTest. See
+[coverage and execution status](TEST_COVERAGE_REVIEW.md); no native scene was revalidated in this audit.
+
+**Historical stage only:** neither a concrete Arrow Rain skill nor an ElementField class existed in the original checkout.
 Archer O is still the configured five-arrow fan. This branch does not silently replace it or
 create an unrelated periodic-field system. Tests configure an Archer O fixed-area fixture
 and a field-style elemental invocation through the real public pipeline to verify fixed

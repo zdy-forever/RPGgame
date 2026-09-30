@@ -1,6 +1,6 @@
 # Debug console, Training tools and UI refinement
 
-Updated 2026-09-28. This report describes the current implementation and its test boundaries.
+Updated 2026-09-30. This report describes the current implementation and its test boundaries.
 Earlier dated reports retain historical results; they are not evidence of the current run.
 
 ## Player controls
@@ -8,6 +8,8 @@ Earlier dated reports retain historical results; they are not evidence of the cu
 | Area | Current behavior |
 | --- | --- |
 | Notifications | Centred translucent feedback expires after four seconds; repeated operations can show it again. |
+| Potion quickbar | All classes show a P bottle and bag count; grey x0, exact x1–x999, then 999+. Large counts never shrink the font. P and bag use share actual-healing/refusal feedback. |
+| Save onboarding | Hub Old Sage and Notice Board teach Esc / F5 / F9, safe maps, victory autosave and loading consequences. |
 | Menus | W/S or Up/Down selects; E/Enter confirms; Esc returns/closes. NPC rows support left-click selection and right-click activation. |
 | Bag/storage | Select rows with W/S or arrows. Storage A/D or Left/Right selects a column. E/Enter acts; Q/R or PageUp/PageDown pages. Right-click remains supported; footer controls are clickable. Bag/storage pause simulation. |
 | Map | M expands to 92% of window width and 88% of height, preserving world proportions. NPC labels are shifted to avoid nearby labels. Red marks a live Boss or Training target; green marks the player. M/Esc closes. |
@@ -67,6 +69,9 @@ target must not re-run spawn selection or cause sideways relocation. Initial map
 walkability and player overlap. Map markers read the current target, never a discarded registration.
 
 ## Automated coverage map
+
+The latest added coverage and blocked execution are recorded in [Test coverage review](TEST_COVERAGE_REVIEW.md).
+The 2026-09-28 results at the end of this document do not include subsequent working-tree tests.
 
 Paths below are test class names under `core/src/test/java/au/edu/anu/comp2120`.
 

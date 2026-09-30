@@ -13,17 +13,120 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Exercises complete save timelines through real combat settlement and restart fixtures.
  * @author Hao Liu (u7998420)
+ * @author Daoyan Zhu (u7782042)
  */
 final class GameSavesTest {
     /** Isolated save directory. */
     @TempDir Path directory;
     /** Creates a test fixture. */
     GameSavesTest() { }
+
+    /**
+     * Each guardian's restored repeat-win count changes a newly admitted Boss, not just a UI field.
+     * @param guardian campaign guardian being challenged repeatedly
+     */
+    @ParameterizedTest @EnumSource(BossChallenge.class)
+    void restoredWinsScaleOnlyTheMatchingGuardian(BossChallenge guardian) {
+        var game = new Game(directory);
+        game.win(guardian);
+        game.win(guardian);
+        assertTrue(game.saves.saveManual(), game.saves.status());
+        for (SaveSlot slot : SaveSlot.values()) {
+            var restarted = new Game(directory);
+            assertTrue(restarted.saves.load(slot), restarted.saves.status());
+            for (BossChallenge other : BossChallenge.values()) {
+                assertEquals(other == guardian ? 2 : 0, restarted.flow.getSuccessCount(other.mapId()));
+            }
+            restarted.enter(guardian);
+            var boss = restarted.combat.getBoss().orElseThrow();
+            int expected = (int) Math.round(au.edu.anu.comp2120.screen.GameConfig.SENTINEL.maxHp()
+                    * au.edu.anu.comp2120.enemy.BossScaling.healthMultiplier(2));
+            assertEquals(expected, boss.getHealth().getMaxHp());
+            assertEquals(expected, boss.getHealth().getCurrentHp());
+            assertEquals(1, boss.getPhase());
+        }
+    }
+
+    /** Victory autosaves retain consumed stock while the Hub return restores only health. */
+    @Test void victoryAutosaveRestoresRemainingPotions() {
+        var game = new Game(directory);
+        var player = game.session.getPlayer();
+        player.getInventory().addItem(ItemCatalog.POTION, 3);
+        game.chest.addItem(ItemCatalog.POTION, 7);
+        player.takeDamage(50);
+        assertTrue(player.useHealthPotion());
+        game.win(BossChallenge.FIRE);
+        var restarted = new Game(directory);
+        assertTrue(restarted.saves.load(SaveSlot.AUTO), restarted.saves.status());
+        assertEquals(2, restarted.session.getPlayer().getInventory().quantityOf(ItemCatalog.POTION));
+        assertEquals(7, restarted.chest.quantityOf(ItemCatalog.POTION));
+        assertEquals(restarted.session.getPlayer().getHealth().getMaxHp(),
+                restarted.session.getPlayer().getHealth().getCurrentHp());
+        assertFalse(restarted.session.getPlayer().useHealthPotion());
+        assertEquals(2, restarted.session.getPlayer().getInventory().quantityOf(ItemCatalog.POTION));
+    }
+
+    /** Saves after consumption restore bag and chest counts separately, without replacing the player. */
+    @Test void consumedPotionCountsSurviveSaveLoadAndRestart() {
+        var game = new Game(directory);
+        var player = game.session.getPlayer();
+        var bag = player.getInventory();
+        bag.addItem(ItemCatalog.POTION, 3);
+        game.chest.addItem(ItemCatalog.POTION, 7);
+        player.takeDamage(70);
+        assertTrue(player.useHealthPotion());
+        assertEquals(60, player.getHealth().getCurrentHp());
+        assertTrue(game.saves.saveManual(), game.saves.status());
+        assertTrue(player.useHealthPotion());
+        game.chest.removeItem(ItemCatalog.POTION, 2);
+        assertTrue(game.saves.load(SaveSlot.MANUAL), game.saves.status());
+        assertSame(player, game.session.getPlayer());
+        assertSame(bag, player.getInventory());
+        assertEquals(2, bag.quantityOf(ItemCatalog.POTION));
+        assertEquals(7, game.chest.quantityOf(ItemCatalog.POTION));
+        assertEquals(60, player.getHealth().getCurrentHp());
+        var restarted = new Game(directory);
+        assertTrue(restarted.saves.load(SaveSlot.MANUAL), restarted.saves.status());
+        assertEquals(2, restarted.session.getPlayer().getInventory().quantityOf(ItemCatalog.POTION));
+        assertEquals(7, restarted.chest.quantityOf(ItemCatalog.POTION));
+        assertTrue(restarted.session.getPlayer().useHealthPotion());
+        assertEquals(90, restarted.session.getPlayer().getHealth().getCurrentHp());
+        assertEquals(1, restarted.session.getPlayer().getInventory().quantityOf(ItemCatalog.POTION));
+    }
+
+    /** A defeated encounter restores HP but does not refund a consumed potion or create supplies. */
+    @Test void defeatReturnAndRetryPreserveConsumedPotionCount() {
+        var game = new Game(directory);
+        var player = game.session.getPlayer();
+        player.getInventory().addItem(ItemCatalog.POTION, 2);
+        game.enter(BossChallenge.FIRE);
+        player.takeDamage(60);
+        assertTrue(player.useHealthPotion());
+        assertEquals(70, player.getHealth().getCurrentHp());
+        player.takeDamage(Integer.MAX_VALUE);
+        assertFalse(player.useHealthPotion());
+        game.combat.update(0, PlayerCommand.NONE, false);
+        assertEquals(BattleResult.Outcome.FAILURE, game.flow.getLastResult().orElseThrow().outcome());
+        assertEquals(MapCatalog.HUB, game.session.getCurrentMap().getId());
+        assertSame(player, game.session.getPlayer());
+        assertEquals(player.getHealth().getMaxHp(), player.getHealth().getCurrentHp());
+        assertEquals(1, player.getInventory().quantityOf(ItemCatalog.POTION));
+        assertFalse(player.useHealthPotion());
+        game.travel.updatePortals();
+        var portal = game.travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).trigger();
+        player.enterArea(game.session.getCurrentMap(), portal.x(), portal.y());
+        assertTrue(game.travel.updatePortals());
+        game.combat.update(0, PlayerCommand.NONE, false);
+        assertTrue(game.combat.getBoss().isPresent());
+        assertEquals(1, player.getInventory().quantityOf(ItemCatalog.POTION));
+    }
 
     /** Independent game instance without any LibGDX window.
      * @author Hao Liu (u7998420)
@@ -264,11 +367,9 @@ final class GameSavesTest {
         }
     }
 
-    /** Overflow rewards survive restart and are claimable exactly once when space becomes available.
-     * @throws IOException if save fixture IO fails
-     */
+    /** Overflow rewards survive restart and are claimable exactly once when space becomes available. */
     @Test
-    void pendingOverflowRewardSurvivesReload() throws IOException {
+    void pendingOverflowRewardSurvivesReload() {
         var game = new Game(directory);
         game.enter(BossChallenge.FIRE);
         game.combat.getBoss().orElseThrow().getHealth().takeDamage(Integer.MAX_VALUE);

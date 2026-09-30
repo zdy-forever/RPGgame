@@ -256,7 +256,7 @@ public final class PlaceholderRenderer implements Disposable {
      * @param width window width
      */
     public void drawSkillHud(SpriteBatch batch, BitmapFont font, Player player, CombatDemo demo, HudLayout hud, int width) {
-        art.hud(batch, font, player, demo.getAbilities(), hud, width);
+        art.hud(batch, font, shapes, player, demo.getAbilities(), hud, width);
     }
 
     /**

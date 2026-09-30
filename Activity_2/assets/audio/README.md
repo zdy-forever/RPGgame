@@ -1,5 +1,10 @@
 # Background music
 
+Reviewed 2026-09-30: potion HUD, input feedback and save/load onboarding do not change music
+selection, gain or looping. BackgroundMusicTest and MusicVolumeTest cover the model/fake-player
+contract; [current verification status](../../docs/TEST_COVERAGE_REVIEW.md) distinguishes this
+from actual audio-device and uninterrupted-playback checks.
+
 The user-supplied WAV files were renamed without re-encoding or modifying their audio content:
 
 | Original filename | Runtime filename | Use |
