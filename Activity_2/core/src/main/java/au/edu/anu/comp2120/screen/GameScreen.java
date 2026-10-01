@@ -271,7 +271,7 @@ public final class GameScreen extends ScreenAdapter {
                 travel.getPortals(currentMap.getId()),
                 combatDemo, paused || debugConsole.isOpen() || saveMenu.isOpen() || dialogueOpen || inventoryOpen || chestOpen || bigMap
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
-                combatDemo.getDrops(), quests.getCompleted());
+                combatDemo.getDrops(), quests.getCompleted(), currentObjectiveNpcId());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         drawHealth(hud);
         drawTrainingScore();
@@ -559,6 +559,30 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
+     * Computes the single NPC that should currently show an interaction marker,
+     * following the Hub onboarding flow: Old Sage, then Class Master, then Quest
+     * Keeper, then Portal Guide. Each step clears once that NPC has been talked to,
+     * so the marker advances to the next objective instead of appearing all at once.
+     *
+     * @return id of the NPC to mark, or null once every objective is complete
+     */
+    private String currentObjectiveNpcId() {
+        if (!GameConfig.HUB_GUIDE.hasInteracted()) {
+            return GameConfig.HUB_GUIDE.getId();
+        }
+        if (!GameConfig.CLASS_MASTER.hasInteracted()) {
+            return GameConfig.CLASS_MASTER.getId();
+        }
+        if (!GameConfig.QUEST_KEEPER.hasInteracted()) {
+            return GameConfig.QUEST_KEEPER.getId();
+        }
+        if (!GameConfig.PORTAL_GUIDE.hasInteracted()) {
+            return GameConfig.PORTAL_GUIDE.getId();
+        }
+        return null;
+    }
+
+    /**
      * Distinguishes the quest menu from its one-time ending dialogue.
      * @return true while the quest giver's selection menu is open
      */
@@ -638,6 +662,7 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
+        activeNpc.setInteracted();
         var targets = BossChallenge.values();
         if (MenuKeys.up()) {
             questChoice = Math.floorMod(questChoice - 1, targets.length);
@@ -741,6 +766,7 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
+        activeNpc.setInteracted();
         var choices = ClassTrainer.Choice.values();
         if (MenuKeys.up()) {
             trainerChoice = Math.floorMod(trainerChoice - 1, choices.length);
@@ -766,6 +792,7 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
+        activeNpc.setInteracted();
         if (MenuKeys.up()) {
             var choices = PortalGuide.Destination.values();
             portalChoice = choices[Math.floorMod(portalChoice.ordinal() - 1, choices.length)];
