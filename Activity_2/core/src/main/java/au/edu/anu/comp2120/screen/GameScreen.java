@@ -980,7 +980,7 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float scale = hud.skillScale();
+        float scale = hud.panelScale();
         float pad = 10f * scale;
         float titleH = 24f * scale;
         float lineGap = 22f * scale;
@@ -1381,7 +1381,7 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float ui = hud.skillScale();
+        float ui = hud.panelScale();
         GameMap map = session.getCurrentMap();
         CollisionBox bounds = map.getBounds();
 

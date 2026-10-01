@@ -17,6 +17,8 @@ public record HudLayout(float scale, boolean healthVisible, boolean detailsVisib
     private static final float SKILL_EXTRA_SCALE_PER_RATIO = 0.2f;
     /** Hard ceiling for the skill bar scale so very large monitors do not inflate the quickbar excessively. */
     private static final float SKILL_MAX_SCALE = 1.8f;
+    /** Panel/map scale multiplier relative to the skill scale, making the objective tracker and minimap smaller. */
+    private static final float PANEL_SCALE_RATIO = 0.8f;
     /** Centre spacing in icon widths, preserving a small gap between neighbouring slots. */
     private static final float SKILL_SLOT_SPACING = 1.15f;
     /** Largest exact count shown on the quickbar; larger stacks remain exact in the bag. */
@@ -38,6 +40,12 @@ public record HudLayout(float scale, boolean healthVisible, boolean detailsVisib
      * @return scaled icon side length
      */
     public float skillIconSize() { return SKILL_ICON_SIZE * skillScale; }
+
+    /**
+     * Scales persistent panels (objective tracker and minimap) slightly smaller than the quickbar.
+     * @return reduced scale for non-skill HUD elements
+     */
+    public float panelScale() { return skillScale * PANEL_SCALE_RATIO; }
 
     /**
      * Centres the entire quickbar, including its potion slot and optional Mage element slot.
