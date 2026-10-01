@@ -49,11 +49,6 @@ public final class PlaceholderRenderer implements Disposable {
     private static final float NAME_SCALE = 0.45f;
     /** Display name shown above the player. */
     private static final String PLAYER_NAME = "Adventurer";
-    /** NPC ids that show an interaction marker above the head. */
-    private static final Set<String> INTERACTION_MARKER_NPCS = Set.of(
-            GameConfig.CLASS_MASTER.getId(),
-            GameConfig.QUEST_KEEPER.getId(),
-            GameConfig.PORTAL_GUIDE.getId());
     /** Size of the NPC interaction marker (exclamation) in world units. */
     private static final float HEAD_MARKER_SIZE = 24f;
     /** Gap above the visual body top before the interaction marker appears. */
@@ -122,11 +117,12 @@ public final class PlaceholderRenderer implements Disposable {
      * @param demo       existing current-scope gameplay observations
      * @param delta      presentation seconds, zero while paused
      * @param drops      current-map unclaimed material rectangles, independent of inventory icons
-     * @param completed  defeated guardians whose stones are lit in Memorial Hall
+     * @param completed      defeated guardians whose stones are lit in Memorial Hall
+     * @param objectiveNpcId NPC that currently drives the quest progression; highlighted with a '!' marker
      */
     public void render(GameMap map, Player player, List<NPC> npcs, List<Portal> portals,
                        CombatDemo demo, double delta, List<MaterialDrop> drops,
-                       Set<BossChallenge> completed) {
+                       Set<BossChallenge> completed, String objectiveNpcId) {
         art.update(map, player, demo, delta);
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
@@ -164,7 +160,7 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         drawBossWarnings(demo);
         shapes.end();
-        drawNames(player, npcs);
+        drawNames(player, npcs, objectiveNpcId);
         drawStatusTags(player, demo);
     }
 
@@ -320,10 +316,11 @@ public final class PlaceholderRenderer implements Disposable {
      * Draws small name tags above the player and every listed NPC in world space.
      * Uses the camera projection so tags follow their subjects on screen.
      *
-     * @param player player to label
-     * @param npcs   NPCs to label; null or empty labels only the player
+     * @param player         player to label
+     * @param npcs           NPCs to label; null or empty labels only the player
+     * @param objectiveNpcId NPC that currently drives the quest progression; highlighted with a '!' marker
      */
-    private void drawNames(Player player, List<NPC> npcs) {
+    private void drawNames(Player player, List<NPC> npcs, String objectiveNpcId) {
         debugFont.getData().setScale(NAME_SCALE);
         debugBatch.setProjectionMatrix(viewport.getCamera().combined);
         debugBatch.begin();
@@ -332,7 +329,7 @@ public final class PlaceholderRenderer implements Disposable {
                 debugFont.setColor(1f, 0.90f, 0.40f, 1);
                 drawNameTag(npc.getName(), npc.getX(),
                         npc.getY() + 54, npc.getWidth());
-                if (INTERACTION_MARKER_NPCS.contains(npc.getId())) {
+                if (objectiveNpcId != null && objectiveNpcId.equals(npc.getId())) {
                     drawHeadMark(npc.getX(), npc.getY() + 54, npc.getWidth());
                 }
             }
