@@ -278,6 +278,7 @@ public final class GameScreen extends ScreenAdapter {
         drawInventory();
         drawInteractionPrompt();
         drawMinimap(hud);
+        drawObjectivePanel(hud);
         drawChest();
         drawSkillHud(hud);
         drawDialogue();
@@ -959,6 +960,84 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.setColor(0.1f, 0.1f, 0.1f, 1);
         dialogueFont.draw(dialogueBatch, currentHpText() + " / " + session.getPlayer().getHealth().getMaxHp(),
                 x, baseline, barW, Align.center, false);
+        dialogueBatch.end();
+    }
+
+    /**
+     * Draws a persistent objective tracker pinned to the left edge and vertically
+     * centred, listing every active task at once: the current Hub onboarding step
+     * (from {@link #currentObjectiveNpcId()}) plus any accepted boss challenge.
+     * Mirrors the dialogue box styling (dark panel with a gold border).
+     *
+     * @param hud current size and visibility policy
+     */
+    private void drawObjectivePanel(HudLayout hud) {
+        if (inventoryOpen || chestOpen || bigMap) {
+            return;
+        }
+        if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
+            return;
+        }
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = hud.scale();
+        float pad = 10f * scale;
+        float titleH = 24f * scale;
+        float lineGap = 22f * scale;
+
+        java.util.List<String> tasks = new java.util.ArrayList<>();
+        String npcStep = currentObjectiveNpcId();
+        if (npcStep != null) {
+            String name = npcName(npcStep);
+            tasks.add(switch (npcStep) {
+                case "hub_guide" -> "与 Old Sage 对话，了解基地教程";
+                case "class_master" -> "与 Class Master 对话，选择职业";
+                case "quest_keeper" -> "与 Quest Keeper 对话，接取任务";
+                case "portal_guide" -> "与 Portal Guide 对话，前往战场";
+                default -> "与 " + name + " 对话";
+            });
+        }
+        encounterFlow.getActiveEncounter()
+                .flatMap(ae -> BossChallenge.forMap(ae.mapId()))
+                .filter(b -> !quests.getCompleted().contains(b))
+                .ifPresent(b -> tasks.add("击败 " + b.displayName()));
+        if (tasks.isEmpty()) {
+            tasks.add("自由探索：通过 Portal Guide 出发");
+        }
+
+        float panelW = 270f * scale;
+        float panelH = titleH + pad + tasks.size() * lineGap + pad;
+        float top = h / 2f + panelH / 2f;
+        top = Math.min(h - 12f * scale, Math.max(panelH + 12f * scale, top));
+        float x = 12f * scale;
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.05f, 0.06f, 0.09f, 0.88f);
+        dialogueShapes.rect(x, top - panelH, panelW, panelH);
+        dialogueShapes.end();
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.95f, 0.85f, 0.35f, 1);
+        dialogueShapes.rect(x, top - panelH, panelW, panelH);
+        dialogueShapes.end();
+
+        dialogueFont.getData().setScale(scale);
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        float titleBaseline = top - pad;
+        dialogueFont.setColor(0.95f, 0.85f, 0.35f, 1);
+        dialogueFont.draw(dialogueBatch, "当前任务", x + pad, titleBaseline, panelW - 2 * pad, Align.left, false);
+        float firstBaseline = titleBaseline - titleH;
+        for (int i = 0; i < tasks.size(); i++) {
+            float baseline = firstBaseline - i * lineGap;
+            boolean boss = tasks.get(i).startsWith("击败");
+            if (boss) {
+                dialogueFont.setColor(1f, 0.65f, 0.25f, 1f);
+            } else {
+                dialogueFont.setColor(1f, 1f, 1f, 1f);
+            }
+            dialogueFont.draw(dialogueBatch, "▸ " + tasks.get(i), x + pad, baseline, panelW - 2 * pad, Align.left, false);
+        }
         dialogueBatch.end();
     }
 
