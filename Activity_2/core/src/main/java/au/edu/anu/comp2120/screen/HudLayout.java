@@ -7,11 +7,16 @@ package au.edu.anu.comp2120.screen;
  * @param scale uniform font/geometry scale; zero for non-positive window dimensions
  * @param healthVisible whether HP can be shown
  * @param detailsVisible whether coordinates, minimap, weapon and quickbar can be shown
+ * @param skillScale dedicated scale for the class/ability/potion quickbar; grows on large windows
  * @author Daoyan Zhu (u7782042)
  */
-public record HudLayout(float scale, boolean healthVisible, boolean detailsVisible) {
+public record HudLayout(float scale, boolean healthVisible, boolean detailsVisible, float skillScale) {
     /** Icon side length before the common capped HUD scale is applied. */
     private static final float SKILL_ICON_SIZE = 30;
+    /** Extra scale added to the skill bar for each unit of window ratio above the reference size. */
+    private static final float SKILL_EXTRA_SCALE_PER_RATIO = 0.2f;
+    /** Hard ceiling for the skill bar scale so very large monitors do not inflate the quickbar excessively. */
+    private static final float SKILL_MAX_SCALE = 1.8f;
     /** Centre spacing in icon widths, preserving a small gap between neighbouring slots. */
     private static final float SKILL_SLOT_SPACING = 1.15f;
     /** Largest exact count shown on the quickbar; larger stacks remain exact in the bag. */
@@ -32,7 +37,7 @@ public record HudLayout(float scale, boolean healthVisible, boolean detailsVisib
      * Sizes every quickbar icon, including the shared potion slot.
      * @return scaled icon side length
      */
-    public float skillIconSize() { return SKILL_ICON_SIZE * scale; }
+    public float skillIconSize() { return SKILL_ICON_SIZE * skillScale; }
 
     /**
      * Centres the entire quickbar, including its potion slot and optional Mage element slot.
@@ -60,12 +65,17 @@ public record HudLayout(float scale, boolean healthVisible, boolean detailsVisib
      */
     public static HudLayout forWindow(int width, int height) {
         if (width <= 0 || height <= 0) {
-            return new HudLayout(0, false, false);
+            return new HudLayout(0, false, false, 0);
         }
-        float ratio = Math.min(1f, Math.min(width / (float) GameConfig.HUD_REFERENCE_WIDTH,
-                height / (float) GameConfig.HUD_REFERENCE_HEIGHT));
-        return new HudLayout(GameConfig.HUD_MAX_SCALE * ratio,
+        float uncappedRatio = Math.min(width / (float) GameConfig.HUD_REFERENCE_WIDTH,
+                height / (float) GameConfig.HUD_REFERENCE_HEIGHT);
+        float ratio = Math.min(1f, uncappedRatio);
+        float scale = GameConfig.HUD_MAX_SCALE * ratio;
+        float skillScale = Math.min(SKILL_MAX_SCALE,
+                scale + Math.max(0f, GameConfig.HUD_MAX_SCALE * (uncappedRatio - 1f) * SKILL_EXTRA_SCALE_PER_RATIO));
+        return new HudLayout(scale,
                 width >= GameConfig.HUD_HEALTH_MIN_WIDTH && height >= GameConfig.HUD_HEALTH_MIN_HEIGHT,
-                width >= GameConfig.HUD_DETAILS_MIN_WIDTH && height >= GameConfig.HUD_DETAILS_MIN_HEIGHT);
+                width >= GameConfig.HUD_DETAILS_MIN_WIDTH && height >= GameConfig.HUD_DETAILS_MIN_HEIGHT,
+                skillScale);
     }
 }

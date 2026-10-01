@@ -553,7 +553,7 @@ public final class SceneArt implements Disposable {
             batch.setColor(ready ? Color.WHITE : Color.GRAY);
             draw(batch, "art/ui/ability_icons/" + cls + "_" + keys[i] + ".png",new CollisionBox(left,8,size,size));
             batch.setColor(Color.WHITE);
-            font.getData().setScale(0.65f * hud.scale()); font.setColor(Color.WHITE);
+            font.getData().setScale(0.65f * hud.skillScale()); font.setColor(Color.WHITE);
             String label = "JKLO".substring(i,i+1);
             double cooldown = abilities.getCooldownRemaining(slots[i]);
             font.draw(batch, cooldown > 0 ? label + " " + (int)Math.ceil(cooldown) : label, (float)left, (float)(size+22));
@@ -563,7 +563,7 @@ public final class SceneArt implements Disposable {
                     new CollisionBox(hud.skillSlotLeft(windowWidth, 5, true),8,size,size));
         }
         drawPotionSlot(batch, font, shapes, hud.skillSlotLeft(windowWidth, elementVisible ? 6 : 5, elementVisible),
-                hud.skillIconSize(), hud.scale(), player.getInventory().quantityOf(ItemCatalog.POTION));
+                hud.skillIconSize(), hud.skillScale(), player.getInventory().quantityOf(ItemCatalog.POTION));
     }
 
     /**
@@ -575,7 +575,7 @@ public final class SceneArt implements Disposable {
      * @param shapes idle reusable geometry renderer
      * @param x slot left edge
      * @param size square icon size
-     * @param scale capped HUD scale
+     * @param scale skill bar scale for this window
      * @param quantity current bag count, excluding chest storage
      */
     private void drawPotionSlot(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes,

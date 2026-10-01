@@ -53,7 +53,6 @@ final class HudLayoutTest {
             HudLayout changed = HudLayout.forWindow(window[0], window[1]);
             assertTrue(Float.isFinite(changed.skillIconSize()));
             assertTrue(changed.skillIconSize() >= 0);
-            assertTrue(changed.skillIconSize() <= initial.skillIconSize());
             assertEquals(window[0] >= 640 && window[1] >= 360, changed.detailsVisible());
             for (boolean mage : new boolean[] {false, true}) {
                 int potion = mage ? 6 : 5;
@@ -82,7 +81,6 @@ final class HudLayoutTest {
         assertTrue(first >= 0);
         assertTrue(right <= width);
         assertEquals(width, first + right, 0.001);
-        assertTrue(size <= HudLayout.forWindow(960, 540).skillIconSize());
         for (int index = 1; index <= potionIndex; index++) {
             assertTrue(hud.skillSlotLeft(width, index, elementVisible)
                     > hud.skillSlotLeft(width, index - 1, elementVisible) + size);
@@ -103,7 +101,7 @@ final class HudLayoutTest {
         assertEquals(GameConfig.HUD_MAX_SCALE, layout.scale());
         assertTrue(layout.healthVisible());
         assertTrue(layout.detailsVisible());
-        assertEquals(HudLayout.forWindow(960, 540), layout);
+        assertTrue(layout.skillScale() >= layout.scale());
     }
 
     /**
@@ -146,7 +144,7 @@ final class HudLayoutTest {
     @ParameterizedTest
     @CsvSource({"0,540", "960,0", "0,0", "-1,540", "960,-1", "-2147483648,-2147483648"})
     void hidesForNonPositiveDimensions(int width, int height) {
-        assertEquals(new HudLayout(0, false, false), HudLayout.forWindow(width, height));
+        assertEquals(new HudLayout(0, false, false, 0), HudLayout.forWindow(width, height));
     }
 
     /** Enlarging again restores the exact original policy without retaining hidden-state history. */
@@ -156,6 +154,10 @@ final class HudLayoutTest {
         assertFalse(HudLayout.forWindow(500, 300).detailsVisible());
         assertFalse(HudLayout.forWindow(200, 100).healthVisible());
         assertEquals(initial, HudLayout.forWindow(960, 540));
-        assertEquals(initial, HudLayout.forWindow(1920, 1080));
+        HudLayout enlarged = HudLayout.forWindow(1920, 1080);
+        assertEquals(initial.scale(), enlarged.scale(), EPSILON);
+        assertTrue(enlarged.healthVisible());
+        assertTrue(enlarged.detailsVisible());
+        assertTrue(enlarged.skillScale() >= initial.skillScale());
     }
 }
