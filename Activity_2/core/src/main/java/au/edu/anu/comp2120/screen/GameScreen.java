@@ -583,6 +583,21 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
+     * Resolves an NPC id to its display name, falling back to the raw id.
+     *
+     * @param npcId NPC identifier as stored in {@link GameConfig#HUB_NPCS}
+     * @return human-readable NPC name
+     */
+    private String npcName(String npcId) {
+        for (NPC npc : GameConfig.HUB_NPCS) {
+            if (npc.getId().equals(npcId)) {
+                return npc.getName();
+            }
+        }
+        return npcId;
+    }
+
+    /**
      * Distinguishes the quest menu from its one-time ending dialogue.
      * @return true while the quest giver's selection menu is open
      */
@@ -858,6 +873,15 @@ public final class GameScreen extends ScreenAdapter {
                 String reward = activeNpc.getRewardItemId();
                 if (reward != null && !reward.isBlank()) {
                     inventory.addItem(reward, 1);
+                }
+                String nextObjective = currentObjectiveNpcId();
+                if (nextObjective != null) {
+                    if (reward != null && !reward.isBlank()) {
+                        saveMenu.notify("Received: " + reward + ". Next objective: Talk to " + npcName(nextObjective));
+                    } else {
+                        saveMenu.notify("Next objective: Talk to " + npcName(nextObjective));
+                    }
+                } else if (reward != null && !reward.isBlank()) {
                     saveMenu.notify("Received: " + reward);
                 } else {
                     saveMenu.notify("Talked to: " + activeNpc.getName());
