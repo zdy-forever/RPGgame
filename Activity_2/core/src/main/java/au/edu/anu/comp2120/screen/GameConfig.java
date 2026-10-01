@@ -192,17 +192,13 @@ public final class GameConfig {
     public static final NPC PORTAL_GUIDE = new NPC(
             "portal_guide", "Portal Guide",
             765.0, 245.0, 24.0, 24.0,
-            List.of(
-                    "I open the gates. Training is always open; Battle needs a quest from the Quest Keeper.",
-                    "Tell me your destination and step through - the guardian awaits."),
+            List.of("I open the gates. Training is always open; Battle needs a quest from the Quest Keeper."),
             null
     );
     /** Class and ultimate trainer, clear of the portal and other interaction points. */
     public static final NPC CLASS_MASTER = new NPC(
             "class_master", "Class Master", 320.0, 130.0, 24.0, 24.0,
-            List.of(
-                    "Choose your class and its O ultimate mode. J/K/L remain class-defined.",
-                    "A worthy start. Now seek the Quest Keeper - they will set your first trial against a guardian."),
+            List.of("Choose your class and its O ultimate mode. J/K/L remain class-defined."),
             null);
     /** Practice-only exit replacing the removed debug fast-travel keys. */
     public static final NPC TRAINING_EXIT = new NPC(
@@ -211,9 +207,7 @@ public final class GameConfig {
     /** Hub quest giver offering the five distinct Boss challenges. */
     public static final NPC QUEST_KEEPER = new NPC(
             "quest_keeper", "Quest Keeper", 347.0, 240.0, 24.0, 24.0,
-            List.of(
-                    "Accept a Boss challenge from me - each guardian guards a corrupted elemental core.",
-                    "Once you have taken a trial, bring it to the Portal Guide. They alone open the way."),
+            List.of("Accept a Boss challenge from me - each guardian guards a corrupted elemental core."),
             null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
