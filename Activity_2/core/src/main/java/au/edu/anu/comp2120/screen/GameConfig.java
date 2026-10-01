@@ -124,6 +124,7 @@ public final class GameConfig {
                     "Loading replaces unsaved progress, including Boss wins and items, with the selected save. Replacing a manual save or loading requires confirmation; Esc cancels.",
                     "Visit the Class Master to choose Archer, Mage or Katana and an O mode. Class and O mode selection are Hub-only.",
                     "Want to practise? Ask the Portal Guide for Training, then enter the portal. The target stays still and fires upward; the scoreboard shows damage and movement speed. Step aside for five seconds to recover.",
+                    "Wounded in battle? Press P to drink a health potion (restores 30 HP). You begin with 3 in the storage chest; the Weapon Merchant refills them to 3 for free.",
                     "For a real battle, accept a Boss task from the Quest Keeper FIRST. Then ask the Portal Guide to select Battle and open the portal. Accepting a task alone does not open it.",
                     "Each Battle Map has one Boss. Watch for the flashing warning and red melee area, dodge attacks, and use your skills between openings.",
                     "Victory or defeat returns you here with full HP. Failure lets you retry the same task. After victory, accept any Boss again: each guardian gains health and attacks slightly faster as your wins against it grow, up to a limit.",
