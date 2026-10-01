@@ -1042,7 +1042,9 @@ public final class GameScreen extends ScreenAdapter {
             return BossQuests.ENDING_LINES;
         }
         if (isQuestDialogueOpen()) {
-            StringBuilder text = new StringBuilder("Defeated: ").append(quests.getCompleted().size())
+            StringBuilder text = new StringBuilder("Accept a Boss challenge from me - each guardian guards a corrupted elemental core.\n")
+                    .append("Once you have taken a trial, bring it to the Portal Guide. They alone open the way.\n\n")
+                    .append("Defeated: ").append(quests.getCompleted().size())
                     .append(" / ").append(BossChallenge.values().length).append('\n');
             var targets = BossChallenge.values();
             for (int i = 0; i < targets.length; i++) {
@@ -1066,7 +1068,9 @@ public final class GameScreen extends ScreenAdapter {
             return List.of(text.append(merchantFeedback).toString());
         }
         if (isTrainerDialogueOpen()) {
-            StringBuilder text = new StringBuilder("Current: ")
+            StringBuilder text = new StringBuilder("Choose your class and its O ultimate mode. J/K/L remain class-defined.\n")
+                    .append("A worthy start. Now seek the Quest Keeper - they will set your first trial against a guardian.\n\n")
+                    .append("Current: ")
                     .append(session.getPlayer().getPlayerClass().getDisplayName())
                     .append(" | O mode ").append(session.getPlayer().getUltimateMode()).append('\n');
             var choices = ClassTrainer.Choice.values();
@@ -1076,7 +1080,8 @@ public final class GameScreen extends ScreenAdapter {
             return List.of(text.append(trainerFeedback).toString());
         }
         if (isPortalDialogueOpen()) {
-            StringBuilder text = new StringBuilder();
+            StringBuilder text = new StringBuilder("I open the gates. Training is always open; Battle needs a quest from the Quest Keeper.\n")
+                    .append("Tell me your destination and step through - the guardian awaits.\n\n");
             for (var choice : PortalGuide.Destination.values()) {
                 text.append(choice == portalChoice ? "> " : "  ")
                         .append(portalGuide.destinationLabel(choice)).append('\n');
