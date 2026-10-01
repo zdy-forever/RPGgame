@@ -115,7 +115,7 @@ public final class GameConfig {
             "hub_guide", "Old Sage",
             184.0, 221.0, 24.0, 24.0,
             List.of(
-                    "Welcome, adventurer! This Hub is your safe base. Press E to read the next tip, and E on the last page to close this guide.",
+                    "Welcome, adventurer! Five elemental cores lie corrupted. Your path: choose a class with the Class Master, take a trial from the Quest Keeper, then pass through the Portal Guide's gate. Press E to read the next tip.",
                     "Use WASD to move. J is your light attack, K your class skill, L your dash, and O your ultimate.",
                     "Visit the Class Master to choose Archer, Mage or Katana and an O mode. Class and O mode selection are Hub-only.",
                     "Want to practise? Ask the Portal Guide for Training, then enter the portal. The target stays still and fires upward; the scoreboard shows damage and movement speed. Step aside for five seconds to recover.",
@@ -167,12 +167,18 @@ public final class GameConfig {
     public static final NPC PORTAL_GUIDE = new NPC(
             "portal_guide", "Portal Guide",
             765.0, 245.0, 24.0, 24.0,
-            "Training is always available. Battle requires a quest from the Quest Keeper.", null
+            List.of(
+                    "I open the gates. Training is always open; Battle needs a quest from the Quest Keeper.",
+                    "Tell me your destination and step through - the guardian awaits."),
+            null
     );
     /** Class and ultimate trainer, clear of the portal and other interaction points. */
     public static final NPC CLASS_MASTER = new NPC(
             "class_master", "Class Master", 320.0, 130.0, 24.0, 24.0,
-            "Choose your class and its O ultimate mode. J/K/L remain class-defined.", null);
+            List.of(
+                    "Choose your class and its O ultimate mode. J/K/L remain class-defined.",
+                    "A worthy start. Now seek the Quest Keeper - they will set your first trial against a guardian."),
+            null);
     /** Practice-only exit replacing the removed debug fast-travel keys. */
     public static final NPC TRAINING_EXIT = new NPC(
             "training_exit", "Return to Hub", 128.0, 144.0, 24.0, 24.0,
@@ -180,7 +186,10 @@ public final class GameConfig {
     /** Hub quest giver offering the five distinct Boss challenges. */
     public static final NPC QUEST_KEEPER = new NPC(
             "quest_keeper", "Quest Keeper", 347.0, 240.0, 24.0, 24.0,
-            "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
+            List.of(
+                    "Accept a Boss challenge from me - each guardian guards a corrupted elemental core.",
+                    "Once you have taken a trial, bring it to the Portal Guide. They alone open the way."),
+            null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
             List.of(HUB_GUIDE, WEAPON_MERCHANT, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);
