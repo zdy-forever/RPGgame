@@ -1,6 +1,8 @@
 package au.edu.anu.comp2120;
 
 import au.edu.anu.comp2120.screen.GameScreen;
+import au.edu.anu.comp2120.screen.GameSettings;
+import au.edu.anu.comp2120.screen.MainMenuScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 
@@ -24,7 +26,10 @@ public final class MainGame extends Game {
      */
     @Override
     public void create() {
-        setScreen(new GameScreen());
+        if (GameSettings.fullscreen() && !Gdx.graphics.isFullscreen()) {
+            Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
+        }
+        setScreen(new MainMenuScreen());
     }
 
     /** Defers a fresh session until the old screen has finished its render call.
