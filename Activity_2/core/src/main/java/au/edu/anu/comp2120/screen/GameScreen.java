@@ -1024,8 +1024,8 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
-     * Draws a persistent objective tracker pinned to the left edge and vertically
-     * centred, listing every active task at once: the current Hub onboarding step
+     * Draws a persistent objective tracker pinned to the left edge directly below the
+     * health bar, listing every active task at once: the current Hub onboarding step
      * (from {@link #currentObjective()}) plus any accepted boss challenge.
      * Mirrors the dialogue box styling (dark panel with a gold border).
      *
@@ -1065,7 +1065,8 @@ public final class GameScreen extends ScreenAdapter {
         float contentH = (primaryLines + secondaryLines) * lineGap;
 
         float panelH = titleH + pad + contentH + pad;
-        float top = h / 2f + panelH / 2f;
+        float hpBottom = h - 10f * hud.scale() - 18f * hud.scale();
+        float top = hud.healthVisible() ? hpBottom - 8f * hud.scale() : h - 12f * scale;
         top = Math.min(h - 12f * scale, Math.max(panelH + 12f * scale, top));
         float x = 12f * scale;
 
