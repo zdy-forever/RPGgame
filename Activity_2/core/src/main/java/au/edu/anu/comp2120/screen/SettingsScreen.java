@@ -104,7 +104,9 @@ public final class SettingsScreen extends ScreenAdapter {
         applyFullscreen(next);
     }
 
-    /** Applies a fullscreen state without changing the persisted preference. */
+    /** Applies a fullscreen state without changing the persisted preference.
+     * @param on true to enter fullscreen, false to return to windowed mode
+     */
     private static void applyFullscreen(boolean on) {
         if (on) {
             if (!Gdx.graphics.isFullscreen()) { Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode()); }
@@ -138,7 +140,15 @@ public final class SettingsScreen extends ScreenAdapter {
         } else { dragging = false; }
     }
 
-    /** Draws one reference-coordinate filled rectangle. */
+    /** Draws one reference-coordinate filled rectangle.
+     * @param shapes shape renderer
+     * @param layout panel layout
+     * @param x left edge in reference coordinates
+     * @param y bottom edge in reference coordinates
+     * @param w width in reference coordinates
+     * @param h height in reference coordinates
+     * @param color fill color
+     */
     private static void rect(ShapeRenderer shapes, SaveMenu.Layout layout, float x, float y,
                              float w, float h, Color color) {
         shapes.setColor(color);
@@ -146,7 +156,16 @@ public final class SettingsScreen extends ScreenAdapter {
                 w * layout.scale(), h * layout.scale());
     }
 
-    /** Draws scaled left-aligned text. */
+    /** Draws scaled left-aligned text.
+     * @param layout panel layout
+     * @param value text to draw
+     * @param x left edge in reference coordinates
+     * @param top baseline y in reference coordinates
+     * @param width unused horizontal bound
+     * @param height unused vertical bound
+     * @param size font scale
+     * @param color text color
+     */
     private void label(SaveMenu.Layout layout, String value, float x, float top,
                        float width, float height, float size, Color color) {
         font.getData().setScale(size * layout.scale());

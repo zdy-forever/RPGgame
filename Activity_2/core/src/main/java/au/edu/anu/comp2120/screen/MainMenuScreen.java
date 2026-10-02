@@ -132,7 +132,9 @@ public final class MainMenuScreen extends ScreenAdapter {
         }
     }
 
-    /** Starts a fresh or continued game on the next frame, releasing this menu. */
+    /** Starts a fresh or continued game on the next frame, releasing this menu.
+     * @param slot save slot to load, or null for a new game
+     */
     private void startGame(SaveSlot slot) {
         float volume = GameSettings.musicVolume() / 100f;
         Gdx.app.postRunnable(() -> {
@@ -162,7 +164,15 @@ public final class MainMenuScreen extends ScreenAdapter {
         }
     }
 
-    /** Draws one reference-coordinate filled rectangle. */
+    /** Draws one reference-coordinate filled rectangle.
+     * @param shapes shape renderer
+     * @param layout panel layout
+     * @param x left edge in reference coordinates
+     * @param y bottom edge in reference coordinates
+     * @param w width in reference coordinates
+     * @param h height in reference coordinates
+     * @param color fill color
+     */
     private static void rect(ShapeRenderer shapes, SaveMenu.Layout layout, float x, float y,
                              float w, float h, Color color) {
         shapes.setColor(color);
@@ -170,7 +180,16 @@ public final class MainMenuScreen extends ScreenAdapter {
                 w * layout.scale(), h * layout.scale());
     }
 
-    /** Draws scaled left-aligned text. */
+    /** Draws scaled left-aligned text.
+     * @param layout panel layout
+     * @param value text to draw
+     * @param x left edge in reference coordinates
+     * @param top baseline y in reference coordinates
+     * @param width unused horizontal bound
+     * @param height unused vertical bound
+     * @param size font scale
+     * @param color text color
+     */
     private void label(SaveMenu.Layout layout, String value, float x, float top,
                        float width, float height, float size, Color color) {
         font.getData().setScale(size * layout.scale());

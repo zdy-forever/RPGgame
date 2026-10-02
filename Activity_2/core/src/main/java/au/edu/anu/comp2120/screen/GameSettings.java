@@ -23,8 +23,9 @@ public final class GameSettings {
             ".comp2120-game", "settings.properties");
     /** Default music percentage when no file exists. */
     private static final int DEFAULT_VOLUME = Math.round(BackgroundMusic.VOLUME * 100);
-
+    /** Current music percentage, clamped to [0, 100]. */
     private static int musicVolume = DEFAULT_VOLUME;
+    /** Whether the game should launch in fullscreen mode. */
     private static boolean fullscreen = false;
 
     static {

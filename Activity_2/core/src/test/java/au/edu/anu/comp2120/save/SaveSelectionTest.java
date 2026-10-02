@@ -13,6 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Verifies the newest-valid-slot selection used by the main menu Continue action. */
 final class SaveSelectionTest {
 
+    /** Creates the test instance. */
+    SaveSelectionTest() { }
+
+    /** Picks the newer of two valid save slots.
+     * @throws IOException if a temporary directory cannot be created
+     */
     @Test
     void picksNewerOfTwoValidSlots() throws IOException {
         Path dir = Files.createTempDirectory("saves");
@@ -22,6 +28,9 @@ final class SaveSelectionTest {
         assertEquals(SaveSlot.MANUAL, SaveSelection.latestValid(dir).orElse(null));
     }
 
+    /** Returns empty when the save directory has no valid saves.
+     * @throws IOException if a temporary directory cannot be created
+     */
     @Test
     void emptyWhenNoSaves() throws IOException {
         Path dir = Files.createTempDirectory("saves");
@@ -29,6 +38,9 @@ final class SaveSelectionTest {
         assertTrue(SaveSelection.latestValid(dir).isEmpty());
     }
 
+    /** Skips a corrupt slot and keeps the remaining valid one.
+     * @throws IOException if a temporary directory cannot be created
+     */
     @Test
     void skipsCorruptSlotAndKeepsValidOne() throws IOException {
         Path dir = Files.createTempDirectory("saves");
