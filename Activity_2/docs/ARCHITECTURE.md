@@ -1,5 +1,25 @@
 # Stage 2 Architecture
 
+## Documentation follow-up — 2026-10-02
+
+The application now starts with `MainMenuScreen`: New Game enters a fresh Hub session;
+Continue uses `SaveSelection` to choose the newest readable save and attempts restoration;
+Settings persists music/fullscreen preferences through `GameSettings`. The gameplay Esc
+volume callback changes session gain without persisting the settings file. Legacy coordinate
+and weapon drawing implementations were removed in the 1 October cleanup.
+
+The team confirmed that achievements, following NPCs, general crafting and a scripted
+tutorial were outside the core playable loop. Achievements also depended on save/load,
+which was completed relatively late, leaving insufficient time for achievement integration
+and verification. Crafting was reduced to merchant upgrades; onboarding uses NPC and
+Notice Board guidance. The original planning tables below remain historical records.
+
+The current automatic game verification entry point is the Gradle-run JUnit suite, including
+`CoreGameplayIntegrationTest`, movement/collision tests and invalid-operation checks.
+These send commands, advance simulation and assert states/events as described in the
+assignment's tester examples. They do not automate the graphical desktop. The historical
+M4 smoke-tester deferral does not mean no automated gameplay scenarios exist.
+
 ## Current working-tree review (2026-09-30)
 
 The shared gameplay architecture is unchanged by the latest HUD/onboarding work. PlayerInput

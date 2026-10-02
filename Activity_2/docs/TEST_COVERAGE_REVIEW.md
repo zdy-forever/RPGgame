@@ -1,5 +1,22 @@
 # Test coverage and documentation review — 2026-09-30
 
+## Follow-up CI evidence — 2026-10-02
+
+The current-source GitLab report was inspected for commit
+`1a2c60c2b7602e2501d86ac380c364b1d704b175`:
+[pipeline #1052082](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052082)
+reports **1,302 passed, 0 failures, 0 errors and 0 skipped tests**.
+[gradle-build #7716451](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7716451)
+executed `./gradlew clean build javadocAudit --no-daemon` in `Activity_2`, using
+`eclipse-temurin:25-jdk` with the Docker executor. Both module test and JavaDoc audit tasks
+completed, and the log ends `BUILD SUCCESSFUL`.
+
+This supersedes the absence of current-source automated evidence in the original review below.
+It does not turn the earlier blocked local attempts into successful runs: the 2 October local
+attempt was also blocked at the wrapper cache lock. The Wiki includes the actual CI report
+screenshot. Native/manual checks listed below remain outstanding; test success is not measured
+line/branch coverage or an end-to-end graphical playthrough. Later commits require their own CI.
+
 ## Status and evidence boundary
 
 This is a source/test/documentation audit of the current working tree, not a coverage-percentage
