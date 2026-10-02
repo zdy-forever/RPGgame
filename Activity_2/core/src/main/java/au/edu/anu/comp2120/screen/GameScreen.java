@@ -6,7 +6,6 @@ import au.edu.anu.comp2120.EncounterFlow;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.npc.PortalGuide;
 import au.edu.anu.comp2120.npc.ClassTrainer;
-import au.edu.anu.comp2120.enemy.Boss;
 import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.quest.BossQuests;
 import au.edu.anu.comp2120.player.Player;
@@ -30,6 +29,7 @@ import au.edu.anu.comp2120.inventory.ItemCatalog;
 import au.edu.anu.comp2120.inventory.InventoryRewards;
 import au.edu.anu.comp2120.npc.MerchantServices;
 import au.edu.anu.comp2120.inventory.GearUpgrades;
+import au.edu.anu.comp2120.save.SaveSlot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -163,8 +163,6 @@ public final class GameScreen extends ScreenAdapter {
     private final Inventory chestStorage;
     /** Whether the chest transfer panel is open; freezes movement while true. */
     private boolean chestOpen;
-    /** Material id of the currently equipped weapon, empty when none is equipped. */
-    private String equippedWeapon = "";
     /** Prefix marking a material id as an equippable weapon. */
     private static final String WEAPON_PREFIX = "weapon_";
 
@@ -232,6 +230,15 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
+     * Restores a save slot immediately after construction, used by the main-menu Continue action.
+     * Respects the same safety guards as the in-game load; a blocked or invalid slot is reported and ignored.
+     * @param slot source slot to restore, or null for a plain fresh game
+     */
+    public void loadFrom(SaveSlot slot) {
+        if (slot != null) { saves.load(slot); }
+    }
+
+    /**
      * Gives external Quest/Inventory adapters acceptance, result and one-time reward APIs.
      * All calls must run on the game-loop thread; the local Portal Guide uses this same boundary.
      * Quest progress and Inventory reward consumption remain external responsibilities.
@@ -265,7 +272,6 @@ public final class GameScreen extends ScreenAdapter {
         int rewards = inventoryRewards.collect();
         if (rewards > 0) { inventoryFeedback = "Boss rewards added to your bag"; }
         equipment.reconcile();
-        equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
         quests.synchronize();
         saves.afterSettlement();
         music.update(session.getCurrentMap().getType(), quests.getCompleted().size() == BossChallenge.values().length);
@@ -275,17 +281,14 @@ public final class GameScreen extends ScreenAdapter {
                 travel.getPortals(currentMap.getId()),
                 combatDemo, paused || debugConsole.isOpen() || saveMenu.isOpen() || dialogueOpen || inventoryOpen || chestOpen || bigMap
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
-                combatDemo.getDrops(), quests.getCompleted());
+                combatDemo.getDrops(), quests.getCompleted(), currentObjective().markerNpcId());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
-        // Legacy coordinate HUD disabled; retain the original renderer for reference.
-        // drawCoordinates(hud);
         drawHealth(hud);
         drawTrainingScore();
         drawInventory();
-        // Legacy weapon HUD disabled; retain its renderer for reference. Equipment is shown in the bag.
-        // drawWeaponSlot(hud);
         drawInteractionPrompt();
         drawMinimap(hud);
+        drawObjectivePanel(hud);
         drawChest();
         drawSkillHud(hud);
         drawDialogue();
@@ -391,7 +394,6 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         if (saveMenu.update(dialogueOpen || inventoryOpen || chestOpen || bigMap || endingOpen || credits.isOpen())) {
-            equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
             inventoryPage = 0; chestPage = 0;
             updateMapView();
             return;
@@ -453,12 +455,10 @@ public final class GameScreen extends ScreenAdapter {
             inventoryOpen = !inventoryOpen;
             if (!inventoryOpen) { updateMapView(); return; }
             bagRow = 0;
-            if (inventoryOpen) {
-                bigMap = false;
-                dialogueOpen = false;
-                chestOpen = false;
-                activeNpc = null;
-            }
+            bigMap = false;
+            dialogueOpen = false;
+            chestOpen = false;
+            activeNpc = null;
             updateMapView(); return;
         }
         if (!inventoryOpen && !chestOpen && session.getCurrentMap().getType() != MapType.MEMORIAL
@@ -477,58 +477,52 @@ public final class GameScreen extends ScreenAdapter {
             updateMapView(); return;
         }
         if (bigMap) { updateMapView(); return; }
-        if ((dialogueOpen && menuConfirm()) || (!dialogueOpen && Gdx.input.isKeyJustPressed(Input.Keys.E))) {
-            if (chestOpen) {
-                chestOpen = false;
-            } else if (dialogueOpen) {
-                advanceDialogue();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            NPC near = nearestNpc(session.getPlayer());
+            if (near == null) {
+                travelStatus = "";
+            } else if (GameConfig.STORAGE_CHEST.getId().equals(near.getId())) {
+                chestOpen = true; storageRow = 0; storageRight = false; chestPage = 0;
+                dialogueOpen = false;
+                inventoryOpen = false;
+                activeNpc = null;
             } else {
-                NPC near = nearestNpc(session.getPlayer());
-                if (near == null) {
-                    travelStatus = "";
-                } else if (GameConfig.STORAGE_CHEST.getId().equals(near.getId())) {
-                    chestOpen = true; storageRow = 0; storageRight = false; chestPage = 0;
-                    dialogueOpen = false;
+                dialogueOpen = true;
+                dialogueLine = 0;
+                activeNpc = near;
+                if (isMerchantDialogueOpen()) {
+                    merchantChoice = 0; upgradeMenu = false; upgradeChoice = 0; pendingUpgrade = "";
+                    merchantFeedback = "Choose a service. Supplies count both bag and chest.";
+                    inventoryOpen = false; bigMap = false;
+                }
+                if (near.getId().equals(GameConfig.GUIDE.getId())
+                        && session.getCurrentMap().getType() == MapType.MEMORIAL) {
+                    endingOpen = quests.consumeEnding();
                     inventoryOpen = false;
-                    activeNpc = null;
-                } else {
-                    dialogueOpen = true;
-                    dialogueLine = 0;
-                    activeNpc = near;
-                    if (isMerchantDialogueOpen()) {
-                        merchantChoice = 0; upgradeMenu = false; upgradeChoice = 0; pendingUpgrade = "";
-                        merchantFeedback = "Choose a service. Supplies count both bag and chest.";
-                        inventoryOpen = false; bigMap = false;
-                    }
-                    if (near.getId().equals(GameConfig.GUIDE.getId())
-                            && session.getCurrentMap().getType() == MapType.MEMORIAL) {
-                        endingOpen = quests.consumeEnding();
-                        inventoryOpen = false;
-                        bigMap = false;
-                    }
-                    if (isPortalDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                        portalChoice = switch (travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId()) {
-                            case MapCatalog.TRAINING -> PortalGuide.Destination.TRAINING;
-                            case MapCatalog.MEMORIAL_HALL -> PortalGuide.Destination.MEMORIAL;
-                            default -> PortalGuide.Destination.BATTLE;
-                        };
-                    } else if (isTrainerDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                        trainerChoice = session.getPlayer().getPlayerClass().ordinal();
-                        trainerFeedback = "J/K/L follow your class; choose your O mode below.";
-                    } else if (isTrainingExitDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                    } else if (isQuestDialogueOpen()) {
-                        inventoryOpen = false;
-                        bigMap = false;
-                        quests.synchronize();
-                        questChoice = quests.getActive().map(Enum::ordinal).orElse(0);
-                        questFeedback = "E accepts any Boss, including rematches; Esc closes.";
-                    }
+                    bigMap = false;
+                }
+                if (isPortalDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                    portalChoice = switch (travel.getPortal(TravelCatalog.QUEST_PORTAL_ID).destinationMapId()) {
+                        case MapCatalog.TRAINING -> PortalGuide.Destination.TRAINING;
+                        case MapCatalog.MEMORIAL_HALL -> PortalGuide.Destination.MEMORIAL;
+                        default -> PortalGuide.Destination.BATTLE;
+                    };
+                } else if (isTrainerDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                    trainerChoice = session.getPlayer().getPlayerClass().ordinal();
+                    trainerFeedback = "J/K/L follow your class; choose your O mode below.";
+                } else if (isTrainingExitDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                } else if (isQuestDialogueOpen()) {
+                    inventoryOpen = false;
+                    bigMap = false;
+                    quests.synchronize();
+                    questChoice = quests.getActive().map(Enum::ordinal).orElse(0);
+                    questFeedback = "E accepts any Boss, including rematches; Esc closes.";
                 }
             }
         }
@@ -538,33 +532,28 @@ public final class GameScreen extends ScreenAdapter {
             updateMapView();
             return;
         }
-        boolean frozen = dialogueOpen || bigMap || chestOpen;
-        if (!frozen && input.samplePotionUse()) {
+        if (input.samplePotionUse()) {
             useHealthPotion();
         }
         combatDemo.update(delta,
-                frozen ? PlayerCommand.NONE : input.sample(),
-                !frozen && Gdx.input.isKeyJustPressed(Input.Keys.R),
-                frozen ? null : input.sampleClassSelection().orElse(null),
-                !frozen && input.sampleElementCycle(),
-                !frozen && input.sampleUltimateModeCycle());
+                input.sample(),
+                Gdx.input.isKeyJustPressed(Input.Keys.R),
+                input.sampleClassSelection().orElse(null),
+                input.sampleElementCycle(),
+                input.sampleUltimateModeCycle());
         if (session.getTransitionVersion() != beforeCombat) {
             showBattleReturn();
             return;
         }
-        if (frozen) {
-            updateMapView();
-        } else {
-            try {
-                if (travel.updatePortals()) {
-                    combatDemo.update(0, PlayerCommand.NONE, false);
-                    saveMenu.notify("Arrived by portal; leave the portal area before re-entry");
-                    updateMapView();
-                }
-            } catch (IllegalArgumentException | IllegalStateException failure) {
-                saveMenu.notify(failure.getMessage());
+        try {
+            if (travel.updatePortals()) {
+                combatDemo.update(0, PlayerCommand.NONE, false);
+                saveMenu.notify("Arrived by portal; leave the portal area before re-entry");
                 updateMapView();
             }
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            saveMenu.notify(failure.getMessage());
+            updateMapView();
         }
         if (!combatStatus.equals(combatDemo.getStatus())) {
             updateMapView();
@@ -578,6 +567,88 @@ public final class GameScreen extends ScreenAdapter {
     private boolean isPortalDialogueOpen() {
         return dialogueOpen && activeNpc != null
                 && activeNpc.getId().equals(GameConfig.PORTAL_GUIDE.getId());
+    }
+
+    /**
+     * One current objective: a primary task, an optional secondary (side) task,
+     * and the NPC that should display the world-space exclamation marker.
+     *
+     * @param primary human-readable main objective
+     * @param secondary human-readable side objective, or null
+     * @param markerNpcId NPC to highlight, or null
+     */
+    private record Objective(String primary, String secondary, String markerNpcId) { }
+
+    /**
+     * Computes the current primary/secondary objectives and the NPC that should
+     * show an interaction marker.
+     *
+     * <p>Onboarding follows the Old Sage → Class Master → Quest Keeper → Portal Guide
+     * chain. After that the boss loop begins: with no accepted trial the player is
+     * directed to the Quest Keeper; once a boss is chosen the defeat goal becomes the
+     * primary task and talking to the Portal Guide becomes the side task. After all
+     * five guardians fall the Old Sage reveals the Memorial Hall route, and the
+     * marker then moves to the Portal Guide.</p>
+     *
+     * @return current objective bundle; never null
+     */
+    private Objective currentObjective() {
+        String npcStep = null;
+        if (!GameConfig.HUB_GUIDE.hasInteracted()) {
+            npcStep = GameConfig.HUB_GUIDE.getId();
+        } else if (!GameConfig.CLASS_MASTER.hasInteracted()) {
+            npcStep = GameConfig.CLASS_MASTER.getId();
+        } else if (!GameConfig.QUEST_KEEPER.hasInteracted()) {
+            npcStep = GameConfig.QUEST_KEEPER.getId();
+        } else if (!GameConfig.PORTAL_GUIDE.hasInteracted()) {
+            npcStep = GameConfig.PORTAL_GUIDE.getId();
+        }
+
+        var activeBoss = encounterFlow.getActiveEncounter()
+                .flatMap(ae -> BossChallenge.forMap(ae.mapId()))
+                .filter(b -> !quests.getCompleted().contains(b))
+                .orElse(null);
+        boolean bossActive = activeBoss != null;
+        String bossName = bossActive ? activeBoss.displayName() : "";
+        boolean allCompleted = quests.allBossesDefeated();
+        boolean memorialRevealed = quests.isMemorialPathRevealed();
+
+        List<String> tasks = buildObjectiveTasks(npcStep, npcName(npcStep), bossActive, bossName, allCompleted, memorialRevealed);
+        String primary = tasks.isEmpty() ? "Free explore: leave via Portal Guide" : tasks.get(0);
+        String secondary = tasks.size() > 1 ? tasks.get(1) : null;
+
+        String marker = null;
+        if (session.getCurrentMap().getType() == MapType.MEMORIAL) {
+            // Inside the Memorial Hall, point to the Old Sage until the ending has played.
+            marker = quests.hasEndingStarted() ? null : GameConfig.GUIDE.getId();
+        } else if (allCompleted && memorialRevealed) {
+            marker = GameConfig.PORTAL_GUIDE.getId();
+        } else if (allCompleted) {
+            // All guardians fallen but the Old Sage has not yet revealed the Memorial Hall route.
+            marker = GameConfig.HUB_GUIDE.getId();
+        } else if (bossActive) {
+            marker = GameConfig.PORTAL_GUIDE.getId();
+        } else if (npcStep != null) {
+            marker = npcStep;
+        } else {
+            marker = GameConfig.QUEST_KEEPER.getId();
+        }
+        return new Objective(primary, secondary, marker);
+    }
+
+    /**
+     * Resolves an NPC id to its display name, falling back to the raw id.
+     *
+     * @param npcId NPC identifier as stored in {@link GameConfig#HUB_NPCS}
+     * @return human-readable NPC name
+     */
+    private String npcName(String npcId) {
+        for (NPC npc : GameConfig.HUB_NPCS) {
+            if (npc.getId().equals(npcId)) {
+                return npc.getName();
+            }
+        }
+        return npcId;
     }
 
     /**
@@ -660,6 +731,7 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
+        activeNpc.setInteracted();
         var targets = BossChallenge.values();
         if (MenuKeys.up()) {
             questChoice = Math.floorMod(questChoice - 1, targets.length);
@@ -763,6 +835,7 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
+        activeNpc.setInteracted();
         var choices = ClassTrainer.Choice.values();
         if (MenuKeys.up()) {
             trainerChoice = Math.floorMod(trainerChoice - 1, choices.length);
@@ -788,6 +861,7 @@ public final class GameScreen extends ScreenAdapter {
             activeNpc = null;
             return;
         }
+        activeNpc.setInteracted();
         if (MenuKeys.up()) {
             var choices = PortalGuide.Destination.values();
             portalChoice = choices[Math.floorMod(portalChoice.ordinal() - 1, choices.length)];
@@ -847,12 +921,28 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         if (activeNpc == null || dialogueLine >= dialogueLines().size()) {
+            if (activeNpc != null && activeNpc.getId().equals(GameConfig.HUB_GUIDE.getId())
+                    && quests.allBossesDefeated() && !quests.hasEndingStarted()) {
+                quests.revealMemorialPath();
+            }
             dialogueOpen = false;
             if (activeNpc != null && !activeNpc.hasInteracted()) {
                 activeNpc.setInteracted();
                 String reward = activeNpc.getRewardItemId();
                 if (reward != null && !reward.isBlank()) {
                     inventory.addItem(reward, 1);
+                }
+                Objective nextObjective = currentObjective();
+                if (nextObjective.markerNpcId() != null) {
+                    String objectiveText = nextObjective.secondary() != null
+                            ? nextObjective.primary() + " / " + nextObjective.secondary()
+                            : nextObjective.primary();
+                    if (reward != null && !reward.isBlank()) {
+                        saveMenu.notify("Received: " + reward + ". Next objective: " + objectiveText);
+                    } else {
+                        saveMenu.notify("Next objective: " + objectiveText);
+                    }
+                } else if (reward != null && !reward.isBlank()) {
                     saveMenu.notify("Received: " + reward);
                 } else {
                     saveMenu.notify("Talked to: " + activeNpc.getName());
@@ -933,6 +1023,122 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.end();
     }
 
+    /**
+     * Draws a persistent objective tracker pinned to the left edge directly below the
+     * health bar, listing every active task at once: the current Hub onboarding step
+     * (from {@link #currentObjective()}) plus any accepted boss challenge.
+     * Mirrors the dialogue box styling (dark panel with a gold border).
+     *
+     * @param hud current size and visibility policy
+     */
+    private void drawObjectivePanel(HudLayout hud) {
+        if (inventoryOpen || chestOpen || bigMap) {
+            return;
+        }
+        if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
+            return;
+        }
+        Objective objective = currentObjective();
+
+        int w = Gdx.graphics.getWidth();
+        int h = Gdx.graphics.getHeight();
+        float scale = hud.panelScale();
+        float pad = 10f * scale;
+        float titleH = 24f * scale;
+
+        dialogueFont.getData().setScale(scale);
+        float panelW = 320f * scale;
+        float wrapW = panelW - 2f * pad;
+        float lineGap = dialogueFont.getLineHeight() * 1.05f;
+
+        String primaryText = objective.primary();
+        String secondaryText = objective.secondary() != null ? "- " + objective.secondary() : null;
+
+        GlyphLayout primaryLayout = new GlyphLayout(dialogueFont, primaryText,
+                dialogueFont.getColor(), wrapW, Align.left, true);
+        GlyphLayout secondaryLayout = secondaryText != null
+                ? new GlyphLayout(dialogueFont, secondaryText, dialogueFont.getColor(),
+                        wrapW - 8f * scale, Align.left, true)
+                : null;
+        int primaryLines = primaryLayout.runs.size;
+        int secondaryLines = secondaryLayout != null ? secondaryLayout.runs.size : 0;
+        float contentH = (primaryLines + secondaryLines) * lineGap;
+
+        float panelH = titleH + pad + contentH + pad;
+        float hpBottom = h - 10f * hud.scale() - 18f * hud.scale();
+        float top = hud.healthVisible() ? hpBottom - 8f * hud.scale() : h - 12f * scale;
+        top = Math.min(h - 12f * scale, Math.max(panelH + 12f * scale, top));
+        float x = 12f * scale;
+
+        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
+        dialogueShapes.setColor(0.05f, 0.06f, 0.09f, 0.88f);
+        dialogueShapes.rect(x, top - panelH, panelW, panelH);
+        dialogueShapes.end();
+        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
+        dialogueShapes.setColor(0.95f, 0.85f, 0.35f, 1);
+        dialogueShapes.rect(x, top - panelH, panelW, panelH);
+        dialogueShapes.end();
+
+        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
+        dialogueBatch.begin();
+        float titleBaseline = top - pad;
+        dialogueFont.setColor(0.95f, 0.85f, 0.35f, 1);
+        dialogueFont.draw(dialogueBatch, "Objectives", x + pad, titleBaseline, wrapW, Align.left, false);
+        float firstBaseline = titleBaseline - titleH;
+        dialogueFont.setColor(1f, 0.85f, 0.35f, 1f);
+        dialogueFont.draw(dialogueBatch, primaryText, x + pad, firstBaseline, wrapW, Align.left, true);
+        if (secondaryLayout != null) {
+            float secondaryBaseline = firstBaseline - primaryLines * lineGap;
+            dialogueFont.setColor(0.80f, 0.80f, 0.85f, 1f);
+            dialogueFont.draw(dialogueBatch, secondaryText, x + pad + 8f * scale, secondaryBaseline,
+                    wrapW - 8f * scale, Align.left, true);
+        }
+        dialogueBatch.end();
+    }
+
+    /**
+     * Builds the ordered objective tracker lines from the current tutorial step and active boss challenge.
+     * The first returned line is the primary objective; the second line, if present, is the side objective.
+     * Pure and rendering-independent so the text can be unit-tested without a graphics context.
+     * @param npcStep current onboarding step id, or null when none is active
+     * @param npcName display name of the current objective NPC
+     * @param bossActive whether an uncompleted boss challenge is currently active
+     * @param bossDisplayName display name of the active boss challenge
+     * @param allCompleted whether all five guardians have been defeated this session
+     * @param memorialRevealed whether the Old Sage has already revealed the Memorial Hall route
+     * @return ordered objective lines; never empty
+     */
+    static java.util.List<String> buildObjectiveTasks(String npcStep, String npcName,
+                                                      boolean bossActive, String bossDisplayName,
+                                                      boolean allCompleted,
+                                                      boolean memorialRevealed) {
+        java.util.List<String> tasks = new java.util.ArrayList<>();
+        if (allCompleted) {
+            if (!memorialRevealed) {
+                tasks.add("Talk to Old Sage to learn the Memorial Hall path");
+            } else {
+                tasks.add("Talk to Portal Guide and choose Memorial Hall");
+            }
+        } else if (bossActive) {
+            tasks.add("Defeat " + bossDisplayName);
+            tasks.add("Talk to Portal Guide to enter the battle");
+        } else if (npcStep != null) {
+            tasks.add(switch (npcStep) {
+                case "hub_guide" -> "Talk to Old Sage for the tutorial";
+                case "class_master" -> "Talk to Class Master to choose a class";
+                case "quest_keeper" -> "Talk to Quest Keeper to choose a Boss";
+                case "portal_guide" -> "Talk to Portal Guide to go to the battlefield";
+                default -> "Talk to " + npcName;
+            });
+        } else {
+            // Onboarding complete and no boss chosen yet: send the player back to the Quest Keeper
+            // so the primary/secondary boss loop can start (or resume after a defeat).
+            tasks.add("Talk to Quest Keeper to choose a Boss");
+        }
+        return tasks;
+    }
+
     /** Draws final delivered damage totals for the current stationary practice target only. */
     private void drawTrainingScore() {
         var practice = combatDemo.getTrainingDummy();
@@ -978,28 +1184,6 @@ public final class GameScreen extends ScreenAdapter {
      */
     private String currentHpText() { return "HP " + currentHp(); }
     /**
-     * Draws the live player coordinate in the top-left corner.
-     * Uses this screen's own font and batch, so no renderer change is needed.
-     * @param hud current size and visibility policy
-     */
-    private void drawCoordinates(HudLayout hud) {
-        if (!hud.detailsVisible()) {
-            return;
-        }
-        int w = Gdx.graphics.getWidth();
-        int h = Gdx.graphics.getHeight();
-        float scale = hud.scale();
-        dialogueFont.getData().setScale(scale);
-        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
-        dialogueBatch.begin();
-        dialogueFont.setColor(0.20f, 0.95f, 0.55f, 1);
-        dialogueFont.draw(dialogueBatch,
-                "Player x=" + (int) session.getPlayer().getX()
-                        + "  y=" + (int) session.getPlayer().getY(),
-                12f * scale, h - 40f * scale);
-        dialogueBatch.end();
-    }
-    /**
      * Draws an "[E] Talk" hint above the dialogue box while an NPC is within range.
      * Hidden while a dialogue or the inventory panel is open.
      */
@@ -1012,10 +1196,15 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         String hint = switch (near.getId()) {
-            case "portal_guide" -> "[E] Choose portal destination";
+            case "portal_guide" -> quests.isMemorialPathRevealed() && !quests.hasEndingStarted()
+                    ? "[E] Choose Memorial Hall to complete the journey"
+                    : "[E] Choose portal destination";
             case "class_master" -> "[E] Choose class / O ultimate mode";
             case "quest_keeper" -> "[E] Accept Boss quest / view completion";
             case "training_exit" -> "[E] Return to Hub";
+            case "hub_guide" -> quests.allBossesDefeated() && !quests.hasEndingStarted() && !quests.isMemorialPathRevealed()
+                    ? "[E] Speak to Old Sage\nabout the Memorial Hall path"
+                    : "[E] Speak to Old Sage";
             case "notice_board" -> "[E] Read " + near.getName();
             case "healing_spring" -> "[E] Drink from " + near.getName();
             case "storage_chest" -> "[E] Open " + near.getName();
@@ -1028,7 +1217,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(1f, 0.85f, 0.30f, 1);
-        dialogueFont.draw(dialogueBatch, hint, 0, 120f * scale, w, Align.center, false);
+        dialogueFont.draw(dialogueBatch, hint, 0, 130f * scale, w, Align.center, true);
         dialogueBatch.end();
     }
     /**
@@ -1042,7 +1231,9 @@ public final class GameScreen extends ScreenAdapter {
             return BossQuests.ENDING_LINES;
         }
         if (isQuestDialogueOpen()) {
-            StringBuilder text = new StringBuilder("Defeated: ").append(quests.getCompleted().size())
+            StringBuilder text = new StringBuilder("Accept a Boss challenge from me - each guardian guards a corrupted elemental core.\n")
+                    .append("Once you have taken a trial, bring it to the Portal Guide. They alone open the way.\n\n")
+                    .append("Defeated: ").append(quests.getCompleted().size())
                     .append(" / ").append(BossChallenge.values().length).append('\n');
             var targets = BossChallenge.values();
             for (int i = 0; i < targets.length; i++) {
@@ -1066,7 +1257,9 @@ public final class GameScreen extends ScreenAdapter {
             return List.of(text.append(merchantFeedback).toString());
         }
         if (isTrainerDialogueOpen()) {
-            StringBuilder text = new StringBuilder("Current: ")
+            StringBuilder text = new StringBuilder("Choose your class and its O ultimate mode. J/K/L remain class-defined.\n")
+                    .append("A worthy start. Now seek the Quest Keeper - they will set your first trial against a guardian.\n\n")
+                    .append("Current: ")
                     .append(session.getPlayer().getPlayerClass().getDisplayName())
                     .append(" | O mode ").append(session.getPlayer().getUltimateMode()).append('\n');
             var choices = ClassTrainer.Choice.values();
@@ -1076,7 +1269,8 @@ public final class GameScreen extends ScreenAdapter {
             return List.of(text.append(trainerFeedback).toString());
         }
         if (isPortalDialogueOpen()) {
-            StringBuilder text = new StringBuilder();
+            StringBuilder text = new StringBuilder("I open the gates. Training is always open; Battle needs a quest from the Quest Keeper.\n")
+                    .append("Tell me your destination and step through - the guardian awaits.\n\n");
             for (var choice : PortalGuide.Destination.values()) {
                 text.append(choice == portalChoice ? "> " : "  ")
                         .append(portalGuide.destinationLabel(choice)).append('\n');
@@ -1089,6 +1283,12 @@ public final class GameScreen extends ScreenAdapter {
                     + (quests.getCompleted().size() == BossChallenge.values().length
                     ? "The seal is restored. Your deeds will be remembered here."
                     : "Defeat the remaining guardians, then speak to me again.\nThe portal at the lower left returns to Hub."));
+        }
+        if (activeNpc.getId().equals(GameConfig.HUB_GUIDE.getId())
+                && quests.allBossesDefeated() && !quests.hasEndingStarted()) {
+            return List.of(
+                    "Adventurer - the five guardians have fallen. Their elemental stones now glow in the Memorial Hall.",
+                    "Speak to the Portal Guide and choose Memorial Hall to witness the restored seal and complete your journey.");
         }
         List<String> base = activeNpc.getLines();
         if (!activeNpc.hasInteracted() || activeNpc.getRewardItemId() == null) {
@@ -1218,48 +1418,6 @@ public final class GameScreen extends ScreenAdapter {
         }
         dialogueShapes.end();
     }
-    /**
-     * Draws the persistent weapon slot in the top-right corner, within the capped HUD size.
-     * @param hud current size and visibility policy
-     */
-    private void drawWeaponSlot(HudLayout hud) {
-        if (!hud.detailsVisible()) {
-            return;
-        }
-        int w = Gdx.graphics.getWidth();
-        int h = Gdx.graphics.getHeight();
-        float scale = hud.scale();
-        float boxW = 200f * scale;
-        float boxH = 58f * scale;
-        float x = w - boxW - 12f * scale;
-        float y = h - boxH - 10f * scale;
-        float pad = 12f * scale;
-
-        dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
-        dialogueShapes.begin(ShapeRenderer.ShapeType.Filled);
-        dialogueShapes.setColor(0.05f, 0.06f, 0.10f, 0.88f);
-        dialogueShapes.rect(x, y, boxW, boxH);
-        dialogueShapes.end();
-        dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
-        dialogueShapes.setColor(0.95f, 0.80f, 0.35f, 1);
-        dialogueShapes.rect(x, y, boxW, boxH);
-        dialogueShapes.end();
-
-        dialogueFont.getData().setScale(scale);
-        dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
-        dialogueBatch.begin();
-        dialogueFont.setColor(0.95f, 0.80f, 0.35f, 1);
-        dialogueFont.draw(dialogueBatch, "WEAPON", x + pad, y + boxH - pad);
-        if (equippedWeapon.isEmpty()) {
-            dialogueFont.setColor(0.55f, 0.58f, 0.65f, 1);
-            dialogueFont.draw(dialogueBatch, "No weapon equipped", x + pad, y + pad + 6f);
-        } else {
-            dialogueFont.setColor(0.40f, 1f, 0.55f, 1);
-            dialogueFont.draw(dialogueBatch, prettyName(equippedWeapon),
-                    x + pad, y + pad + 6f);
-        }
-        dialogueBatch.end();
-    }
     /** Draws the inventory panel in the centre of the screen while it is open. */
     private void drawInventory() {
         if (!inventoryOpen) {
@@ -1332,12 +1490,12 @@ public final class GameScreen extends ScreenAdapter {
         }
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
-        float ui = hud.scale();
+        float ui = hud.panelScale();
         GameMap map = session.getCurrentMap();
         CollisionBox bounds = map.getBounds();
 
-        float boxW = bigMap ? w * 0.92f : 200f * ui;
-        float boxH = bigMap ? h * 0.88f : 140f * ui;
+        float boxW = bigMap ? w * 0.92f : 250f * ui;
+        float boxH = bigMap ? h * 0.88f : 175f * ui;
         float x = bigMap ? (w - boxW) / 2f : w - boxW - 12f * ui;
         float y = bigMap ? (h - boxH) / 2f : 12f * ui;
         float pad = 7f * ui;
@@ -1442,7 +1600,9 @@ public final class GameScreen extends ScreenAdapter {
                 for (var previous : occupied) { if (box.overlaps(previous)) { overlap = true; break; } }
                 if (!overlap) { break; }
                 float direction = attempt % 2 == 0 ? 1 : -1;
-                float offset = (attempt / 2 + 1) * (text.height + 3 * gap) * direction;
+                // Each pair tries the same distance above and below before increasing the distance.
+                int step = attempt / 2 + 1;
+                float offset = step * (text.height + 3 * gap) * direction;
                 box.y = Math.max(bottom, Math.min(bottom + height - text.height, labelY + offset)) - gap;
             }
             occupied.add(box);
@@ -1720,10 +1880,28 @@ public final class GameScreen extends ScreenAdapter {
         return materialId != null && materialId.startsWith(WEAPON_PREFIX);
     }
 
-    /** Uses the shared potion rule for keyboard and bag actions, retaining feedback for the bag. */
+    /** Uses the shared potion rule and shows the same transient feedback for keyboard and bag actions. */
     private void useHealthPotion() {
-        inventoryFeedback = session.getPlayer().useHealthPotion() ? "Recovered up to " + ItemCatalog.POTION_HEAL + " HP"
-                : "Requires a health potion and a living, injured player";
+        inventoryFeedback = consumePotionWithFeedback(session.getPlayer());
+        saveMenu.notify(inventoryFeedback);
+    }
+
+    /**
+     * Formats one potion request while delegating all consumption/healing to the existing player rule.
+     * The actual healed amount is shown rather than claiming 30 HP when nearly full.
+     * @param player owner of the carried stock and shared health model
+     * @return success with actual healing/remaining stock, or a specific refusal reason
+     * @throws NullPointerException if player is null
+     */
+    static String consumePotionWithFeedback(Player player) {
+        int before = player.getHealth().getCurrentHp();
+        if (player.useHealthPotion()) {
+            return "Recovered " + (player.getHealth().getCurrentHp() - before) + " HP | Potions: "
+                    + player.getInventory().quantityOf(ItemCatalog.POTION);
+        }
+        if (!player.isAlive()) { return "Cannot use a potion while defeated"; }
+        if (before >= player.getHealth().getMaxHp()) { return "HP is already full - potion not consumed"; }
+        return "No health potions in your bag";
     }
 
     /** Applies one selected bag item, shared by keyboard and mouse.
@@ -1733,14 +1911,13 @@ public final class GameScreen extends ScreenAdapter {
         var entries = visibleEntries(inventory, false);
         if (row < 0 || row >= entries.size()) { return; }
         String id = entries.get(row).materialId();
-        if (ItemCatalog.POTION.equals(id)) { useHealthPotion(); }
+        if (ItemCatalog.POTION.equals(id)) { useHealthPotion(); return; }
         else if (ItemCatalog.gear(id).isEmpty()) { inventoryFeedback = prettyName(id) + " cannot be equipped"; }
         else {
             boolean wasWorn = equipment.isEquipped(id);
             equipment.toggle(id);
             inventoryFeedback = (wasWorn ? "Unequipped: " : "Equipped: ") + prettyName(id);
         }
-        equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON);
         saveMenu.notify(inventoryFeedback);
     }
 
@@ -1781,7 +1958,6 @@ public final class GameScreen extends ScreenAdapter {
 
     /** Refreshes the window viewport and title; the renderer follows the new spawn on the next draw. */
     private void updateMapView() {
-        if (equipment != null) { equippedWeapon = equipment.itemAt(EquipmentSlot.WEAPON); }
         GameMap map = session.getCurrentMap();
         combatStatus = combatDemo.getStatus();
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());

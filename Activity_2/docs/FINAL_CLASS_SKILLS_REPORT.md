@@ -58,6 +58,13 @@ branches and no second damage formula was introduced.
 
 ## Persistent choices and cleanup
 
+Current review (2026-09-30): F5 belongs to SaveMenu in production; use the Hub Class Master
+for O-mode selection. P is an independent potion request for every class and shares Player's
+existing health/inventory rules. It does not reset J/K/L/O cooldowns or class selection. All
+classes display the same potion stock slot, with an extra element icon retained for Mage.
+PotionGameplayTest adds these state-preservation checks; [test review](TEST_COVERAGE_REVIEW.md)
+records the pending full run. The input routing paragraph below describes the original debug API.
+
 Player owns an EnumMap from PlayerClass to UltimateMode, initially A for each class, plus Mage's
 selected element (initially FIRE). ClassDefinition supplies the default and alternate O definitions.
 
@@ -202,4 +209,3 @@ audit is not a claim that every IntelliJ style inspection is warning-free.
 Commit: feat(player): implement first-version class skills and Hub-only ultimate modes
 
 MR title: Implement Archer, Mage and Katana skills with persistent Hub-only ultimate modes
-

@@ -110,50 +110,74 @@ public final class GameConfig {
                     "Defeat all five guardians, then speak to me to complete your journey."),
             null
     );
-    /** Hub-local Sage offers repeatable beginner guidance, with no reward or ending trigger. */
+    /** Hub-local Sage offers repeatable gameplay and save/load guidance, with no reward or ending trigger. */
     public static final NPC HUB_GUIDE = new NPC(
             "hub_guide", "Old Sage",
             184.0, 221.0, 24.0, 24.0,
             List.of(
-                    "Welcome, adventurer! This Hub is your safe base. Press E to read the next tip, and E on the last page to close this guide.",
+                    "Welcome, adventurer! Five elemental cores lie corrupted. Your path: choose a class with the Class Master, take a trial from the Quest Keeper, then pass through the Portal Guide's gate. Press E to read the next tip.",
                     "Use WASD to move. J is your light attack, K your class skill, L your dash, and O your ultimate.",
+                    "Before you leave: close this dialogue, then press Esc to open the pause menu. Choose Save manually to save, or Manage saves to load an automatic or manual save.",
+                    "F5 requests a manual save; F9 opens Manage saves. Close any dialogue, bag or other panel first. Use W/S or Up/Down to select and E/Enter to confirm.",
+                    "Save and load only while alive in Hub or Memorial Hall, after active skills finish. Battle and Training do not allow manual save/load.",
+                    "Boss victory triggers an automatic save after settlement. Defeat does not autosave. Automatic and manual saves are separate; check the save-complete message.",
+                    "Loading replaces unsaved progress, including Boss wins and items, with the selected save. Replacing a manual save or loading requires confirmation; Esc cancels.",
                     "Visit the Class Master to choose Archer, Mage or Katana and an O mode. Class and O mode selection are Hub-only.",
                     "Want to practise? Ask the Portal Guide for Training, then enter the portal. The target stays still and fires upward; the scoreboard shows damage and movement speed. Step aside for five seconds to recover.",
+                    "Wounded in battle? Press P to drink a health potion (restores 30 HP). You begin with 3 in the storage chest; the Weapon Merchant refills them to 3 for free.",
                     "For a real battle, accept a Boss task from the Quest Keeper FIRST. Then ask the Portal Guide to select Battle and open the portal. Accepting a task alone does not open it.",
                     "Each Battle Map has one Boss. Watch for the flashing warning and red melee area, dodge attacks, and use your skills between openings.",
                     "Victory or defeat returns you here with full HP. Failure lets you retry the same task. After victory, accept any Boss again: each guardian gains health and attacks slightly faster as your wins against it grow, up to a limit.",
                     "Each defeated guardian awakens one magic stone in Memorial Hall. Ask the Portal Guide to take you there. Once all five stones are lit, speak to me IN THE HALL to finish your journey."),
             null
     );
-    /** Notice board listing the controls; readable any number of times. */
+    /** Repeatable controls, save/load and NPC travel instructions, excluding removed debug travel shortcuts. */
     public static final NPC NOTICE_BOARD = new NPC(
             "notice_board", "Notice Board",
             250.0, 220.0, 24.0, 32.0,
             List.of(
-                    "=== HUB NOTICE BOARD ===",
-                    "",
-                    "-- CONTROLS --",
-                    "WASD move | E interact | B bag | M map",
-                    "Menus: W/S or Up/Down select | E/Enter confirm | Esc back",
-                    "Storage: A/D or Left/Right column | Q/R or PgUp/PgDn page",
-                    "Items/NPC options: left-click select, right-click confirm",
-                    "J attack | L dash | U unlock travel | 1/2/3 travel",
-                    "",
-                    "-- CLASS ABILITIES --",
-                    "ARCHER  J arrow | K spread shot | O arrow rain",
-                    "MAGE    J orb | K switch element | O summon",
-                    "BLADE   J slash | K parry + dash | O rising slash",
-                    "",
-                    "-- IN THE HAVEN --",
-                    "Old Sage - start here | Quest Keeper - boss tasks",
-                    "Portal Guide - training or accepted battle",
-                    "Weapon Master - forge gear | Priest - portals",
-                    "",
-                    "Heal at the spring. Store loot in the chest",
-                    "before you leave for a hunt.",
-                    "",
-                    "The five elemental cores are corrupted.",
-                    "Reclaim them all."),
+                    "=== HUB NOTICE BOARD ===\n\n"
+                        + "-- CONTROLS --\n"
+                        + "WASD move | E interact | B bag | M map\n"
+                        + "Menus: W/S or Up/Down select | E/Enter confirm | Esc back\n"
+                        + "Storage: A/D or Left/Right column | Q/R or PgUp/PgDn page\n"
+                        + "Items/NPC options: left-click select, right-click confirm\n"
+                        + "J light attack | K class skill | L dash | O ultimate\n"
+                        + "P use health potion\n"
+                        + "Travel: speak to the Portal Guide, then enter the portal.\n"
+                        + "Battle: accept a task from the Quest Keeper first.",
+
+                    "-- SAVE / LOAD --\n"
+                        + "Close other panels, then Esc opens the pause menu.\n"
+                        + "Save manually: save the current game. F5 is the shortcut.\n"
+                        + "Manage saves: Load automatic or Load manual. F9 opens this menu.\n"
+                        + "Save/load requires a living player in Hub or Memorial Hall with no active skills.\n"
+                        + "No manual save/load in Battle or Training.\n"
+                        + "Boss victory triggers an automatic save after settlement; defeat does not autosave.\n"
+                        + "Automatic and manual saves are separate. Check the save-complete message.\n"
+                        + "Loading replaces unsaved progress, including Boss wins and items.\n"
+                        + "Overwrite/load confirmation: E/Enter confirms; Esc cancels.",
+
+                    "-- CLASS ABILITIES --\n"
+                        + "ARCHER: J arrow | K spread shot | L dash\n"
+                        + "Archer O: Arrow Rain / Untargetable (not invincible)\n"
+                        + "MAGE: J elemental orb | K switch element | L dash\n"
+                        + "Mage O: fixed Magic Circle / Rapid Element Barrage\n"
+                        + "KATANA: J slash | K parry into counter dash | L dash\n"
+                        + "Katana O: Watermoon Stance / Rising Slash\n"
+                        + "Choose your class and O mode at the Class Master in Hub only.",
+
+                    "-- IN THE HUB --\n"
+                        + "Old Sage - start here | Quest Keeper - boss tasks\n"
+                        + "Portal Guide - Training, accepted Battle or Memorial Hall\n"
+                        + "Weapon Merchant - equipment upgrades and potion supplies\n\n"
+                        + "P uses one carried potion: up to 30 HP. Full HP consumes none.\n"
+                        + "The quickbar counts carried potions only, not Storage Chest stock.\n"
+                        + "Open B to manage items. Menus pause battle; close them to resume.\n"
+                        + "Victory or defeat returns you to Hub with full HP.",
+
+                    "Defeat all five guardians to awaken the Memorial Hall stones.\n"
+                        + "Then speak to Old Sage in Memorial Hall to complete your journey."),
             null
     );
     /** Storage chest that accepts and returns whatever the player carries. */
@@ -167,12 +191,14 @@ public final class GameConfig {
     public static final NPC PORTAL_GUIDE = new NPC(
             "portal_guide", "Portal Guide",
             765.0, 245.0, 24.0, 24.0,
-            "Training is always available. Battle requires a quest from the Quest Keeper.", null
+            List.of("I open the gates. Training is always open; Battle needs a quest from the Quest Keeper."),
+            null
     );
     /** Class and ultimate trainer, clear of the portal and other interaction points. */
     public static final NPC CLASS_MASTER = new NPC(
             "class_master", "Class Master", 320.0, 130.0, 24.0, 24.0,
-            "Choose your class and its O ultimate mode. J/K/L remain class-defined.", null);
+            List.of("Choose your class and its O ultimate mode. J/K/L remain class-defined."),
+            null);
     /** Practice-only exit replacing the removed debug fast-travel keys. */
     public static final NPC TRAINING_EXIT = new NPC(
             "training_exit", "Return to Hub", 128.0, 144.0, 24.0, 24.0,
@@ -180,7 +206,8 @@ public final class GameConfig {
     /** Hub quest giver offering the five distinct Boss challenges. */
     public static final NPC QUEST_KEEPER = new NPC(
             "quest_keeper", "Quest Keeper", 347.0, 240.0, 24.0, 24.0,
-            "Accept a Boss challenge here before choosing Battle at the Portal Guide.", null);
+            List.of("Accept a Boss challenge from me - each guardian guards a corrupted elemental core."),
+            null);
     /** Every NPC present on the Hub map. */
     public static final List<NPC> HUB_NPCS =
             List.of(HUB_GUIDE, WEAPON_MERCHANT, NOTICE_BOARD, STORAGE_CHEST, PORTAL_GUIDE, CLASS_MASTER, QUEST_KEEPER);

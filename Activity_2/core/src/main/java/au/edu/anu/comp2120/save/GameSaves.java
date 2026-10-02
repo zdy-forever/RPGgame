@@ -17,6 +17,7 @@ import java.util.*;
 /** Game-loop coordinator for independent save slots and complete validated restoration.
  * No live object is changed until every file field and cross-module reference is checked.
  * @author Hao Liu (u7998420)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class GameSaves {
     /** Sydney display time with seasonal zone label; persisted timestamps remain UTC. */
@@ -203,6 +204,7 @@ public final class GameSaves {
         }
         f.put("quest.active", quests.getActive().map(Enum::name).orElse(""));
         f.put("quest.ending", Boolean.toString(quests.hasEndingStarted()));
+        f.put("quest.memorialRevealed", Boolean.toString(quests.isMemorialPathRevealed()));
         var permission = flow.getActiveEncounter().orElse(null);
         f.put("quest.permission", Boolean.toString(permission != null));
         if (permission != null) { encodePermission(f, "quest.permission.", permission); }
@@ -312,6 +314,10 @@ public final class GameSaves {
         String activeName = f.text("quest.active");
         BossChallenge active = activeName.isEmpty() ? null : BossChallenge.valueOf(activeName);
         boolean ending = f.flag("quest.ending");
+        String memorialKey = "quest.memorialRevealed";
+        String memorialValue = fields.get(memorialKey);
+        boolean memorialRevealed = "true".equalsIgnoreCase(memorialValue);
+        if (memorialValue != null) { f.accept(Set.of(memorialKey)); }
         if (ending && done.size() != BossChallenge.values().length) { throw new IllegalArgumentException("Invalid ending progress"); }
         ActiveEncounter permission = f.flag("quest.permission") ? permission(f, "quest.permission.") : null;
         if ((active == null) != (permission == null)
@@ -365,7 +371,7 @@ public final class GameSaves {
             restoredLocation.restore(session);
             session.getPlayer().restoreSelections(type, element, modes);
             flow.restoreProgress(permission, wins, completedIds, rewards);
-            quests.restoreProgress(done, active, ending);
+            quests.restoreProgress(done, active, ending, memorialRevealed);
             travel.restoreProgress(portals, unlocks);
             flags.forEach(NPC::restoreInteracted);
             combat.synchronizeAfterLoad();

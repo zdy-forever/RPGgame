@@ -49,6 +49,10 @@ public final class PlaceholderRenderer implements Disposable {
     private static final float NAME_SCALE = 0.45f;
     /** Display name shown above the player. */
     private static final String PLAYER_NAME = "Adventurer";
+    /** Size of the NPC interaction marker (exclamation) in world units. */
+    private static final float HEAD_MARKER_SIZE = 24f;
+    /** Gap above the visual body top before the interaction marker appears. */
+    private static final float HEAD_MARKER_OFFSET = 12f;
     /** Font scale for negative-status labels; larger than a name tag so it reads at a glance. */
     private static final float STATUS_SCALE = 0.62f;
     /** Vertical spacing between stacked status labels in world units. */
@@ -113,11 +117,12 @@ public final class PlaceholderRenderer implements Disposable {
      * @param demo       existing current-scope gameplay observations
      * @param delta      presentation seconds, zero while paused
      * @param drops      current-map unclaimed material rectangles, independent of inventory icons
-     * @param completed  defeated guardians whose stones are lit in Memorial Hall
+     * @param completed      defeated guardians whose stones are lit in Memorial Hall
+     * @param objectiveNpcId NPC that currently drives the quest progression; highlighted with a '!' marker
      */
     public void render(GameMap map, Player player, List<NPC> npcs, List<Portal> portals,
                        CombatDemo demo, double delta, List<MaterialDrop> drops,
-                       Set<BossChallenge> completed) {
+                       Set<BossChallenge> completed, String objectiveNpcId) {
         art.update(map, player, demo, delta);
         ScreenUtils.clear(0.02f, 0.025f, 0.035f, 1);
         CollisionBox view = CameraFollow.viewFor(player.getBounds(), map.getBounds(),
@@ -155,7 +160,7 @@ public final class PlaceholderRenderer implements Disposable {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         drawBossWarnings(demo);
         shapes.end();
-        drawNames(player, npcs);
+        drawNames(player, npcs, objectiveNpcId);
         drawStatusTags(player, demo);
     }
 
@@ -247,7 +252,7 @@ public final class PlaceholderRenderer implements Disposable {
      * @param width window width
      */
     public void drawSkillHud(SpriteBatch batch, BitmapFont font, Player player, CombatDemo demo, HudLayout hud, int width) {
-        art.hud(batch, font, player, demo.getAbilities(), hud, width);
+        art.hud(batch, font, shapes, player, demo.getAbilities(), hud, width);
     }
 
     /**
@@ -311,10 +316,11 @@ public final class PlaceholderRenderer implements Disposable {
      * Draws small name tags above the player and every listed NPC in world space.
      * Uses the camera projection so tags follow their subjects on screen.
      *
-     * @param player player to label
-     * @param npcs   NPCs to label; null or empty labels only the player
+     * @param player         player to label
+     * @param npcs           NPCs to label; null or empty labels only the player
+     * @param objectiveNpcId NPC that currently drives the quest progression; highlighted with a '!' marker
      */
-    private void drawNames(Player player, List<NPC> npcs) {
+    private void drawNames(Player player, List<NPC> npcs, String objectiveNpcId) {
         debugFont.getData().setScale(NAME_SCALE);
         debugBatch.setProjectionMatrix(viewport.getCamera().combined);
         debugBatch.begin();
@@ -323,6 +329,9 @@ public final class PlaceholderRenderer implements Disposable {
                 debugFont.setColor(1f, 0.90f, 0.40f, 1);
                 drawNameTag(npc.getName(), npc.getX(),
                         npc.getY() + 54, npc.getWidth());
+                if (objectiveNpcId != null && objectiveNpcId.equals(npc.getId())) {
+                    drawHeadMark(npc.getX(), npc.getY() + 54, npc.getWidth());
+                }
             }
         }
         debugFont.setColor(0.60f, 0.95f, 1f, 1);
@@ -347,6 +356,22 @@ public final class PlaceholderRenderer implements Disposable {
                 (float) (x + width / 2 - NAME_TAG_WIDTH / 2),
                 (float) top + NAME_OFFSET,
                 NAME_TAG_WIDTH, Align.center, false);
+    }
+
+    /**
+     * Draws the exclamation interaction marker centred above an NPC's head.
+     *
+     * @param x     left edge of the subject in world units
+     * @param top   top edge of the subject in world units
+     * @param width subject width, used to centre the marker
+     */
+    private void drawHeadMark(double x, double top, double width) {
+        float size = HEAD_MARKER_SIZE;
+        CollisionBox marker = new CollisionBox(
+                x + width / 2 - size / 2,
+                top + HEAD_MARKER_OFFSET,
+                size, size);
+        art.draw(debugBatch, SceneArt.BOSS_WARNING_IMAGE, marker);
     }
     /**
      * Draws the main road and the branch leading to the weapon merchant.

@@ -5,11 +5,13 @@ import au.edu.anu.comp2120.combat.*;
 import au.edu.anu.comp2120.enemy.BossChallenge;
 import au.edu.anu.comp2120.enemy.BossState;
 import au.edu.anu.comp2120.inventory.MaterialDrop;
+import au.edu.anu.comp2120.inventory.ItemCatalog;
 import au.edu.anu.comp2120.npc.NPC;
 import au.edu.anu.comp2120.player.*;
 import au.edu.anu.comp2120.world.*;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.Disposable;
@@ -24,6 +26,7 @@ import java.util.Set;
  * Read-only art presentation for existing gameplay. Animation never applies damage, moves actors,
  * advances a skill or delays automatic returns. All temporary pictures are bounded and map-scoped.
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class SceneArt implements Disposable {
     /** Supplied warning artwork, used only for read-only melee preparation feedback. */
@@ -92,6 +95,8 @@ public final class SceneArt implements Disposable {
     private static final double EFFECT_SECONDS = 0.4;
     /** Maximum simultaneous feedback pictures. */
     private static final int MAX_EFFECTS = 128;
+    /** Reused text measurement for the short potion count; avoids allocating a layout every frame. */
+    private final GlyphLayout potionCountText = new GlyphLayout();
 
     /**
      * One disposable, reference-free visual effect.
@@ -519,19 +524,21 @@ public final class SceneArt implements Disposable {
     }
 
     /**
-     * Draws capped, hideable ability/class/element icons in the existing HUD coordinate system.
+     * Draws capped, hideable class/ability/element icons and live bag potion quantity.
      * @param batch active screen-space batch
      * @param font existing HUD font
+     * @param shapes idle geometry renderer for the procedural potion icon
      * @param player current player
      * @param abilities common cooldowns
      * @param hud current responsive policy
      * @param windowWidth window width
      */
-    public void hud(SpriteBatch batch, BitmapFont font, Player player, PlayerAbilities abilities, HudLayout hud,
+    public void hud(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes, Player player, PlayerAbilities abilities, HudLayout hud,
                     int windowWidth) {
         if (!hud.detailsVisible()) { return; }
-        double size = 30 * hud.scale();
-        double x = (windowWidth - size * 7) / 2;
+        double size = hud.skillIconSize();
+        boolean elementVisible = player.getPlayerClass() == PlayerClass.MAGE;
+        double x = hud.skillSlotLeft(windowWidth, 0, elementVisible);
         String cls = player.getPlayerClass().getId();
         draw(batch, "art/ui/class_icons/" + cls + ".png", new CollisionBox(x, 8, size, size));
         String mode = switch (player.getPlayerClass()) {
@@ -542,19 +549,70 @@ public final class SceneArt implements Disposable {
         String[] keys = {"j", "k", "l", "o_" + mode};
         AbilitySlot[] slots = {AbilitySlot.LIGHT,AbilitySlot.SPECIAL,AbilitySlot.DASH,AbilitySlot.ULTIMATE};
         for (int i = 0; i < keys.length; i++) {
-            double left = x + (i+1) * size * 1.15;
+            double left = hud.skillSlotLeft(windowWidth, i + 1, elementVisible);
             boolean ready = abilities.getState(slots[i]) == AbilityState.READY;
             batch.setColor(ready ? Color.WHITE : Color.GRAY);
             draw(batch, "art/ui/ability_icons/" + cls + "_" + keys[i] + ".png",new CollisionBox(left,8,size,size));
             batch.setColor(Color.WHITE);
-            font.getData().setScale(0.65f * hud.scale()); font.setColor(Color.WHITE);
+            font.getData().setScale(0.65f * hud.skillScale()); font.setColor(Color.WHITE);
             String label = "JKLO".substring(i,i+1);
             double cooldown = abilities.getCooldownRemaining(slots[i]);
             font.draw(batch, cooldown > 0 ? label + " " + (int)Math.ceil(cooldown) : label, (float)left, (float)(size+22));
         }
-        if (player.getPlayerClass() == PlayerClass.MAGE) {
-            draw(batch,"art/ui/element_icons/"+lower(player.getMageElement())+".png",new CollisionBox(x+size*5.8,8,size,size));
+        if (elementVisible) {
+            draw(batch,"art/ui/element_icons/"+lower(player.getMageElement())+".png",
+                    new CollisionBox(hud.skillSlotLeft(windowWidth, 5, true),8,size,size));
         }
+        drawPotionSlot(batch, font, shapes, hud.skillSlotLeft(windowWidth, elementVisible ? 6 : 5, elementVisible),
+                hud.skillIconSize(), hud.skillScale(), player.getInventory().quantityOf(ItemCatalog.POTION));
+    }
+
+    /**
+     * Draws a pixel-style bottle and compact remaining count without loading another art resource.
+     * Reads the bag each frame; presentation never consumes a potion or changes equipment.
+     * Temporarily suspends the active batch for geometry and restores the borrowed render state.
+     * @param batch active screen-space batch, still active on return
+     * @param font reusable font
+     * @param shapes idle reusable geometry renderer
+     * @param x slot left edge
+     * @param size square icon size
+     * @param scale skill bar scale for this window
+     * @param quantity current bag count, excluding chest storage
+     */
+    private void drawPotionSlot(SpriteBatch batch, BitmapFont font, ShapeRenderer shapes,
+                                float x, float size, float scale, int quantity) {
+        var projection = shapes.getProjectionMatrix().cpy();
+        Color shapeColor = new Color(shapes.getColor());
+        batch.end();
+        shapes.setProjectionMatrix(batch.getProjectionMatrix());
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(quantity > 0 ? Color.TEAL : Color.DARK_GRAY);
+        shapes.rect(x, 8, size, size);
+        shapes.setColor(0.025f, 0.055f, 0.085f, 1);
+        shapes.rect(x + scale, 8 + scale, size - 2 * scale, size - 2 * scale);
+        // Bottle body, neck and stopper occupy the upper part; the lower band is reserved for the count.
+        shapes.setColor(quantity > 0 ? Color.LIGHT_GRAY : Color.GRAY);
+        shapes.rect(x + size * 0.28f, 8 + size * 0.32f, size * 0.44f, size * 0.4f);
+        shapes.rect(x + size * 0.4f, 8 + size * 0.7f, size * 0.2f, size * 0.16f);
+        shapes.setColor(quantity > 0 ? Color.SCARLET : Color.DARK_GRAY);
+        shapes.rect(x + size * 0.32f, 8 + size * 0.36f, size * 0.36f, size * 0.23f);
+        shapes.setColor(quantity > 0 ? Color.TAN : Color.GRAY);
+        shapes.rect(x + size * 0.37f, 8 + size * 0.84f, size * 0.26f, size * 0.08f);
+        shapes.end();
+        shapes.setProjectionMatrix(projection);
+        shapes.setColor(shapeColor);
+        batch.begin();
+        float oldX = font.getData().scaleX, oldY = font.getData().scaleY;
+        Color oldColor = new Color(font.getColor());
+        font.getData().setScale(0.65f * scale);
+        font.setColor(quantity > 0 ? Color.WHITE : Color.GRAY);
+        font.draw(batch, "P", x, size + 22);
+        String label = HudLayout.potionCountLabel(quantity);
+        font.getData().setScale(0.6f * scale);
+        potionCountText.setText(font, label);
+        font.draw(batch, label, x + (size - potionCountText.width) / 2, 8 + size * 0.32f);
+        font.getData().setScale(oldX, oldY);
+        font.setColor(oldColor);
     }
 
     /**
@@ -656,7 +714,7 @@ public final class SceneArt implements Disposable {
      * @param path asset path
      * @param box visual bounds
      */
-    private void draw(SpriteBatch batch, String path, CollisionBox box) { art.draw(batch,path,box,time,true,false); }
+    void draw(SpriteBatch batch, String path, CollisionBox box) { art.draw(batch,path,box,time,true,false); }
 
     /**
      * Keeps visual feet at the collision body's bottom while centering wider artwork.

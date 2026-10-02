@@ -11,6 +11,13 @@ damage engine were introduced.
 
 ## 1. Final ordered reaction table
 
+Review note, 2026-09-30: the reaction rules and single damage pipeline are unchanged by the
+potion/HUD work. Healing does not rewind Health.damageVersion, so taking a potion cannot conceal
+a prior damaging hit from Mage cast interruption. Element/field/status state remains encounter-scoped
+and is not restored from safe-map saves. Relevant tests include ReactionCompletionTest,
+ElementClassIntegrationTest, FinalClassSkillsTest and PotionGameplayTest; current run status is
+recorded in [Test coverage review](TEST_COVERAGE_REVIEW.md), separately from the historical totals.
+
 The left side is the existing attachment; the right side is this confirmed hit's element.
 
 | Attached → triggering | Reaction | Current result |

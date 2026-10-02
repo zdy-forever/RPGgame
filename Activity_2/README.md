@@ -12,13 +12,20 @@ The shared combat pipeline supports the first-version ordered elemental reaction
 reaction statuses/ground fields and bounded one-generation derived attacks. Mage bolts use its selected element (FIRE initially).
 The imported pixel-art pack supplies characters, arenas, portals, skills and icons; streamed background music follows the map and guardian progress.
 Hub keeps its procedural background at 1080 x 400. Battle/Training maps are 1600 x 1200; Training randomly selects an elemental
-background and a stationary Boss appearance per visit, preserving damage scoring and non-hostile rules.
+background and a stationary Boss appearance per visit. The Training target fires a fixed upward
+test projectile; a living player retains at least 1 HP and recovers after five seconds without a positive hit.
 Bosses fire their arena's elemental bolt through the shared projectile pipeline; the older pack
 `*_projectile.png` images remain archived. See [Art integration](docs/ART_INTEGRATION.md) for resource
 layout and verification. Historical placeholder-only descriptions (shape colours, "no art/animation")
 in the development notes below are superseded by that document; collision remains geometric.
 
 ## Inventory, equipment and save/load
+
+Current documentation follow-up: **2026-10-02**. GitLab pipeline #1052082 for source
+commit `1a2c60c` records **1,302 passing tests**, zero failures/errors/skips, and a successful
+build and strict JavaDoc audit. See the [test coverage and verification status](docs/TEST_COVERAGE_REVIEW.md)
+for direct evidence, historical local execution blockers and remaining manual checks.
+This is verified CI evidence, not a new local test run or graphical acceptance.
 
 These features are integrated into the production game. See the
 [documentation index](docs/README.md) for implementation reports and dated verification.
@@ -28,6 +35,7 @@ These features are integrated into the production game. See the
 | Obtain a weapon | Talk to Weapon Merchant in Hub at (650,250), choose the weapon service and confirm with E/Enter to collect the Lightning staff once. |
 | Equip / unequip | B opens the bag; select with W/S or Up/Down, then E/Enter to equip or unequip. Mouse: left-click selects, right-click acts. Equipped rows show `[Worn]`; the footer shows attack, defence and set bonuses. |
 | Use a potion | Right-click a health potion in the bag, or P during gameplay. Heals up to 30 HP; full-health or dead players do not consume it. |
+| Potion stock | Every class quickbar has a P bottle. It counts the bag only, shows x0 in grey when empty and 999+ above 999; the bag shows exact quantities. |
 | Transfer items | E near Storage Chest opens STORAGE; A/D or Left/Right selects a column; W/S or Up/Down selects a row; E/Enter or right-click transfers the whole stack. This does not equip it. B switches to the bag to equip. |
 | Page / close | Q/R or PageUp/PageDown changes pages; B/Escape closes the bag, Escape closes storage. Clickable footer controls also page, act and close. |
 | Pause menu | Esc opens the menu; click a row or use W/S or Up/Down and E/Enter. Esc resumes, or cancels a confirmation back to the menu. |
@@ -44,9 +52,16 @@ dash, launch window or projectile is required; Training and Battle are excluded.
 Remaining cooldowns are allowed and restored. F5 is reserved for saving in the
 production screen; choose O mode A/B through the **Class Master** in Hub.
 
+Hub **Old Sage** now teaches these save/load steps, and **Notice Board** has a repeatable
+SAVE / LOAD section. Both explain victory-only autosaves, independent slots and replacement
+of unsaved progress when loading. The notice board lists both O modes and current NPC services.
+Potion use produces a four-second toast showing actual HP recovered and remaining stock, or a
+specific full-health/death/empty-bag reason. P is edge-triggered and does not repeat while held.
+Bag, chest, dialogue and expanded map pause simulation; opening/closing frames do not leak gameplay commands.
+
 The chest initially contains four guardian armour pieces and three potions. Wearables
-stay in bag counts; storing the last copy removes its equipment bonus. View equipped items in the bag. The legacy top-right WEAPON panel is disabled;
-its rendering implementation is retained and its call is commented out.
+stay in bag counts; storing the last copy removes its equipment bonus. View equipped items in the bag.
+The legacy top-right WEAPON drawing implementation was removed in the 1 October cleanup.
 The staff gives +20% attack; two guardian pieces add 5% defence and four add 10% attack.
 Individual armour values and the shared damage calculation are documented in the
 [inventory/equipment report](docs/INVENTORY_EQUIPMENT_REPORT.md).
@@ -58,8 +73,10 @@ state without writing either file; a later victory can replace the automatic slo
 loaded timeline, even if that timeline has less progress.
 
 Save files are stored outside the repository in `${user.home}/.comp2120-game/saves/`
-as `automatic.properties` and `manual.properties`. Startup creates a fresh live session
-and leaves both files untouched; use the menu or F9 to resume. Restart game resets live
+as `automatic.properties` and `manual.properties`. Startup displays the title menu:
+New Game starts a fresh Hub session, while Continue selects the newest readable save slot
+and attempts to restore it. Continue is disabled when neither slot is readable.
+Use the in-game menu or F9 to choose a particular slot. Restart game resets live
 progress after confirmation, without deleting either slot. A later explicit manual save or
 Boss victory can replace its respective file from the new timeline. See the [save/load report](docs/SAVE_LOAD_REPORT.md) for snapshot
 coverage, failure handling and verification limits.
@@ -70,7 +87,10 @@ the final 0.6 seconds; there is no permanent black status strip. The menu and to
 both window axes. Escape closes an ordinary dialogue, bag, chest or map first; press it again
 to open the pause menu. Menu pause freezes simulation, not the safe-map restriction, so
 Battle and Training still cannot save/load. Music continues while the menu is open so volume
-can be previewed; volume survives in-game restart and loading, but defaults to 50% on app launch.
+can be previewed; volume survives in-game restart and loading. Title-menu Settings persists
+music volume and fullscreen in `${user.home}/.comp2120-game/settings.properties`, with 50%
+as the default volume when no preference is stored. The in-game slider changes the current
+session volume without writing that settings file.
 
 ## Current controls: one Hub portal, practice, battle or Memorial Hall
 
@@ -228,6 +248,10 @@ The Stage 2 package boundaries and collaboration rules are documented in
 
 ## Run the desktop game
 
+Startup displays New Game, Continue, Settings and Quit. Select with W/S or Up/Down
+and E/Enter, or click a row. New Game enters Hub without deleting either save slot;
+Continue attempts to restore the most recently timestamped readable slot.
+
 On macOS or Linux:
 
 ```bash
@@ -268,7 +292,7 @@ members, with full doclint and warnings treated as errors. See
 
 ## Map and movement demonstration
 
-The game starts in the Hub. Ask the Portal Guide to select a destination, then walk
+Select New Game in the title menu to start in Hub. Ask the Portal Guide to select a destination, then walk
 into the purple portal. There are no number-key map switches or keyboard unlocks.
 The window title shows the active map and travel feedback. Visiting through a portal
 does not automatically unlock fast travel; future quest/discovery code can call
@@ -1119,7 +1143,7 @@ The practice target remains stationary and fires a 25-base-damage physical proje
 
 Training damage cannot reduce a living player below 1 HP. Five seconds without a positive hit restores full HP; further hits at 1 HP also restart that delay. The bag, storage and pause menu pause simulation and recovery. These protections end immediately when leaving Training and grant no rewards or Boss completion. R resets scores, feedback, HP and attack/skill timers without moving the player or target, even when they overlap.
 
-The legacy coordinate HUD is disabled by commenting out its rendering call; its implementation is retained. Training keeps its 1 HP protection without advertising that rule in the status panel.
+The legacy coordinate HUD drawing implementation was removed in the 1 October cleanup. Training keeps its 1 HP protection without advertising that rule in the status panel.
 
 ### Debug console
 

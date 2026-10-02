@@ -22,6 +22,7 @@ import java.util.UUID;
  * Call synchronize on the game-loop thread after combat settlement and before accepting a quest.
  * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class BossQuests {
     /** Replaceable short first-version ending; no artwork or cinematic engine is required. */
@@ -45,6 +46,8 @@ public final class BossQuests {
     private boolean endingPending;
     /** Prevents repeated ending playback after reopening the NPC or polling results. */
     private boolean endingStarted;
+    /** Whether the Old Sage has already directed the player to the Portal Guide's Memorial Hall option. */
+    private boolean memorialRevealed;
 
     /**
      * Binds progress to the existing gameplay boundary.
@@ -113,6 +116,25 @@ public final class BossQuests {
     public Set<BossChallenge> getCompleted() { return Set.copyOf(completed); }
 
     /**
+     * Reads whether every guardian has been defeated at least once this session.
+     * @return true once all five distinct Boss challenges are in the completed set
+     */
+    public boolean allBossesDefeated() {
+        return completed.size() == BossChallenge.values().length;
+    }
+
+    /**
+     * Reads whether the Old Sage has revealed the Memorial Hall route.
+     * @return true once the endgame conversation with the Old Sage has completed
+     */
+    public boolean isMemorialPathRevealed() { return memorialRevealed; }
+
+    /**
+     * Marks the Memorial Hall route as revealed after the Old Sage endgame conversation.
+     */
+    public void revealMemorialPath() { this.memorialRevealed = true; }
+
+    /**
      * Reads authoritative encounter victories for a guardian, including repeat wins.
      * @param target guardian whose next challenge should be previewed
      * @return successful challenge count; failure and practice do not increase it
@@ -157,14 +179,16 @@ public final class BossQuests {
      * @param done distinct completed guardians
      * @param target active quest, or null
      * @param started saved ending consumption flag
+     * @param memorialRevealed whether the Old Sage endgame hint has already been given
      */
-    public void restoreProgress(Set<BossChallenge> done, BossChallenge target, boolean started) {
+    public void restoreProgress(Set<BossChallenge> done, BossChallenge target, boolean started, boolean memorialRevealed) {
         completed.clear(); completed.addAll(done);
         active = target;
         permission = encounters.getActiveEncounter().orElse(null);
         observed = null;
         endingStarted = started;
         endingPending = done.size() == BossChallenge.values().length && !started;
+        this.memorialRevealed = memorialRevealed;
     }
 
 }

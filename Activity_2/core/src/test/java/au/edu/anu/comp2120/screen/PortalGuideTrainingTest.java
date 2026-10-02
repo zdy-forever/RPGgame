@@ -37,6 +37,42 @@ import org.junit.jupiter.params.provider.ValueSource;
  * @author Daoyan Zhu (u7782042)
  */
 final class PortalGuideTrainingTest {
+    /** Both repeatable in-game guides teach save entry points, safe locations and rollback consequences. */
+    @Test
+    void sageAndNoticeBoardTeachSavingAndLoading() {
+        for (var guide : List.of(GameConfig.HUB_GUIDE, GameConfig.NOTICE_BOARD)) {
+            String text = String.join("\n", guide.getLines());
+            for (String required : List.of("Esc", "pause menu", "Save manually", "Manage saves",
+                    "F5", "F9", "Hub or Memorial Hall", "active skills", "Battle", "Training",
+                    "Boss victory", "automatic save", "does not autosave", "separate",
+                    "save-complete", "Loading replaces unsaved progress", "Boss wins and items",
+                    "confirmation", "E/Enter", "Esc cancels")) {
+                assertTrue(text.contains(required), guide.getName() + " is missing: " + required);
+            }
+        }
+    }
+
+    /** Notice Board directs travel through NPCs and no longer advertises removed debug keys. */
+    @Test
+    void noticeBoardDescribesCurrentTravelAndControls() {
+        String text = String.join("\n", GameConfig.NOTICE_BOARD.getLines());
+        assertFalse(text.contains("U unlock travel"));
+        assertFalse(text.contains("1/2/3 travel"));
+        assertTrue(text.contains("Portal Guide, then enter the portal"));
+        assertTrue(text.contains("Quest Keeper first"));
+        assertTrue(text.contains("K class skill"));
+        assertTrue(text.contains("O ultimate"));
+        assertTrue(text.contains("P use health potion"));
+        for (String obsolete : List.of("O summon", "BLADE", "Priest", "Heal at the spring", "Weapon Master")) {
+            assertFalse(text.contains(obsolete), obsolete);
+        }
+        for (String current : List.of("ARCHER", "MAGE", "KATANA", "Arrow Rain", "Untargetable",
+                "Magic Circle", "Rapid Element Barrage", "Watermoon", "Rising Slash", "Hub only",
+                "Class Master", "Weapon Merchant", "Memorial Hall", "Menus pause battle")) {
+            assertTrue(text.contains(current), current);
+        }
+    }
+
     /** Real shared player and maps, initially in Hub. */
     private final GameSession session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB, 28, 28, 180);
     /** Single production portal plus independent fast-travel destinations. */
