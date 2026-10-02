@@ -48,3 +48,60 @@ The same damage pipeline supports a player arrow, a Boss bolt, an elemental fiel
 The current campaign uses predefined arenas and one Boss per battle. It does not provide procedural dungeon generation, multiplayer, achievements, a general crafting system or a scripting editor.
 
 For implementation details and historical design decisions, see the repository's [architecture document](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_2/docs/ARCHITECTURE.md) and [report index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_2/docs/README.md). Dated sections describe their recorded development stage.
+
+## Reproducible configuration example
+
+The examples and implementation links below refer to source commit `1a2c60c` (reviewed 2 October 2026). They illustrate editable Java configuration; no example change is applied to the submitted game.
+
+In [`MapCatalog.createMaps()`](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapCatalog.java), Training has a named entry spawn:
+
+```java
+Map.of("entry", new SpawnPoint(80, 80),
+       "far-side", new SpawnPoint(680, 480))
+```
+
+To try a different Training arrival position, change only that Training entry to `new SpawnPoint(120, 80)`, rebuild and start a fresh game, then use Portal Guide to enter Training. Inspect the arrival location and collision boundaries. Loading a previous save is not a test of a fresh configured spawn. Keep spawn coordinates inside the map and clear of actors/obstacles. Restore `(80, 80)` after the experiment.
+
+```sh
+# Run from Activity_2
+./gradlew core:test --tests '*MapCatalogTest' --tests '*TravelSystemTest'
+./gradlew lwjgl3:run
+```
+
+These are reproduction instructions, not a claim that the modified configuration has been executed. Adding a complete new campaign arena also requires portal routing, encounter/quest registration and presentation assets; a map definition alone does not add a playable campaign chapter.
+
+### Module interaction diagram
+
+This diagram summarizes responsibilities; arrows show configuration, commands, results or read-only presentation data, not a separate event-bus implementation.
+
+```mermaid
+flowchart TD
+    Config[Java configuration] --> Models[Player and world models]
+    Input[Input and screen coordination] --> Models
+    Models --> Combat[Shared combat rules]
+    Combat --> Outcome[Encounter outcomes and quests]
+    Outcome --> Inventory[Inventory and rewards]
+    Outcome --> Saves[Validated save snapshots]
+    Inventory --> Saves
+    Models --> View[Camera and rendering]
+    Combat --> View
+    Outcome --> View
+```
+
+### Shared gameplay flow
+
+| Stage | Existing responsibility | Observable result |
+| --- | --- | --- |
+| Configuration | `MapCatalog`, class definitions, `BossTraits` | Select geometry, abilities and guardian behavior |
+| Input and simulation | `GameScreen`, player and world models | Apply commands and collision-safe movement; modal interfaces pause simulation |
+| Combat | Shared attacks, projectiles, health and elemental rules | Resolve a confirmed hit consistently for player, Boss and Training target |
+| Outcome and persistence | Encounter/quest settlement, inventory and save snapshots | Return to Hub, award progress once and write a successful-victory checkpoint |
+| Presentation | Camera, renderer, HUD and audio | Display the model state without redefining damage or reward rules |
+
+## Implementation references
+
+- [Architecture and module contracts](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ARCHITECTURE.md): ownership, frame ordering, persistence and historical scope decisions.
+- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/BOSS_TRAIT_REPORT.md): shared Boss lifecycle and five composed behaviors.
+- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ART_INTEGRATION.md): resource loading, animation and rendering boundaries.
+- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): snapshot validation and restoration.
+- [Historical combat occlusion report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/COMBAT_OCCLUSION_REPORT.md) and [element reaction report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ELEMENT_REACTION_COMPLETION_REPORT.md): design contracts and dated implementation evidence; use the current User Manual for controls.

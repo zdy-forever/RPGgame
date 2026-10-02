@@ -69,7 +69,7 @@ Windows:
 ./gradlew.bat lwjgl3:run
 ```
 
-The desktop window opens in the Hub. Close it to finish the run task. The Gradle configuration supplies native-access options and the macOS first-thread option. Assets are included through the desktop module's resource configuration; no manual copying is required.
+The desktop window opens the title menu. Select **New Game** to enter Hub, or **Continue** to attempt to load the most recent readable save. Close it to finish the run task. The Gradle configuration supplies native-access options and the macOS first-thread option. Assets are included through the desktop module's resource configuration; no manual copying is required.
 
 In IntelliJ, open/import `Activity_2/build.gradle` as a Gradle project, choose JDK 25 for the project and Gradle JVM, reload Gradle, and run the `lwjgl3:run` task. Using that task applies the same launch settings as the terminal.
 
@@ -91,7 +91,9 @@ See [Game Tester](game-tester) for selected scenarios and interpretation of resu
 
 ## Save files and starting again
 
-The game stores `automatic.properties` and `manual.properties` in `.comp2120-game/saves/` under the Java user's home directory. They are outside the repository and survive builds and Git branch changes. Startup creates a fresh live session; use Manage saves to load a slot. Restart game resets current progress while preserving both files. To remove a slot, use the game's confirmed Delete action.
+The game stores `automatic.properties` and `manual.properties` in `.comp2120-game/saves/` under the Java user's home directory. They are outside the repository and survive builds and Git branch changes. Startup shows the title menu. New Game creates a fresh live session; Continue selects the newest readable slot. In-game Manage saves lets you explicitly choose automatic or manual. Restart game resets current progress while preserving both files. To remove a slot, use the game's confirmed Delete action.
+
+Music/fullscreen preferences set through the title menu are stored separately in `.comp2120-game/settings.properties`. The in-game volume slider changes the current session without writing that preference file.
 
 ## Troubleshooting
 
@@ -105,3 +107,19 @@ The game stores `automatic.properties` and `manual.properties` in `.comp2120-gam
 | F5/F9/F10 changes a macOS system setting | Use Fn with the function key. Esc provides save management; backtick also opens the console. |
 
 The earlier `/tmp/inventory-java26.gradle` workaround is not required for this JDK 25 setup and is not part of the distributed project.
+
+## Build a distribution
+
+From `Activity_2`:
+
+```sh
+./gradlew :lwjgl3:installDist
+```
+
+On macOS/Linux, run `lwjgl3/build/install/lwjgl3/bin/lwjgl3`; on Windows, build with `./gradlew.bat :lwjgl3:installDist` and run the generated `lwjgl3.bat`. Keep the distribution's `lib/` directory with its launcher. This is a distribution with dependencies, not a standalone `java -jar` archive. Generate macOS launch scripts on macOS so the first-thread JVM option is included. These are build instructions; platform packaging acceptance must be recorded separately.
+
+## Implementation references
+
+- [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/README.md): setup, resource packaging and distribution workflow.
+- [Build toolchain](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/build.gradle), [dependency versions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/gradle.properties) and [desktop build configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/lwjgl3/build.gradle): source configuration at `1a2c60c`.
+- [Main menu](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java): New Game/Continue/Settings/Quit behavior.

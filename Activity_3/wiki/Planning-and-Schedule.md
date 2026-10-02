@@ -40,4 +40,27 @@ Use the issue/MR discussion, changed files and tests together when reviewing a f
 
 Feature work was integrated with the team repository through branches and merge requests, alongside earlier direct-main work recorded in the architecture history. Later changes required synchronizing with upstream and reconciling shared documentation. The intended review sequence is focused changes, relevant tests, full CI, review, merge and documentation updates.
 
-No meeting minutes are reproduced here because verified minutes were not available in the inspected materials. Team names and role allocation remain managed in the existing Home/architecture records.
+No meeting minutes are reproduced here because verified minutes were not available in the inspected materials. The role summary below follows the repository's recorded delivered work, rather than treating the original allocation as proof of actual authorship.
+
+## Team roles and delivered responsibilities
+
+| Team member | Recorded delivered responsibilities |
+| --- | --- |
+| Daoyan Zhu (`u7782042`) | Build/CI, player/world/combat/enemy systems, quest and encounter integration, audio, shared screen integration, tests and documentation |
+| Jiaqi Chen (`u7851266`) | Hub NPC/dialogue work, health bar/minimap/coordinate HUD, inventory and weapon prototypes, storage chest and Notice Board |
+| Hao Liu (`u7998420`) | Inventory/equipment integration, save/load, pause/save management UI, merchant potion supplies and equipment upgrades |
+
+This summarizes the dated contribution evidence in [Architecture](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ARCHITECTURE.md). It is not an exhaustive allocation of every later change or a ranking of effort. The original plan differs from the delivered allocation: for example, inventory began as a prototype and was later integrated by another contributor. `u8350466` remains part of the repository name but is not in the active development allocation recorded there.
+
+## Scope decisions and dependencies
+
+As confirmed by the team on 2 October 2026, achievements, following NPCs, a general crafting system and a scripted tutorial were outside the core playable loop. Achievements additionally depended on save/load, which was completed relatively late; the team did not have enough time to integrate and verify achievements afterward. Merchant upgrades and NPC/Notice Board guidance provide the reduced crafting/onboarding scope. See [Known Issues and Future Work](Known-Issues-and-Future-Work) for each decision.
+
+The original plan's smoke-tester row records a deferral to M4. The delivered automatic verification is the runnable JUnit suite documented in [Game Tester](game-tester), including command/action-to-state and invalid-operation scenarios. This documentation does not invent a separate tester executable or retrospectively change milestone dates.
+
+## Implementation references
+
+- [Architecture and contribution evidence](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ARCHITECTURE.md): original boundaries, feature priorities and actual integration records.
+- [Documentation index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/README.md): report navigation and dated delivery evidence.
+- [Inventory integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md) and [save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): feature handoffs, changes and validation boundaries.
+- [Debug/Training follow-up](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): regression findings and verification checklist.

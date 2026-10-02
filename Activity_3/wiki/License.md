@@ -10,6 +10,10 @@ The existing license reserves rights in the source code and permits ANU teaching
 
 This choice fits a coursework submission intended for assessment: teaching staff can inspect and run the implementation while general redistribution and reuse are not automatically granted. The trade-off is that third parties do not receive the broad reuse permissions associated with an open-source release. The repository license is the authoritative text; this page describes the existing choice and does not grant additional rights.
 
+## Why we chose this licence
+
+The team invested substantial time in designing and implementing this coursework project and wants to retain control over reuse and redistribution of its source code. Making the repository available for assessment does not mean that other students or third parties receive permission to copy, redistribute, modify or reuse it freely. The restricted coursework licence expressly permits ANU teaching staff to access and inspect the project for assessment and related academic purposes, while reserving other uses to the copyright holders under the licence wording.
+
 ## Artwork and music
 
 The [asset attribution file](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_2/assets/README.md) records OpenAI-generated visual assets and music generated using Suno during an active paid subscription. Those are project attribution records, not independently verified subscription evidence. The assets are excluded from the source-code license and remain subject to applicable service terms.
@@ -25,4 +29,10 @@ Java, libGDX, LWJGL, Gradle and JUnit are third-party dependencies with their ow
 
 ## Document completeness
 
-In the inspected baseline, the final asset sentence in `LICENSE.md` ends with “which they were generate”. This needs an editorial correction in the source repository before submission. Wiki prose cannot repair the authoritative file by itself.
+The latest team `main` at `7fea86a` contains the corrected final sentence, “which they were generated.” This was an editorial correction only and did not change the stated permissions. The repository's current `LICENSE.md` remains the authoritative license text.
+
+## Asset reference files
+
+- [Asset attribution](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/assets/README.md).
+- [Visual pack description](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/assets/art/README.txt) and [per-file manifest](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/assets/art/ASSET_MANIFEST.csv).
+- [Audio track and playback notes](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/assets/audio/README.md).

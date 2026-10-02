@@ -60,6 +60,8 @@ The debug console offers damage immunity, one-shot damage, free upgrades and zer
 
 ## Visual evidence
 
+Five existing screenshots below demonstrate Hub services, map labels, inventory, upgrades and save management. Their capture commit/date was not recorded, so they should not be treated as proof of the latest build or a completed manual regression run. Additional evidence still needed: title menu, Boss combat/elemental reactions, Memorial Hall ending, Training and debug console.
+
 ### Hub and NPC services
 
 The Hub exposes NPC services, storage, the portal, health, class state and ability controls in one playable scene.
@@ -87,3 +89,14 @@ The merchant upgrade page displays the shared sentinel-core pool, current effect
 The pause-menu save manager provides independent automatic and manual slots, load/delete actions and Australia/Sydney timestamps.
 
 ![Save management menu](uploads/ab9835f62cb0e185e8567a3da08f5827/clipboard.png){width=900}
+
+## Implementation references
+
+Source links are pinned to `1a2c60c` for reproducibility; dated sections retain their original verification scope.
+
+- [Current game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/README.md): controls, game systems and setup.
+- [Inventory and equipment](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md): item ownership, stat bonuses, potions and merchant upgrades.
+- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): independent slots, safe-state restrictions and restoration.
+- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/BOSS_TRAIT_REPORT.md): five guardian mechanics and provisional balance.
+- [Debug, Training and UI](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): practice rules, commands and verification boundaries.
+- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ART_INTEGRATION.md): imported artwork and procedural presentation.

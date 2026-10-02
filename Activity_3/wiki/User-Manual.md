@@ -2,9 +2,18 @@
 
 [Home](home) · [Installation and Setup](installation-and-setup) · [Features](features)
 
+## Main menu
+
+The application opens a title menu before entering a game. Use W/S or Up/Down and E/Enter, or click a row.
+
+- **New Game:** start a fresh Hub session without deleting existing automatic/manual saves.
+- **Continue:** select the most recently timestamped readable save slot and attempt to load it. The option is disabled when neither slot is readable. Use in-game Manage saves when you want to choose a particular slot yourself.
+- **Settings:** change music volume or fullscreen. These title-menu preferences are stored in `.comp2120-game/settings.properties` under the Java user's home directory.
+- **Quit:** close the application.
+
 ## First playthrough
 
-1. Start in Hub. Move with WASD and approach an NPC; E interacts.
+1. Select New Game in the title menu to enter Hub. Move with WASD and approach an NPC; E interacts.
 2. Visit Weapon Merchant, choose the weapon service and collect the staff. Open B, select it and confirm to equip.
 3. Open Storage Chest, transfer armour and potions, then press B to equip armour from the bag. Transferring an item is not equipping it.
 4. Choose a class and O ultimate mode at Class Master.
@@ -46,7 +55,7 @@ Storage uses A/D or Left/Right to choose bag/chest, W/S or arrows to choose an i
 - Save/load requires Hub or Memorial Hall, a living player, and no active action/projectile. Close dialogue, bag, chest and map first. Remaining cooldowns are allowed.
 - Restart game creates a fresh live game while keeping both disk saves and current music volume. A later save or victory may overwrite its corresponding slot.
 - Delete removes only the confirmed slot; it does not reset the current game.
-- A fresh application launch does not automatically load a slot.
+- Launching shows the title menu; select Continue to attempt the latest readable slot or New Game for a fresh session. Loading is an explicit choice.
 
 ## Training and equipment checks
 
@@ -54,4 +63,14 @@ Stand above the target to receive its fixed upward shots; stand beside it to pra
 
 ## Music
 
-In Esc, drag the volume slider or select it and use A/D or Left/Right. The range is 0–100. Music continues during the menu for preview. Volume survives in-game restart/load; a new application launch starts at 50%.
+In Esc, drag the volume slider or select it and use A/D or Left/Right. The range is 0–100. Music continues during the menu for preview. This volume survives in-game restart/load, but the Esc slider does not write the settings file. To retain a startup preference, set it in the title menu's Settings screen. Without a stored preference, music defaults to 50%.
+
+## Implementation references
+
+Reviewed against source `1a2c60c` on 2 October 2026. Older dated report sections may describe earlier controls or startup behavior.
+
+- [Main menu implementation](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java) and [Continue slot selection](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveSelection.java).
+- [Inventory/equipment behavior](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md).
+- [Save/load integration and restrictions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md).
+- [Debug and Training behavior](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md).
+- [Persisted settings](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameSettings.java).
