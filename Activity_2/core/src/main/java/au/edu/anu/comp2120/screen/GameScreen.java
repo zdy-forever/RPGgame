@@ -995,25 +995,14 @@ public final class GameScreen extends ScreenAdapter {
         float titleH = 24f * scale;
         float lineGap = 22f * scale;
 
-        java.util.List<String> tasks = new java.util.ArrayList<>();
-        String npcStep = currentObjectiveNpcId();
-        if (npcStep != null) {
-            String name = npcName(npcStep);
-            tasks.add(switch (npcStep) {
-                case "hub_guide" -> "Talk to Old Sage for the tutorial";
-                case "class_master" -> "Talk to Class Master to choose a class";
-                case "quest_keeper" -> "Talk to Quest Keeper to receive a quest";
-                case "portal_guide" -> "Talk to Portal Guide to go to the battlefield";
-                default -> "Talk to " + name;
-            });
-        }
-        encounterFlow.getActiveEncounter()
+        String step = currentObjectiveNpcId();
+        String npcName = step != null ? npcName(step) : "";
+        var boss = encounterFlow.getActiveEncounter()
                 .flatMap(ae -> BossChallenge.forMap(ae.mapId()))
-                .filter(b -> !quests.getCompleted().contains(b))
-                .ifPresent(b -> tasks.add("Defeat " + b.displayName()));
-        if (tasks.isEmpty()) {
-            tasks.add("Free explore: leave via Portal Guide");
-        }
+                .filter(b -> !quests.getCompleted().contains(b));
+        boolean bossActive = boss.isPresent();
+        String bossName = boss.map(BossChallenge::displayName).orElse("");
+        java.util.List<String> tasks = buildObjectiveTasks(step, npcName, bossActive, bossName);
 
         float panelW = 270f * scale;
         float panelH = titleH + pad + tasks.size() * lineGap + pad;
@@ -1040,8 +1029,8 @@ public final class GameScreen extends ScreenAdapter {
         float firstBaseline = titleBaseline - titleH;
         for (int i = 0; i < tasks.size(); i++) {
             float baseline = firstBaseline - i * lineGap;
-            boolean boss = tasks.get(i).startsWith("击败");
-            if (boss) {
+            boolean isBoss = tasks.get(i).startsWith("Defeat ");
+            if (isBoss) {
                 dialogueFont.setColor(1f, 0.65f, 0.25f, 1f);
             } else {
                 dialogueFont.setColor(1f, 1f, 1f, 1f);
@@ -1049,6 +1038,36 @@ public final class GameScreen extends ScreenAdapter {
             dialogueFont.draw(dialogueBatch, "- " + tasks.get(i), x + pad, baseline, panelW - 2 * pad, Align.left, false);
         }
         dialogueBatch.end();
+    }
+
+    /**
+     * Builds the ordered objective tracker lines from the current tutorial step and active boss challenge.
+     * Pure and rendering-independent so the text can be unit-tested without a graphics context.
+     * @param npcStep current onboarding step id, or null when none is active
+     * @param npcName display name of the current objective NPC
+     * @param bossActive whether an uncompleted boss challenge is currently active
+     * @param bossDisplayName display name of the active boss challenge
+     * @return ordered objective lines; never empty
+     */
+    static java.util.List<String> buildObjectiveTasks(String npcStep, String npcName,
+                                                      boolean bossActive, String bossDisplayName) {
+        java.util.List<String> tasks = new java.util.ArrayList<>();
+        if (npcStep != null) {
+            tasks.add(switch (npcStep) {
+                case "hub_guide" -> "Talk to Old Sage for the tutorial";
+                case "class_master" -> "Talk to Class Master to choose a class";
+                case "quest_keeper" -> "Talk to Quest Keeper to receive a quest";
+                case "portal_guide" -> "Talk to Portal Guide to go to the battlefield";
+                default -> "Talk to " + npcName;
+            });
+        }
+        if (bossActive) {
+            tasks.add("Defeat " + bossDisplayName);
+        }
+        if (tasks.isEmpty()) {
+            tasks.add("Free explore: leave via Portal Guide");
+        }
+        return tasks;
     }
 
     /** Draws final delivered damage totals for the current stationary practice target only. */
