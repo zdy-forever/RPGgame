@@ -4,7 +4,7 @@ This folder was originally going to hold a snapshot of the Activity 0 game
 skeleton. Please instead mark this activity against the full project
 repository and history:
 
-**Repository:** https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466.git
+**Repository:** https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/tree/71f3adf73836af3e8af001c03b06a8192101a9b4
 
 Our team started building ahead of the Activity 0 checklist: by the time we
 stopped to check the requirements, we already had a working map/movement
