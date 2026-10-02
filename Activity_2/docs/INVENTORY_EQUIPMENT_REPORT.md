@@ -39,7 +39,7 @@ See [Test coverage review](TEST_COVERAGE_REVIEW.md) for current execution status
   provisional starter contents so the feature can be exercised without a new crafting system.
 - Weapon Merchant at Hub (650,250) grants the Lightning staff once: E opens the service menu; select the weapon
   service and confirm with E/Enter. Close dialogue, press B and right-click the staff to equip.
-- The legacy WEAPON HUD rendering call is commented out; its implementation is retained.
+- The legacy WEAPON HUD drawing implementation was removed in the 1 October cleanup.
   Check `[Worn]` rows and bag totals to inspect equipment.
 - Settled Boss rewards are consumed from EncounterFlow's existing outbox on the game-loop thread.
   Overflow is checked before claiming. Unaccepted rewards remain pending; repeated polling cannot

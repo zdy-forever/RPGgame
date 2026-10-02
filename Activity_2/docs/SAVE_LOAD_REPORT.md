@@ -122,7 +122,10 @@ HUD and no longer overlaps bottom dialogue or skill text.
 
 ## Starting fresh and current limits
 
-Starting the application creates a fresh live game without deleting or loading either slot.
+Starting the application displays the title menu. New Game creates a fresh live game without
+deleting or loading either slot. Continue selects the most recently timestamped readable
+slot and attempts to load it; it is disabled when neither slot is readable. The in-game
+Manage saves menu still allows explicit selection of automatic or manual saves.
 To keep that new run, save manually and confirm replacement of the manual slot; its first
 successful Boss battle will replace the automatic slot. Until those writes, older files
 remain available. The Esc menu now offers Restart game with explicit confirmation. It rebuilds

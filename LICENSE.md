@@ -12,4 +12,4 @@ Visual assets generated using OpenAI image generation and music generated
 using Suno are not licensed for redistribution under this software license.
 
 Their use remains subject to the applicable terms of the services under
-which they were generate
+which they were generated.

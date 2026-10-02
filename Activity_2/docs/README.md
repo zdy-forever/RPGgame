@@ -1,6 +1,23 @@
 # Project documentation
 
-Updated 2026-09-30 for potion HUD/feedback, current controls, save/load onboarding and test coverage.
+Updated 2026-10-02 for Wiki references, current startup/settings behavior and verified CI evidence.
+
+## Current source CI evidence — 2026-10-02
+
+The GitLab report for commit `1a2c60c2b7602e2501d86ac380c364b1d704b175` records
+**1,302 passed, 0 failures, 0 errors and 0 skipped tests** in
+[pipeline #1052082](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052082).
+[Build job #7716451](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7716451)
+ran `./gradlew clean build javadocAudit --no-daemon` with the Docker executor and
+`eclipse-temurin:25-jdk`; both module test and JavaDoc audit tasks completed, ending in
+`BUILD SUCCESSFUL`. This was read from CI, not newly executed locally. The attempted local
+rerun was blocked by the Gradle cache lock. The current local follow-up changes Markdown only.
+
+The [Wiki Game Tester page](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/wikis/game-tester)
+contains run instructions, command/action-to-state examples, illegal-operation checks,
+the actual CI screenshot and manual acceptance boundaries. The success rate is not line/branch
+coverage. Native input, rendering, audio and full campaign acceptance remain separate checks.
+The older execution blockers/results below are retained as dated historical records.
 
 ## Current working-tree verification — 2026-09-30
 

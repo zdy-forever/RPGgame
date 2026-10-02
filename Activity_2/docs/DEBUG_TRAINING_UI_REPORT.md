@@ -13,7 +13,7 @@ Earlier dated reports retain historical results; they are not evidence of the cu
 | Menus | W/S or Up/Down selects; E/Enter confirms; Esc returns/closes. NPC rows support left-click selection and right-click activation. |
 | Bag/storage | Select rows with W/S or arrows. Storage A/D or Left/Right selects a column. E/Enter acts; Q/R or PageUp/PageDown pages. Right-click remains supported; footer controls are clickable. Bag/storage pause simulation. |
 | Map | M expands to 92% of window width and 88% of height, preserving world proportions. NPC labels are shifted to avoid nearby labels. Red marks a live Boss or Training target; green marks the player. M/Esc closes. |
-| Legacy HUD | Coordinate and top-right weapon rendering calls are commented out. Original implementations remain available. Equipment is inspected in the bag. |
+| Legacy HUD | Coordinate and top-right weapon drawing implementations were removed in the 1 October cleanup. Equipment is inspected in the bag. |
 | Save timestamps | Slot summaries use Australia/Sydney with AEST/AEDT; files retain UTC timestamps and need no migration. |
 
 Menu handling returns before player movement/skill sampling. Opening and closing frames are consumed.
