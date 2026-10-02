@@ -11,8 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 final class MainMenuScreenTest {
 
+    /** Row index of the Continue menu item, which is disabled when no save exists. */
     private static final int CONTINUE_ROW = 1;
+    /** Total number of selectable rows in the main menu. */
     private static final int ROW_COUNT = 4;
+
+    /** Creates the test instance. */
+    MainMenuScreenTest() { }
 
     /** With a save, every row is reachable including Continue. */
     @Test

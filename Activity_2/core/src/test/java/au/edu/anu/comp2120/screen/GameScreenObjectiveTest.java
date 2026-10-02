@@ -15,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
  */
 final class GameScreenObjectiveTest {
 
+    /** Creates the test instance. */
+    GameScreenObjectiveTest() { }
+
     /** Tutorial step yields the matching plain-English line. */
     @Test
     void tutorialStepProducesEnglishLine() {
