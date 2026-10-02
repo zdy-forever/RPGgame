@@ -100,8 +100,8 @@ public final class MainMenuScreen extends ScreenAdapter {
 
     /** Handles keyboard and pointer navigation plus the chosen action. */
     private void update() {
-        if (MenuKeys.down()) { focus = nextFocus(focus, 1); }
-        if (MenuKeys.up()) { focus = nextFocus(focus, -1); }
+        if (MenuKeys.down()) { focus = nextFocus(focus, 1, hasSave, CONTINUE_ROW, ROWS.length); }
+        if (MenuKeys.up()) { focus = nextFocus(focus, -1, hasSave, CONTINUE_ROW, ROWS.length); }
         if (MenuKeys.confirm()) { activate(focus); }
         pointer();
     }
@@ -109,13 +109,16 @@ public final class MainMenuScreen extends ScreenAdapter {
     /** Steps the focus in a direction, skipping the disabled Continue row.
      * @param from current row
      * @param step plus or minus one
+     * @param hasSave whether a valid save exists, which enables Continue
+     * @param continueRow row index belonging to Continue
+     * @param rowCount total number of rows
      * @return next enabled row index
      */
-    private int nextFocus(int from, int step) {
+    static int nextFocus(int from, int step, boolean hasSave, int continueRow, int rowCount) {
         int next = from;
-        for (int guard = 0; guard < ROWS.length; guard++) {
-            next = (next + step + ROWS.length) % ROWS.length;
-            if (next != CONTINUE_ROW || hasSave) { return next; }
+        for (int guard = 0; guard < rowCount; guard++) {
+            next = (next + step + rowCount) % rowCount;
+            if (next != continueRow || hasSave) { return next; }
         }
         return from;
     }
