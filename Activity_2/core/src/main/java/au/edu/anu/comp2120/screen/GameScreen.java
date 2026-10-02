@@ -29,6 +29,7 @@ import au.edu.anu.comp2120.inventory.ItemCatalog;
 import au.edu.anu.comp2120.inventory.InventoryRewards;
 import au.edu.anu.comp2120.npc.MerchantServices;
 import au.edu.anu.comp2120.inventory.GearUpgrades;
+import au.edu.anu.comp2120.save.SaveSlot;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -226,6 +227,15 @@ public final class GameScreen extends ScreenAdapter {
                 percent -> music.setVolume(percent / 100f),
                 () -> ((au.edu.anu.comp2120.MainGame) Gdx.app.getApplicationListener()).restart(music.getVolume()));
         if (restarted) { saveMenu.notify("New game started. Both save files were kept."); }
+    }
+
+    /**
+     * Restores a save slot immediately after construction, used by the main-menu Continue action.
+     * Respects the same safety guards as the in-game load; a blocked or invalid slot is reported and ignored.
+     * @param slot source slot to restore, or null for a plain fresh game
+     */
+    public void loadFrom(SaveSlot slot) {
+        if (slot != null) { saves.load(slot); }
     }
 
     /**
