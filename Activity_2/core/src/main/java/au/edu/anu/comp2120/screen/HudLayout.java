@@ -9,6 +9,7 @@ package au.edu.anu.comp2120.screen;
  * @param detailsVisible whether coordinates, minimap, weapon and quickbar can be shown
  * @param skillScale dedicated scale for the class/ability/potion quickbar; grows on large windows
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public record HudLayout(float scale, boolean healthVisible, boolean detailsVisible, float skillScale) {
     /** Icon side length before the common capped HUD scale is applied. */

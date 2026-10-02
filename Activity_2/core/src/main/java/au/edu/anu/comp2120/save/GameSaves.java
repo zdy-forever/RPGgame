@@ -17,6 +17,7 @@ import java.util.*;
 /** Game-loop coordinator for independent save slots and complete validated restoration.
  * No live object is changed until every file field and cross-module reference is checked.
  * @author Hao Liu (u7998420)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class GameSaves {
     /** Sydney display time with seasonal zone label; persisted timestamps remain UTC. */

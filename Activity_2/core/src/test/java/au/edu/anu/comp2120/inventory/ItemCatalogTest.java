@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Validates item definitions, enhancement identities and UI formatting helpers.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class ItemCatalogTest {
     /** Creates a new {@code ItemCatalogTest} instance. */

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir;
 /**
  * Verifies atomic, bounded, versioned save-file encoding and decoding.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class SaveFileTest {
     /** Creates a new {@code SaveFileTest} instance. */

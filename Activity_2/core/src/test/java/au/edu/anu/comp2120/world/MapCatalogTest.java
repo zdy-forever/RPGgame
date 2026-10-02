@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Validates the built-in map catalogue dimensions and contents.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class MapCatalogTest {
     /** Creates a new {@code MapCatalogTest} instance. */

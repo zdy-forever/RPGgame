@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 /**
  * Verifies capped HUD scaling and both visibility thresholds without a graphics context.
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 final class HudLayoutTest {
     /** Allowed rounding error for float UI scales. */

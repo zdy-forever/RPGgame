@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Validates the encounter permission record and its identifier rules.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class ActiveEncounterTest {
     /** Creates a new {@code ActiveEncounterTest} instance. */

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Exercises worn-item tracking and the additive set bonuses derived from the catalogue.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class EquipmentTest {
     /** Creates a new {@code EquipmentTest} instance. */

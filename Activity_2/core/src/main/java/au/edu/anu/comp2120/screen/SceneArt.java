@@ -26,6 +26,7 @@ import java.util.Set;
  * Read-only art presentation for existing gameplay. Animation never applies damage, moves actors,
  * advances a skill or delays automatic returns. All temporary pictures are bounded and map-scoped.
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class SceneArt implements Disposable {
     /** Supplied warning artwork, used only for read-only melee preparation feedback. */

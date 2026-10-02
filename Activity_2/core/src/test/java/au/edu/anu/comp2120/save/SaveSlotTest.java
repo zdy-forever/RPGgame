@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Confirms the two independent save slots expose fixed, non-arbitrary filenames.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class SaveSlotTest {
     /** Creates a new {@code SaveSlotTest} instance. */

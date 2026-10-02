@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
  * Exercises the shared per-combatant reaction/vulnerability state machine via its public
  * and package-private entry points.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class CombatStatusTest {
     /** Creates a new {@code CombatStatusTest} instance. */

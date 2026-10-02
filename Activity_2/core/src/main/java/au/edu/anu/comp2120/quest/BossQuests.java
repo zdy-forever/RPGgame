@@ -22,6 +22,7 @@ import java.util.UUID;
  * Call synchronize on the game-loop thread after combat settlement and before accepting a quest.
  * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class BossQuests {
     /** Replaceable short first-version ending; no artwork or cinematic engine is required. */

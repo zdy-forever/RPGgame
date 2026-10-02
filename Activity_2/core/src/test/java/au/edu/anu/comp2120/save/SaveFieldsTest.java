@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Validates the strict field reader that rejects typos and unsupported data.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class SaveFieldsTest {
     /** Creates a new {@code SaveFieldsTest} instance. */

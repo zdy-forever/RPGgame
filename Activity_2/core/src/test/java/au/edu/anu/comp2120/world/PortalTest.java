@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Validates immutable portal definitions and their identifier rules.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class PortalTest {
     /** Creates a new {@code PortalTest} instance. */

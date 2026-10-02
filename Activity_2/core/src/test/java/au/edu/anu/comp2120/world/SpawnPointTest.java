@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Validates finite, non-negative spawn anchors.
  * @author COMP2120 Assignment 3 group
+ * @author Jiaqi Chen (u7851266)
  */
 final class SpawnPointTest {
     /** Creates a new {@code SpawnPointTest} instance. */
