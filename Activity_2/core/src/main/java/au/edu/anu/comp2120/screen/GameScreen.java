@@ -1000,19 +1000,19 @@ public final class GameScreen extends ScreenAdapter {
         if (npcStep != null) {
             String name = npcName(npcStep);
             tasks.add(switch (npcStep) {
-                case "hub_guide" -> "与 Old Sage 对话，了解基地教程";
-                case "class_master" -> "与 Class Master 对话，选择职业";
-                case "quest_keeper" -> "与 Quest Keeper 对话，接取任务";
-                case "portal_guide" -> "与 Portal Guide 对话，前往战场";
-                default -> "与 " + name + " 对话";
+                case "hub_guide" -> "Talk to Old Sage for the tutorial";
+                case "class_master" -> "Talk to Class Master to choose a class";
+                case "quest_keeper" -> "Talk to Quest Keeper to receive a quest";
+                case "portal_guide" -> "Talk to Portal Guide to go to the battlefield";
+                default -> "Talk to " + name;
             });
         }
         encounterFlow.getActiveEncounter()
                 .flatMap(ae -> BossChallenge.forMap(ae.mapId()))
                 .filter(b -> !quests.getCompleted().contains(b))
-                .ifPresent(b -> tasks.add("击败 " + b.displayName()));
+                .ifPresent(b -> tasks.add("Defeat " + b.displayName()));
         if (tasks.isEmpty()) {
-            tasks.add("自由探索：通过 Portal Guide 出发");
+            tasks.add("Free explore: leave via Portal Guide");
         }
 
         float panelW = 270f * scale;
@@ -1036,7 +1036,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.begin();
         float titleBaseline = top - pad;
         dialogueFont.setColor(0.95f, 0.85f, 0.35f, 1);
-        dialogueFont.draw(dialogueBatch, "当前任务", x + pad, titleBaseline, panelW - 2 * pad, Align.left, false);
+        dialogueFont.draw(dialogueBatch, "Objectives", x + pad, titleBaseline, panelW - 2 * pad, Align.left, false);
         float firstBaseline = titleBaseline - titleH;
         for (int i = 0; i < tasks.size(); i++) {
             float baseline = firstBaseline - i * lineGap;
@@ -1046,7 +1046,7 @@ public final class GameScreen extends ScreenAdapter {
             } else {
                 dialogueFont.setColor(1f, 1f, 1f, 1f);
             }
-            dialogueFont.draw(dialogueBatch, "▸ " + tasks.get(i), x + pad, baseline, panelW - 2 * pad, Align.left, false);
+            dialogueFont.draw(dialogueBatch, "- " + tasks.get(i), x + pad, baseline, panelW - 2 * pad, Align.left, false);
         }
         dialogueBatch.end();
     }
