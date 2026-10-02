@@ -281,7 +281,7 @@ public final class GameScreen extends ScreenAdapter {
                 travel.getPortals(currentMap.getId()),
                 combatDemo, paused || debugConsole.isOpen() || saveMenu.isOpen() || dialogueOpen || inventoryOpen || chestOpen || bigMap
                         || !Float.isFinite(delta) ? 0 : Math.max(0, Math.min(delta, GameConfig.MAX_FRAME_DELTA)),
-                combatDemo.getDrops(), quests.getCompleted(), currentObjectiveNpcId());
+                combatDemo.getDrops(), quests.getCompleted(), currentObjective().markerNpcId());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         drawHealth(hud);
         drawTrainingScore();
@@ -570,27 +570,70 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
-     * Computes the single NPC that should currently show an interaction marker,
-     * following the Hub onboarding flow: Old Sage, then Class Master, then Quest
-     * Keeper, then Portal Guide. Each step clears once that NPC has been talked to,
-     * so the marker advances to the next objective instead of appearing all at once.
+     * One current objective: a primary task, an optional secondary (side) task,
+     * and the NPC that should display the world-space exclamation marker.
      *
-     * @return id of the NPC to mark, or null once every objective is complete
+     * @param primary human-readable main objective
+     * @param secondary human-readable side objective, or null
+     * @param markerNpcId NPC to highlight, or null
      */
-    private String currentObjectiveNpcId() {
+    private record Objective(String primary, String secondary, String markerNpcId) { }
+
+    /**
+     * Computes the current primary/secondary objectives and the NPC that should
+     * show an interaction marker.
+     *
+     * <p>Onboarding follows the Old Sage → Class Master → Quest Keeper → Portal Guide
+     * chain. After that the boss loop begins: with no accepted trial the player is
+     * directed to the Quest Keeper; once a boss is chosen the defeat goal becomes the
+     * primary task and talking to the Portal Guide becomes the side task. After all
+     * five guardians fall the Old Sage reveals the Memorial Hall route, and the
+     * marker then moves to the Portal Guide.</p>
+     *
+     * @return current objective bundle; never null
+     */
+    private Objective currentObjective() {
+        String npcStep = null;
         if (!GameConfig.HUB_GUIDE.hasInteracted()) {
-            return GameConfig.HUB_GUIDE.getId();
+            npcStep = GameConfig.HUB_GUIDE.getId();
+        } else if (!GameConfig.CLASS_MASTER.hasInteracted()) {
+            npcStep = GameConfig.CLASS_MASTER.getId();
+        } else if (!GameConfig.QUEST_KEEPER.hasInteracted()) {
+            npcStep = GameConfig.QUEST_KEEPER.getId();
+        } else if (!GameConfig.PORTAL_GUIDE.hasInteracted()) {
+            npcStep = GameConfig.PORTAL_GUIDE.getId();
         }
-        if (!GameConfig.CLASS_MASTER.hasInteracted()) {
-            return GameConfig.CLASS_MASTER.getId();
+
+        var activeBoss = encounterFlow.getActiveEncounter()
+                .flatMap(ae -> BossChallenge.forMap(ae.mapId()))
+                .filter(b -> !quests.getCompleted().contains(b))
+                .orElse(null);
+        boolean bossActive = activeBoss != null;
+        String bossName = bossActive ? activeBoss.displayName() : "";
+        boolean allCompleted = quests.allBossesDefeated();
+        boolean memorialRevealed = quests.isMemorialPathRevealed();
+
+        List<String> tasks = buildObjectiveTasks(npcStep, npcName(npcStep), bossActive, bossName, allCompleted, memorialRevealed);
+        String primary = tasks.isEmpty() ? "Free explore: leave via Portal Guide" : tasks.get(0);
+        String secondary = tasks.size() > 1 ? tasks.get(1) : null;
+
+        String marker = null;
+        if (session.getCurrentMap().getType() == MapType.MEMORIAL) {
+            // Inside the Memorial Hall, point to the Old Sage until the ending has played.
+            marker = quests.hasEndingStarted() ? null : GameConfig.GUIDE.getId();
+        } else if (allCompleted && memorialRevealed) {
+            marker = GameConfig.PORTAL_GUIDE.getId();
+        } else if (allCompleted) {
+            // All guardians fallen but the Old Sage has not yet revealed the Memorial Hall route.
+            marker = GameConfig.HUB_GUIDE.getId();
+        } else if (bossActive) {
+            marker = GameConfig.PORTAL_GUIDE.getId();
+        } else if (npcStep != null) {
+            marker = npcStep;
+        } else {
+            marker = GameConfig.QUEST_KEEPER.getId();
         }
-        if (!GameConfig.QUEST_KEEPER.hasInteracted()) {
-            return GameConfig.QUEST_KEEPER.getId();
-        }
-        if (!GameConfig.PORTAL_GUIDE.hasInteracted()) {
-            return GameConfig.PORTAL_GUIDE.getId();
-        }
-        return null;
+        return new Objective(primary, secondary, marker);
     }
 
     /**
@@ -878,6 +921,10 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         if (activeNpc == null || dialogueLine >= dialogueLines().size()) {
+            if (activeNpc != null && activeNpc.getId().equals(GameConfig.HUB_GUIDE.getId())
+                    && quests.allBossesDefeated() && !quests.hasEndingStarted()) {
+                quests.revealMemorialPath();
+            }
             dialogueOpen = false;
             if (activeNpc != null && !activeNpc.hasInteracted()) {
                 activeNpc.setInteracted();
@@ -885,12 +932,15 @@ public final class GameScreen extends ScreenAdapter {
                 if (reward != null && !reward.isBlank()) {
                     inventory.addItem(reward, 1);
                 }
-                String nextObjective = currentObjectiveNpcId();
-                if (nextObjective != null) {
+                Objective nextObjective = currentObjective();
+                if (nextObjective.markerNpcId() != null) {
+                    String objectiveText = nextObjective.secondary() != null
+                            ? nextObjective.primary() + " / " + nextObjective.secondary()
+                            : nextObjective.primary();
                     if (reward != null && !reward.isBlank()) {
-                        saveMenu.notify("Received: " + reward + ". Next objective: Talk to " + npcName(nextObjective));
+                        saveMenu.notify("Received: " + reward + ". Next objective: " + objectiveText);
                     } else {
-                        saveMenu.notify("Next objective: Talk to " + npcName(nextObjective));
+                        saveMenu.notify("Next objective: " + objectiveText);
                     }
                 } else if (reward != null && !reward.isBlank()) {
                     saveMenu.notify("Received: " + reward);
@@ -976,7 +1026,7 @@ public final class GameScreen extends ScreenAdapter {
     /**
      * Draws a persistent objective tracker pinned to the left edge and vertically
      * centred, listing every active task at once: the current Hub onboarding step
-     * (from {@link #currentObjectiveNpcId()}) plus any accepted boss challenge.
+     * (from {@link #currentObjective()}) plus any accepted boss challenge.
      * Mirrors the dialogue box styling (dark panel with a gold border).
      *
      * @param hud current size and visibility policy
@@ -988,24 +1038,33 @@ public final class GameScreen extends ScreenAdapter {
         if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
             return;
         }
+        Objective objective = currentObjective();
+
         int w = Gdx.graphics.getWidth();
         int h = Gdx.graphics.getHeight();
         float scale = hud.panelScale();
         float pad = 10f * scale;
         float titleH = 24f * scale;
-        float lineGap = 22f * scale;
 
-        String step = currentObjectiveNpcId();
-        String npcName = step != null ? npcName(step) : "";
-        var boss = encounterFlow.getActiveEncounter()
-                .flatMap(ae -> BossChallenge.forMap(ae.mapId()))
-                .filter(b -> !quests.getCompleted().contains(b));
-        boolean bossActive = boss.isPresent();
-        String bossName = boss.map(BossChallenge::displayName).orElse("");
-        java.util.List<String> tasks = buildObjectiveTasks(step, npcName, bossActive, bossName);
+        dialogueFont.getData().setScale(scale);
+        float panelW = 320f * scale;
+        float wrapW = panelW - 2f * pad;
+        float lineGap = dialogueFont.getLineHeight() * 1.05f;
 
-        float panelW = 270f * scale;
-        float panelH = titleH + pad + tasks.size() * lineGap + pad;
+        String primaryText = objective.primary();
+        String secondaryText = objective.secondary() != null ? "- " + objective.secondary() : null;
+
+        GlyphLayout primaryLayout = new GlyphLayout(dialogueFont, primaryText,
+                dialogueFont.getColor(), wrapW, Align.left, true);
+        GlyphLayout secondaryLayout = secondaryText != null
+                ? new GlyphLayout(dialogueFont, secondaryText, dialogueFont.getColor(),
+                        wrapW - 8f * scale, Align.left, true)
+                : null;
+        int primaryLines = primaryLayout.runs.size;
+        int secondaryLines = secondaryLayout != null ? secondaryLayout.runs.size : 0;
+        float contentH = (primaryLines + secondaryLines) * lineGap;
+
+        float panelH = titleH + pad + contentH + pad;
         float top = h / 2f + panelH / 2f;
         top = Math.min(h - 12f * scale, Math.max(panelH + 12f * scale, top));
         float x = 12f * scale;
@@ -1020,52 +1079,61 @@ public final class GameScreen extends ScreenAdapter {
         dialogueShapes.rect(x, top - panelH, panelW, panelH);
         dialogueShapes.end();
 
-        dialogueFont.getData().setScale(scale);
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         float titleBaseline = top - pad;
         dialogueFont.setColor(0.95f, 0.85f, 0.35f, 1);
-        dialogueFont.draw(dialogueBatch, "Objectives", x + pad, titleBaseline, panelW - 2 * pad, Align.left, false);
+        dialogueFont.draw(dialogueBatch, "Objectives", x + pad, titleBaseline, wrapW, Align.left, false);
         float firstBaseline = titleBaseline - titleH;
-        for (int i = 0; i < tasks.size(); i++) {
-            float baseline = firstBaseline - i * lineGap;
-            boolean isBoss = tasks.get(i).startsWith("Defeat ");
-            if (isBoss) {
-                dialogueFont.setColor(1f, 0.65f, 0.25f, 1f);
-            } else {
-                dialogueFont.setColor(1f, 1f, 1f, 1f);
-            }
-            dialogueFont.draw(dialogueBatch, "- " + tasks.get(i), x + pad, baseline, panelW - 2 * pad, Align.left, false);
+        dialogueFont.setColor(1f, 0.85f, 0.35f, 1f);
+        dialogueFont.draw(dialogueBatch, primaryText, x + pad, firstBaseline, wrapW, Align.left, true);
+        if (secondaryLayout != null) {
+            float secondaryBaseline = firstBaseline - primaryLines * lineGap;
+            dialogueFont.setColor(0.80f, 0.80f, 0.85f, 1f);
+            dialogueFont.draw(dialogueBatch, secondaryText, x + pad + 8f * scale, secondaryBaseline,
+                    wrapW - 8f * scale, Align.left, true);
         }
         dialogueBatch.end();
     }
 
     /**
      * Builds the ordered objective tracker lines from the current tutorial step and active boss challenge.
+     * The first returned line is the primary objective; the second line, if present, is the side objective.
      * Pure and rendering-independent so the text can be unit-tested without a graphics context.
      * @param npcStep current onboarding step id, or null when none is active
      * @param npcName display name of the current objective NPC
      * @param bossActive whether an uncompleted boss challenge is currently active
      * @param bossDisplayName display name of the active boss challenge
+     * @param allCompleted whether all five guardians have been defeated this session
+     * @param memorialRevealed whether the Old Sage has already revealed the Memorial Hall route
      * @return ordered objective lines; never empty
      */
     static java.util.List<String> buildObjectiveTasks(String npcStep, String npcName,
-                                                      boolean bossActive, String bossDisplayName) {
+                                                      boolean bossActive, String bossDisplayName,
+                                                      boolean allCompleted,
+                                                      boolean memorialRevealed) {
         java.util.List<String> tasks = new java.util.ArrayList<>();
-        if (npcStep != null) {
+        if (allCompleted) {
+            if (!memorialRevealed) {
+                tasks.add("Talk to Old Sage to learn the Memorial Hall path");
+            } else {
+                tasks.add("Talk to Portal Guide and choose Memorial Hall");
+            }
+        } else if (bossActive) {
+            tasks.add("Defeat " + bossDisplayName);
+            tasks.add("Talk to Portal Guide to enter the battle");
+        } else if (npcStep != null) {
             tasks.add(switch (npcStep) {
                 case "hub_guide" -> "Talk to Old Sage for the tutorial";
                 case "class_master" -> "Talk to Class Master to choose a class";
-                case "quest_keeper" -> "Talk to Quest Keeper to receive a quest";
+                case "quest_keeper" -> "Talk to Quest Keeper to choose a Boss";
                 case "portal_guide" -> "Talk to Portal Guide to go to the battlefield";
                 default -> "Talk to " + npcName;
             });
-        }
-        if (bossActive) {
-            tasks.add("Defeat " + bossDisplayName);
-        }
-        if (tasks.isEmpty()) {
-            tasks.add("Free explore: leave via Portal Guide");
+        } else {
+            // Onboarding complete and no boss chosen yet: send the player back to the Quest Keeper
+            // so the primary/secondary boss loop can start (or resume after a defeat).
+            tasks.add("Talk to Quest Keeper to choose a Boss");
         }
         return tasks;
     }
@@ -1127,10 +1195,15 @@ public final class GameScreen extends ScreenAdapter {
             return;
         }
         String hint = switch (near.getId()) {
-            case "portal_guide" -> "[E] Choose portal destination";
+            case "portal_guide" -> quests.isMemorialPathRevealed() && !quests.hasEndingStarted()
+                    ? "[E] Choose Memorial Hall to complete the journey"
+                    : "[E] Choose portal destination";
             case "class_master" -> "[E] Choose class / O ultimate mode";
             case "quest_keeper" -> "[E] Accept Boss quest / view completion";
             case "training_exit" -> "[E] Return to Hub";
+            case "hub_guide" -> quests.allBossesDefeated() && !quests.hasEndingStarted() && !quests.isMemorialPathRevealed()
+                    ? "[E] Speak to Old Sage\nabout the Memorial Hall path"
+                    : "[E] Speak to Old Sage";
             case "notice_board" -> "[E] Read " + near.getName();
             case "healing_spring" -> "[E] Drink from " + near.getName();
             case "storage_chest" -> "[E] Open " + near.getName();
@@ -1143,7 +1216,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));
         dialogueBatch.begin();
         dialogueFont.setColor(1f, 0.85f, 0.30f, 1);
-        dialogueFont.draw(dialogueBatch, hint, 0, 120f * scale, w, Align.center, false);
+        dialogueFont.draw(dialogueBatch, hint, 0, 130f * scale, w, Align.center, true);
         dialogueBatch.end();
     }
     /**
@@ -1209,6 +1282,12 @@ public final class GameScreen extends ScreenAdapter {
                     + (quests.getCompleted().size() == BossChallenge.values().length
                     ? "The seal is restored. Your deeds will be remembered here."
                     : "Defeat the remaining guardians, then speak to me again.\nThe portal at the lower left returns to Hub."));
+        }
+        if (activeNpc.getId().equals(GameConfig.HUB_GUIDE.getId())
+                && quests.allBossesDefeated() && !quests.hasEndingStarted()) {
+            return List.of(
+                    "Adventurer - the five guardians have fallen. Their elemental stones now glow in the Memorial Hall.",
+                    "Speak to the Portal Guide and choose Memorial Hall to witness the restored seal and complete your journey.");
         }
         List<String> base = activeNpc.getLines();
         if (!activeNpc.hasInteracted() || activeNpc.getRewardItemId() == null) {
