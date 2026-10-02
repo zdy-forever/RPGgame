@@ -11,6 +11,7 @@ import java.util.Optional;
  * slots are skipped so the caller can disable Continue when nothing is readable.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class SaveSelection {
 

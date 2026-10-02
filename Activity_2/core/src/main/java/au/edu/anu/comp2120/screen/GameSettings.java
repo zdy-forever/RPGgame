@@ -15,6 +15,7 @@ import java.util.Properties;
  * Failures to read or write fall back to sensible defaults without interrupting startup.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class GameSettings {
 

@@ -10,7 +10,10 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Verifies the newest-valid-slot selection used by the main menu Continue action. */
+/**
+ * Verifies the newest-valid-slot selection used by the main menu Continue action.
+ * @author Jiaqi Chen (u7851266)
+ */
 final class SaveSelectionTest {
 
     /** Creates the test instance. */

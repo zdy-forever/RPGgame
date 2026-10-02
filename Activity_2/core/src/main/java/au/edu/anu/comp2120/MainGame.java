@@ -11,6 +11,7 @@ import com.badlogic.gdx.Gdx;
  *
  * @author Daoyan Zhu (u7782042)
  * @author Hao Liu (u7998420)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class MainGame extends Game {
 

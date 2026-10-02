@@ -17,6 +17,7 @@ import com.badlogic.gdx.math.Matrix4;
  * Exposes the shared music volume slider and a fullscreen toggle, both persisted via {@link GameSettings}.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class SettingsScreen extends ScreenAdapter {
 

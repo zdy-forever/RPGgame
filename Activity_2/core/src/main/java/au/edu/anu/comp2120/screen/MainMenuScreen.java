@@ -21,6 +21,7 @@ import java.nio.file.Path;
  * Offers New Game, Continue (disabled until a valid save exists), Settings and Quit.
  *
  * @author Daoyan Zhu (u7782042)
+ * @author Jiaqi Chen (u7851266)
  */
 public final class MainMenuScreen extends ScreenAdapter {
 
