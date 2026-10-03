@@ -111,11 +111,11 @@ Guardian armour pieces and three potions. It does not delete either existing sav
 Continue selects the newest readable slot by save timestamp and attempts full restoration.
 It is disabled when neither slot is readable; invalid snapshot data produces a load failure.
 
-Title-menu Settings stores music volume (0–100) and fullscreen preference in
-`${user.home}/.comp2120-game/settings.properties`. Defaults are 50% and windowed mode.
-Use A/D or Left/Right on the volume row, or drag the slider. Settings are independent of
-saved progress. The Esc menu's volume control changes the current game's gain and survives
-an in-game restart, but does not write this preference file.
+Title-menu Settings and Esc → Settings share music volume (0–100) and fullscreen controls.
+Use A/D or Left/Right on the volume row, drag the slider, or click the fullscreen row. Both
+entry points immediately apply and persist the values in
+`${user.home}/.comp2120-game/settings.properties`; defaults are 50% and windowed mode.
+Settings are independent of saved progress.
 
 ## Controls
 
@@ -130,7 +130,7 @@ an in-game restart, but does not write this preference file.
 | Item pages | Q/R or PageUp/PageDown; footer buttons also work |
 | NPC choices | W/S or arrows; E/Enter confirms; left-click selects and right-click activates |
 | Map | M expands/closes outside Memorial Hall when detailed HUD is visible; Esc closes |
-| Pause | Esc opens menu; an already open panel closes first |
+| Pause | Esc opens Resume, saving, restart, Settings and confirmed Quit game; an already open panel closes first |
 | Saves | F5 manual save; F9 Manage saves; Esc menu offers both |
 | Debug console | F10 or backtick; Enter submits; Esc closes |
 | Class shortcuts | F1 Archer, F2 Mage, F3 Katana in an available, living Hub state |

@@ -14,6 +14,8 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Align;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /** Paused Escape menu with independent saves, confirmed restart and transient notifications.
  * @author Hao Liu (u7998420)
@@ -25,8 +27,14 @@ final class SaveMenu {
     private final IntSupplier volume;
     /** Applies slider changes immediately. */
     private final IntConsumer setVolume;
+    /** Current persisted fullscreen preference. */
+    private final BooleanSupplier fullscreen;
+    /** Persists and immediately applies fullscreen changes. */
+    private final Consumer<Boolean> setFullscreen;
     /** Requests a deferred fresh game without removing files. */
     private final Runnable restart;
+    /** Requests application shutdown after confirmation. */
+    private final Runnable quit;
     /** Reusable wrapped text measurement. */
     private final GlyphLayout text = new GlyphLayout();
     /** Current page; CLOSED leaves gameplay input available. */
@@ -51,8 +59,9 @@ final class SaveMenu {
      */
     private enum Page {
         /** Gameplay owns input. */ CLOSED,
-        /** Action list and volume control. */ HOME,
+        /** Main paused-game action list. */ HOME,
         /** Slot loading and deletion. */ SLOTS,
+        /** Shared music-volume and fullscreen preferences. */ SETTINGS,
         /** Explicit destructive-to-live-state decision. */ CONFIRM
     }
     /** Actions requiring an explicit decision.
@@ -64,17 +73,25 @@ final class SaveMenu {
         /** Restore the manual file. */ MANUAL,
         /** Delete the automatic file. */ DELETE_AUTO,
         /** Delete the manual file. */ DELETE_MANUAL,
-        /** Replace only the running session. */ RESTART
+        /** Replace only the running session. */ RESTART,
+        /** Close the application without changing either save slot. */ QUIT
     }
 
     /** Binds model callbacks without allocating graphics resources.
      * @param saves persistence coordinator
      * @param volume current percentage supplier
      * @param setVolume percentage consumer
+     * @param fullscreen current fullscreen preference supplier
+     * @param setFullscreen persisted fullscreen consumer
      * @param restart deferred fresh-game request
+     * @param quit application shutdown request
      */
-    SaveMenu(GameSaves saves, IntSupplier volume, IntConsumer setVolume, Runnable restart) {
+    SaveMenu(GameSaves saves, IntSupplier volume, IntConsumer setVolume,
+             BooleanSupplier fullscreen, Consumer<Boolean> setFullscreen,
+             Runnable restart, Runnable quit) {
         this.saves = saves; this.volume = volume; this.setVolume = setVolume; this.restart = restart;
+        this.fullscreen = fullscreen; this.setFullscreen = setFullscreen;
+        this.quit = quit;
         observed = saves.statusVersion();
     }
 
@@ -107,15 +124,18 @@ final class SaveMenu {
             dragging = false;
             return true;
         }
-        if (page == Page.HOME || page == Page.SLOTS) {
-            if (MenuKeys.up()) { focus = (focus + 4) % 5; }
-            if (MenuKeys.down()) { focus = (focus + 1) % 5; }
+        if (page == Page.HOME || page == Page.SLOTS || page == Page.SETTINGS) {
+            int rows = rowCount();
+            if (MenuKeys.up()) { focus = (focus + rows - 1) % rows; dragging = false; }
+            if (MenuKeys.down()) { focus = (focus + 1) % rows; dragging = false; }
             if (page == Page.SLOTS && Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) { request(Action.AUTO); return true; }
             if (page == Page.SLOTS && Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) { request(Action.MANUAL); return true; }
-            if (page == Page.HOME && focus == 4) {
+            if (page == Page.SETTINGS && focus == 0) {
                 int step = (MenuKeys.right() ? 1 : 0)
                         - (MenuKeys.left() ? 1 : 0);
-                if (step != 0) { setVolume.accept(Math.max(0, Math.min(100, volume.getAsInt() + step))); }
+                if (step != 0) { setVolume.accept(Math.max(0, Math.min(100, volume.getAsInt() + step * 2))); }
+            } else if (page == Page.SETTINGS && focus == 1 && (MenuKeys.left() || MenuKeys.right())) {
+                toggleFullscreen();
             }
             if (MenuKeys.confirm()) { activate(focus); return true; }
         } else if (MenuKeys.confirm()) { confirm(); return true; }
@@ -138,9 +158,11 @@ final class SaveMenu {
     /** Returns one level without confirming an operation. */
     private void back() {
         if (page == Page.CONFIRM) {
-            page = pending == Action.SAVE || pending == Action.RESTART ? Page.HOME : Page.SLOTS;
+            page = pending == Action.SAVE || pending == Action.RESTART || pending == Action.QUIT
+                    ? Page.HOME : Page.SLOTS;
             pending = null;
         } else if (page == Page.SLOTS) { page = Page.HOME; focus = 2; }
+        else if (page == Page.SETTINGS) { page = Page.HOME; focus = 4; }
         else { page = Page.CLOSED; }
         dragging = false;
     }
@@ -150,6 +172,7 @@ final class SaveMenu {
      * @return true for navigation or a safe persistence action
      */
     private boolean enabled(int row) {
+        if (page == Page.SETTINGS) { return true; }
         return (page == Page.HOME ? row != 1 : row == 4) || saves.isSafe();
     }
 
@@ -157,6 +180,11 @@ final class SaveMenu {
      * @param row row index in visual/keyboard order
      */
     private void activate(int row) {
+        if (page == Page.SETTINGS) {
+            if (row == 1) { toggleFullscreen(); }
+            else if (row == 2) { back(); }
+            return;
+        }
         if (page == Page.SLOTS) {
             switch (row) {
                 case 0 -> request(Action.AUTO);
@@ -173,15 +201,31 @@ final class SaveMenu {
             case 1 -> request(Action.SAVE);
             case 2 -> openSlots();
             case 3 -> request(Action.RESTART);
+            case 4 -> { page = Page.SETTINGS; focus = 0; dragging = false; }
+            case 5 -> request(Action.QUIT);
             default -> { }
         }
+    }
+
+    /** Toggles the shared fullscreen preference through the application callback. */
+    private void toggleFullscreen() { setFullscreen.accept(!fullscreen.getAsBoolean()); }
+
+    /** Reports the number of selectable rows on the current page.
+     * @return current page row count
+     */
+    private int rowCount() {
+        return switch (page) {
+            case HOME -> 6;
+            case SETTINGS -> 3;
+            default -> 5;
+        };
     }
 
     /** Applies current safety before confirmation, never treating pause as safety.
      * @param action requested operation
      */
     private void request(Action action) {
-        if (action != Action.RESTART && !saves.isSafe()) {
+        if (action != Action.RESTART && action != Action.QUIT && !saves.isSafe()) {
             notify("Save/load unavailable: use Hub or Memorial Hall after active skills finish.");
             return;
         }
@@ -199,6 +243,7 @@ final class SaveMenu {
             observeStatus(); openSlots(); return;
         }
         if (pending == Action.RESTART) { restart.run(); }
+        else if (pending == Action.QUIT) { quit.run(); }
         else if (pending == Action.SAVE) { saves.saveManual(); }
         else { saves.load(pending == Action.AUTO ? SaveSlot.AUTO : SaveSlot.MANUAL); }
         observeStatus(); pending = null; page = Page.CLOSED; dragging = false;
@@ -220,11 +265,15 @@ final class SaveMenu {
             return;
         }
         if (click && x >= 24 && x <= 476) {
-            for (int row = 0; row < (page == Page.HOME ? 4 : 5); row++) {
+            for (int row = 0; row < rowCount(); row++) {
                 float bottom = 352 - row * 54;
-                if (y >= bottom && y <= bottom + 46) { focus = row; activate(row); return; }
+                if (y >= bottom && y <= bottom + 46) {
+                    focus = row;
+                    if (page == Page.SETTINGS && row == 0) { dragging = true; }
+                    else { activate(row); return; }
+                    break;
+                }
             }
-            if (page == Page.HOME && y >= 62 && y <= 108) { focus = 4; dragging = true; }
         }
         if (dragging && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
             setVolume.accept(sliderPercent(x));
@@ -299,42 +348,48 @@ final class SaveMenu {
             shapes.begin(ShapeRenderer.ShapeType.Filled);
             shapes.setColor(0, 0, 0, 0.58f); shapes.rect(0, 0, width, height);
             rect(shapes, b, 0, 0, 500, 460, new Color(0.055f, 0.085f, 0.13f, 0.96f));
-            if (page == Page.HOME || page == Page.SLOTS) {
-                for (int row = 0; row < (page == Page.HOME ? 4 : 5); row++) {
+            if (page == Page.HOME || page == Page.SLOTS || page == Page.SETTINGS) {
+                for (int row = 0; row < rowCount(); row++) {
                     boolean enabled = enabled(row);
                     rect(shapes, b, 24, 352 - row * 54, 452, 46,
                             !enabled ? new Color(0.10f, 0.12f, 0.16f, 1) : row == focus
                                     ? new Color(0.12f, 0.35f, 0.42f, 1) : new Color(0.12f, 0.17f, 0.23f, 1));
                 }
-                if (page == Page.HOME) {
-                    rect(shapes, b, 32, 72, 436, 6, Color.DARK_GRAY);
-                    rect(shapes, b, 32, 72, 436 * volume.getAsInt() / 100f, 6, Color.CYAN);
-                    rect(shapes, b, 28 + 436 * volume.getAsInt() / 100f, 66, 8, 18, Color.WHITE);
+                if (page == Page.SETTINGS) {
+                    rect(shapes, b, 32, 356, 436, 6, Color.DARK_GRAY);
+                    rect(shapes, b, 32, 356, 436 * volume.getAsInt() / 100f, 6, Color.CYAN);
+                    rect(shapes, b, 28 + 436 * volume.getAsInt() / 100f, 350, 8, 18, Color.WHITE);
                 }
             } else {
                 rect(shapes, b, 24, 40, 220, 44, Color.DARK_GRAY);
                 rect(shapes, b, 256, 40, 220, 44, new Color(0.12f, 0.35f, 0.42f, 1));
             }
             shapes.end(); batch.begin();
-            label(batch, font, b, page == Page.SLOTS ? "MANAGE SAVES" : "PAUSED", 24, 434, 452, 28, 1.55f, Color.WHITE);
-            if (page == Page.HOME || page == Page.SLOTS) {
-                String[] names = page == Page.HOME
-                        ? new String[] {"Resume", "Save manually", "Manage saves", "Restart game"}
-                        : new String[] {"Load automatic", "Delete automatic", "Load manual", "Delete manual", "Back"};
-                for (int row = 0; row < (page == Page.HOME ? 4 : 5); row++) {
+            String heading = page == Page.SLOTS ? "MANAGE SAVES" : page == Page.SETTINGS ? "SETTINGS" : "PAUSED";
+            label(batch, font, b, heading, 24, 434, 452, 28, 1.55f, Color.WHITE);
+            if (page == Page.HOME || page == Page.SLOTS || page == Page.SETTINGS) {
+                String[] names = switch (page) {
+                    case HOME -> new String[] {"Resume", "Save manually", "Manage saves", "Restart game",
+                            "Settings", "Quit game"};
+                    case SLOTS -> new String[] {"Load automatic", "Delete automatic", "Load manual", "Delete manual", "Back"};
+                    case SETTINGS -> new String[] {"Music volume  " + volume.getAsInt() + " / 100",
+                            "Fullscreen: " + (fullscreen.getAsBoolean() ? "On" : "Off"), "Back"};
+                    default -> throw new IllegalStateException("Unexpected page " + page);
+                };
+                for (int row = 0; row < rowCount(); row++) {
                     float top = 384 - row * 54;
-                    label(batch, font, b, names[row], 36, top, 428, 20, 1.1f,
+                    label(batch, font, b, (row == focus ? "> " : "") + names[row], 36, top, 428, 20, 1.1f,
                             !enabled(row) ? Color.GRAY : Color.WHITE);
                     if (page == Page.SLOTS && (row == 0 || row == 2)) {
                         label(batch, font, b, summaries[row / 2], 36, top - 18, 428, 12, 0.7f, Color.LIGHT_GRAY);
                     }
                 }
-                if (page == Page.HOME) {
-                    label(batch, font, b, (focus == 4 ? "> " : "") + "Music volume  " + volume.getAsInt() + " / 100",
-                        32, 104, 436, 20, 1, Color.CYAN);
-                }
-                label(batch, font, b, saves.isSafe() ? "Esc: back  |  WASD / Arrows, E / Enter, mouse"
-                        : "Save actions locked: Hub / Memorial, no active skills.\nEsc: back  |  WASD / Arrows, E / Enter, mouse",
+                String controls = page == Page.SETTINGS
+                        ? "Esc: back  |  WASD / Arrows: select/adjust  |  E / Enter, mouse"
+                        : saves.isSafe() ? "Esc: back  |  WASD / Arrows, E / Enter, mouse"
+                        : "Save actions locked: Hub / Memorial, no active skills.\n"
+                                + "Esc: back  |  WASD / Arrows, E / Enter, mouse";
+                label(batch, font, b, controls,
                         24, 46, 452, 34, 0.85f, Color.LIGHT_GRAY);
             } else {
                 String prompt = switch (pending) {
@@ -345,6 +400,7 @@ final class SaveMenu {
                             + (pending == Action.DELETE_AUTO ? "automatic" : "manual")
                             + " save?\n\nThis cannot be undone.\nYour current game and the other save stay unchanged.";
                     case RESTART -> "Restart from the beginning?\n\nUnsaved progress will be lost.\nBoth save files and music volume are kept.";
+                    case QUIT -> "Quit the game?\n\nUnsaved progress will be lost.\nBoth save files and settings are kept.";
                 };
                 label(batch, font, b, prompt, 32, 340, 436, 220, 1.2f, Color.WHITE);
                 label(batch, font, b, "Cancel (Esc)", 36, 68, 196, 22, 1, Color.WHITE);

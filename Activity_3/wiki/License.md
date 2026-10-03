@@ -4,7 +4,7 @@
 
 ## Project license
 
-The repository uses a custom restricted coursework license in [LICENSE.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/LICENSE.md). 
+The repository uses a custom restricted coursework license in [LICENSE.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/LICENSE.md).
 
 The existing license reserves rights in the source code and permits ANU teaching staff to access, execute, reproduce and inspect the project as reasonably needed for assessment and academic administration. Uses outside course assessment require permission from the copyright holders under its wording.
 
@@ -12,8 +12,8 @@ This choice fits a coursework submission intended for assessment: teaching staff
 
 ## Why we chose this licence
 
-The team invested substantial time in designing and implementing this coursework project and wants to retain control over reuse and redistribution of its source code. 
-Making the repository available for assessment does not mean that other students or third parties receive permission to copy, redistribute, modify or reuse it freely. 
+The team invested substantial time in designing and implementing this coursework project and wants to retain control over reuse and redistribution of its source code.
+Making the repository available for assessment does not mean that other students or third parties receive permission to copy, redistribute, modify or reuse it freely.
 The restricted coursework licence expressly permits ANU teaching staff to access and inspect the project for assessment and related academic purposes, while reserving other uses to the copyright holders under the licence wording.
 
 ## Artwork and music

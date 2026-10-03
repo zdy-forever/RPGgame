@@ -223,9 +223,12 @@ public final class GameScreen extends ScreenAdapter {
                 combatDemo, chestStorage, savedNpcs,
                 new au.edu.anu.comp2120.save.SaveStore(java.nio.file.Path.of(
                         System.getProperty("user.home"), ".comp2120-game", "saves")));
-        saveMenu = new SaveMenu(saves, () -> Math.round(music.getVolume() * 100),
-                percent -> music.setVolume(percent / 100f),
-                () -> ((au.edu.anu.comp2120.MainGame) Gdx.app.getApplicationListener()).restart(music.getVolume()));
+        saveMenu = new SaveMenu(saves, GameSettings::musicVolume,
+                percent -> { GameSettings.setMusicVolume(percent); music.setVolume(percent / 100f); },
+                GameSettings::fullscreen,
+                fullscreen -> { GameSettings.setFullscreen(fullscreen); SettingsScreen.applyFullscreen(fullscreen); },
+                () -> ((au.edu.anu.comp2120.MainGame) Gdx.app.getApplicationListener()).restart(music.getVolume()),
+                Gdx.app::exit);
         if (restarted) { saveMenu.notify("New game started. Both save files were kept."); }
     }
 

@@ -8,7 +8,7 @@ The application opens a title menu before entering a game. Use W/S or Up/Down an
 
 - **New Game:** start a fresh Hub session without deleting existing automatic/manual saves.
 - **Continue:** select the most recently timestamped readable save slot and attempt to load it. The option is disabled when neither slot is readable. Use in-game Manage saves when you want to choose a particular slot yourself.
-- **Settings:** change music volume or fullscreen. These title-menu preferences are stored in `.comp2120-game/settings.properties` under the Java user's home directory.
+- **Settings:** change music volume or fullscreen with keyboard or mouse. The same settings are available from the in-game pause menu and are stored in `.comp2120-game/settings.properties` under the Java user's home directory.
 - **Quit:** close the application.
 
 ## First playthrough
@@ -42,7 +42,7 @@ On macOS, Fn may be needed with function keys. Use Class Master for ultimate sel
 
 ## Menus and items
 
-Use W/S or Up/Down to select, E/Enter to confirm, and Esc to return/close. Pause-menu rows can be clicked; NPC choices support left-click selection and right-click activation. During dialogue/menu interaction, navigation keys do not move the player.
+Use W/S or Up/Down to select, E/Enter to confirm, and Esc to return/close. Menu rows can be clicked; the volume slider can be dragged and fullscreen toggles on click. NPC choices support left-click selection and right-click activation. During dialogue/menu interaction, navigation keys do not move the player.
 
 In the bag, left-click selects and right-click uses/equips/unequips. E/Enter activates the selected row. `[Worn]` identifies equipped gear. Q/R or PageUp/PageDown pages; footer controls are clickable.
 
@@ -54,6 +54,7 @@ Storage uses A/D or Left/Right to choose bag/chest, W/S or arrows to choose an i
 - Manage saves offers separate Load and Delete actions for both slots. Loading restores that snapshot without rewriting either file.
 - Save/load requires Hub or Memorial Hall, a living player, and no active action/projectile. Close dialogue, bag, chest and map first. Remaining cooldowns are allowed.
 - Restart game creates a fresh live game while keeping both disk saves and current music volume. A later save or victory may overwrite its corresponding slot.
+- Quit game asks for confirmation before closing the application. Unsaved live progress is lost; existing save files and persisted settings remain unchanged.
 - Delete removes only the confirmed slot; it does not reset the current game.
 - Launching shows the title menu; select Continue to attempt the latest readable slot or New Game for a fresh session. Loading is an explicit choice.
 
@@ -63,7 +64,7 @@ Stand above the target to receive its fixed upward shots; stand beside it to pra
 
 ## Music
 
-In Esc, drag the volume slider or select it and use A/D or Left/Right. The range is 0–100. Music continues during the menu for preview. This volume survives in-game restart/load, but the Esc slider does not write the settings file. To retain a startup preference, set it in the title menu's Settings screen. Without a stored preference, music defaults to 50%.
+Choose Settings from the title menu or Esc → Settings in game. Drag/click the volume slider or select it and use A/D or Left/Right; the range is 0–100. Click Fullscreen or select it and confirm to toggle it. Music continues during the pause menu for preview. Both screens immediately apply and persist the same preferences. Without a stored preference, music defaults to 50%.
 
 ## Implementation references
 

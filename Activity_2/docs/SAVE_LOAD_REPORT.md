@@ -13,9 +13,12 @@ without reading, writing or deleting a slot. Continue chooses the newest readabl
 timestamp and attempts full validation/restoration; it is disabled if neither slot is readable.
 A readable metadata record is not a guarantee that the complete snapshot can be restored.
 
-Esc opens Resume, Save manually, Manage saves, Restart game and music volume. Use W/S or
-Up/Down, E/Enter or mouse selection. Esc first closes ordinary dialogue/bag/chest/map panels;
-a later press opens the pause menu. A confirmation cancels back one level.
+Esc opens Resume, Save manually, Manage saves, Restart game, Settings and Quit game. Settings
+contains the same persisted music-volume slider and fullscreen toggle as the title menu. Quit
+requires confirmation and leaves both slots/settings unchanged. Use W/S or Up/Down, E/Enter or
+mouse selection; A/D or Left/Right adjusts the focused setting. Esc first closes ordinary
+dialogue/bag/chest/map panels; a later press opens the pause menu. A confirmation cancels back
+one level.
 
 - **F5** requests manual saving. Replacing an existing manual file, including a corrupt file,
   requires confirmation. F5 does not select an ultimate mode.
@@ -109,10 +112,9 @@ With nocd enabled, validated restored cooldowns are cleared in live state withou
 
 ## Settings and feedback
 
-Title Settings persists `music.volume` and `fullscreen` in `settings.properties`, independent
-of progress files. Defaults are 50% volume and windowed mode. The Esc slider changes only the
-current BackgroundMusic gain; in-game restart retains it, while the next application launch
-uses the title-menu preference. Neither save slot controls volume/fullscreen.
+Title Settings and Esc → Settings persist the same `music.volume` and `fullscreen` values in
+`settings.properties`, independent of progress files. Defaults are 50% volume and windowed mode.
+Both entry points immediately apply changes. Neither save slot controls volume/fullscreen.
 
 Volume applies to current/cached/future tracks without restarting playback. Menu pause leaves
 music playing; application lifecycle pause pauses it. Settings write failures are ignored by
@@ -146,4 +148,4 @@ victory autosaves through five distinct wins with independent manual history, AU
 Continue selection, title settings persistence and saved/reloaded Hall ending completion.
 Wind was completed by the user without debug features. Some later scenarios used position-only
 fixtures; these are disclosed in the report. Still verify native slot deletion/corruption paths,
-Esc session volume, full resize behavior and all campaign/rematch restoration paths.
+full resize behavior and all campaign/rematch restoration paths.

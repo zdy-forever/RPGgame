@@ -100,7 +100,7 @@ See [Game Tester](game-tester) for selected scenarios and interpretation of resu
 
 The game stores `automatic.properties` and `manual.properties` in `.comp2120-game/saves/` under the Java user's home directory. They are outside the repository and survive builds and Git branch changes. Startup shows the title menu. New Game creates a fresh live session; Continue selects the newest readable slot. In-game Manage saves lets you explicitly choose automatic or manual. Restart game resets current progress while preserving both files. To remove a slot, use the game's confirmed Delete action.
 
-Music/fullscreen preferences set through the title menu are stored separately in `.comp2120-game/settings.properties`. The in-game volume slider changes the current session without writing that preference file.
+Music/fullscreen preferences set through either the title-menu Settings screen or Esc → Settings are stored separately in `.comp2120-game/settings.properties`. Both entry points apply changes immediately and share the same persisted values.
 
 ## Troubleshooting
 

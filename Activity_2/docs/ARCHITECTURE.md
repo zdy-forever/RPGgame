@@ -145,9 +145,10 @@ Training metrics, RNG and debug switches are excluded. Cheat use blocks writes f
 session even after loading or disabling switches. New Game/restart creates fresh state while
 leaving slot files intact. Continue explicitly chooses the newest readable slot on the title menu.
 
-GameSettings is separate from snapshots: title Settings persists volume/fullscreen beside the
-save directory. The current Esc slider only updates BackgroundMusic and is retained across the
-in-game restart; it does not call the persistent settings setter. See [save/load](SAVE_LOAD_REPORT.md).
+GameSettings is separate from snapshots: title Settings and Esc → Settings share the same
+persisted volume/fullscreen values beside the save directory and apply changes immediately.
+The pause menu also provides a confirmed application-exit callback; quitting does not modify
+either save slot. See [save/load](SAVE_LOAD_REPORT.md).
 
 ## Presentation and assets
 
