@@ -108,7 +108,7 @@ public final class SettingsScreen extends ScreenAdapter {
     /** Applies a fullscreen state without changing the persisted preference.
      * @param on true to enter fullscreen, false to return to windowed mode
      */
-    private static void applyFullscreen(boolean on) {
+    static void applyFullscreen(boolean on) {
         if (on) {
             if (!Gdx.graphics.isFullscreen()) { Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode()); }
         } else if (Gdx.graphics.isFullscreen()) {
@@ -128,17 +128,32 @@ public final class SettingsScreen extends ScreenAdapter {
         if (layout.scale() == 0) { return; }
         float x = (Gdx.input.getX() - layout.x()) / layout.scale();
         float y = (Gdx.graphics.getHeight() - Gdx.input.getY() - layout.y()) / layout.scale();
-        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && x >= 24 && x <= 476) {
-            for (int row = 0; row < 3; row++) {
-                float bottom = 352 - row * 54;
-                if (y >= bottom && y <= bottom + 46) { focus = row; if (row == 0) { dragging = true; } return; }
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            int row = pointerRow(x, y);
+            if (row >= 0) {
+                focus = row;
+                if (row == 0) { dragging = true; }
+                else if (row == 1) { toggleFullscreen(); return; }
+                else { back(); return; }
             }
         }
-        if (focus == 1 && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
-                && x >= 24 && x <= 476 && y >= 298 && y <= 344) { toggleFullscreen(); return; }
         if (dragging && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
             GameSettings.setMusicVolume(SaveMenu.sliderPercent(x));
         } else { dragging = false; }
+    }
+
+    /** Resolves a local settings-panel pointer to its selectable row.
+     * @param x pointer x in reference coordinates
+     * @param y pointer y in reference coordinates
+     * @return zero through two for volume/fullscreen/back, or minus one outside a row
+     */
+    static int pointerRow(float x, float y) {
+        if (x < 24 || x > 476) { return -1; }
+        for (int row = 0; row < 3; row++) {
+            float bottom = 352 - row * 54;
+            if (y >= bottom && y <= bottom + 46) { return row; }
+        }
+        return -1;
     }
 
     /** Draws one reference-coordinate filled rectangle.

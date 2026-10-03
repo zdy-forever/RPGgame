@@ -48,7 +48,7 @@ Two guardian armour pieces add 5% damage reduction; four also add 10% attack. Ho
 
 Manual and automatic slots are independent. Manual saving and loading require a living, idle player in Hub or Memorial Hall. Successful Boss settlement creates an automatic checkpoint. Pause does not allow saving in a battle or Training.
 
-The Esc menu provides saving, slot loading/deletion, restarting and music volume. Confirmations protect overwrite, load, deletion and restart operations. Slot times are displayed in Australia/Sydney, including AEST/AEDT; stored timestamps remain UTC.
+The Esc menu provides saving, slot loading/deletion, restarting, quitting and a Settings submenu. Its mouse/keyboard volume and fullscreen controls share the persisted title-menu preferences. Confirmations protect overwrite, load, deletion, restart and quit operations. Slot times are displayed in Australia/Sydney, including AEST/AEDT; stored timestamps remain UTC.
 
 Short-lived translucent notifications appear centrally and fade away. The enlarged map identifies NPCs and live targets; the minimap marks the player and Boss/Training target. Bag, storage, dialogue and pause interfaces stop simulation. Keyboard and mouse options share the same item/menu actions.
 

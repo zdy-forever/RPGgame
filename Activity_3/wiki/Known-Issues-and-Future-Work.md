@@ -31,14 +31,14 @@ The campaign uses predefined maps and one Boss per arena. Procedural generation 
 
 - Equipment is not profession-restricted; the staff's equipment bonus does not replace each class's skill set.
 - Upgrades stop at +2 and use a shared material. Balance remains provisional.
-- Title-screen Settings persists music volume and fullscreen preferences in `.comp2120-game/settings.properties`. The in-game Esc volume slider changes the current music session; its callback does not persist that change to the settings file.
+- Title-screen Settings and Esc → Settings share and persist music volume and fullscreen preferences in `.comp2120-game/settings.properties`.
 - Restart preserves slots; a later save or victory may replace the corresponding older timeline.
 - Debug use disables saving for the live session, even after switches are turned off. Restart to return to a clean session.
 - Legacy weapon/coordinate drawing implementations were removed in the 1 October cleanup. Inspect equipment in the bag; some older reports still describe the earlier disabled-call stage.
 
 ## Future improvements
 
-Priorities are keeping test evidence aligned with the final submission commit, measured test coverage, completed packaging acceptance and broader manual platform checks. Product improvements could include stronger onboarding, more equipment/art variety, consistent persistence of in-game volume changes and further guardian balance testing. These are proposals, not delivered features.
+Priorities are keeping test evidence aligned with the final submission commit, measured test coverage, completed packaging acceptance and broader manual platform checks. Product improvements could include stronger onboarding, more equipment/art variety and further guardian balance testing. These are proposals, not delivered features.
 
 ## Supporting records
 

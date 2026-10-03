@@ -33,6 +33,10 @@ final class SaveMenuTest {
     private int volume = 50;
     /** Number of confirmed restart requests. */
     private int restarts;
+    /** Application fullscreen fake. */
+    private boolean fullscreen;
+    /** Number of confirmed application-exit requests. */
+    private int exits;
 
     /** Creates independent test state. */
     SaveMenuTest() { }
@@ -66,7 +70,8 @@ final class SaveMenuTest {
         store = new SaveStore(directory);
         saves = new GameSaves(session, travel, flow, new BossQuests(session, flow), new CombatDemo(session, flow),
                 new Inventory(), List.of(), store);
-        return new SaveMenu(saves, () -> volume, value -> volume = value, () -> restarts++);
+        return new SaveMenu(saves, () -> volume, value -> volume = value,
+                () -> fullscreen, value -> fullscreen = value, () -> restarts++, () -> exits++);
     }
 
     /** Sends one keyboard edge.
@@ -161,9 +166,11 @@ final class SaveMenuTest {
         assertFalse(menu.isOpen());
         assertEquals("80", store.load(SaveSlot.MANUAL).get("location.hp"));
         press(menu, Input.Keys.ESCAPE, false);
-        press(menu, Input.Keys.W, false);
+        press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.ENTER, false);
         press(menu, Input.Keys.D, false);
-        assertEquals(51, volume);
+        assertEquals(52, volume);
         press(menu, Input.Keys.A, false);
         assertEquals(50, volume);
         assertTrue(press(menu, Input.Keys.ESCAPE, false));
@@ -260,14 +267,16 @@ final class SaveMenuTest {
 
     /** Keyboard and pointer volume controls clamp at both endpoints and use resized geometry. */
     @Test void sliderSupportsKeyboardAndResizedMouseDrag() {
-        var menu = menu(); press(menu, Input.Keys.ESCAPE, false); press(menu, Input.Keys.UP, false);
+        var menu = menu(); press(menu, Input.Keys.ESCAPE, false);
+        press(menu, Input.Keys.UP, false); press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.ENTER, false);
         for (int i = 0; i < 120; i++) { press(menu, Input.Keys.LEFT, false); }
         assertEquals(0, volume);
         for (int i = 0; i < 120; i++) { press(menu, Input.Keys.RIGHT, false); }
         assertEquals(100, volume);
         var box = SaveMenu.layout(480, 270);
         int x = Math.round(box.x() + 250 * box.scale());
-        int y = Math.round(270 - box.y() - 75 * box.scale());
+        int y = Math.round(270 - box.y() - 360 * box.scale());
         frame(menu, -1, false, 480, 270, x, y, true, true);
         assertEquals(50, volume, 1);
         frame(menu, -1, false, 480, 270, 999, y, false, true);
@@ -276,6 +285,54 @@ final class SaveMenuTest {
         assertEquals(0, volume);
         frame(menu, -1, false, 480, 270, x, y, false, false);
         assertEquals(0, volume);
+    }
+
+    /** Pause settings persist volume/fullscreen behavior and support pointer activation. */
+    @Test void pauseSettingsSupportKeyboardAndMouse() {
+        var menu = menu();
+        press(menu, Input.Keys.ESCAPE, false);
+        press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.ENTER, false);
+        assertFalse(fullscreen);
+        press(menu, Input.Keys.DOWN, false);
+        press(menu, Input.Keys.ENTER, false);
+        assertTrue(fullscreen);
+        press(menu, Input.Keys.LEFT, false);
+        assertFalse(fullscreen);
+
+        var box = SaveMenu.layout(960, 540);
+        int x = Math.round(box.x() + 100 * box.scale());
+        int fullscreenY = Math.round(540 - box.y() - 320 * box.scale());
+        frame(menu, -1, false, 960, 540, x, fullscreenY, true, false);
+        assertTrue(fullscreen);
+        int backY = Math.round(540 - box.y() - 266 * box.scale());
+        frame(menu, -1, false, 960, 540, x, backY, true, false);
+        assertTrue(menu.isOpen());
+        press(menu, Input.Keys.ESCAPE, false);
+        assertFalse(menu.isOpen());
+    }
+
+    /** Quit is available by keyboard and mouse but exits only after explicit confirmation. */
+    @Test void quitRequiresConfirmationAndSupportsKeyboardAndMouse() {
+        var menu = menu();
+        press(menu, Input.Keys.ESCAPE, false);
+        press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.ENTER, false);
+        assertEquals(0, exits);
+        press(menu, Input.Keys.ESCAPE, false);
+        assertEquals(0, exits);
+
+        var box = SaveMenu.layout(960, 540);
+        int quitX = Math.round(box.x() + 100 * box.scale());
+        int quitY = Math.round(540 - box.y() - 104 * box.scale());
+        frame(menu, -1, false, 960, 540, quitX, quitY, true, false);
+        assertEquals(0, exits);
+        int confirmX = Math.round(box.x() + 300 * box.scale());
+        int confirmY = Math.round(540 - box.y() - 60 * box.scale());
+        frame(menu, -1, false, 960, 540, confirmX, confirmY, true, false);
+        assertEquals(1, exits);
+        assertFalse(menu.isOpen());
     }
 
     /** Both axes constrain the centered panel, including minimized and extreme aspect ratios. */

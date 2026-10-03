@@ -43,8 +43,9 @@ These features are integrated into the production game. See the
 | Load | Esc → Manage saves → Load automatic / Load manual, then confirm. F9 and 1/2 remain shortcuts. |
 | Delete save | Esc → Manage saves → Delete automatic / Delete manual → Confirm. Only the selected file is removed; current gameplay and the other slot remain unchanged. |
 | Restart game | Esc → Restart game → Confirm: fresh Hub/player/quests/inventory/chest/NPC rewards; both save files and music volume are kept. |
+| Quit game | Esc → Quit game → Confirm. Unsaved live progress is discarded; save files and persisted settings are unchanged. |
 | Debug console | F10 or backtick; Enter executes; Esc closes. See the debug section below. |
-| Music volume | Drag the menu slider from 0 to 100, or select it with W/S or Up/Down and adjust with A/D or Left/Right. |
+| Settings | From the title menu choose Settings, or use Esc → Settings in game. Drag/click the 0–100 volume slider, toggle fullscreen, or use W/S or Up/Down with A/D, Left/Right and E/Enter. Both menus persist the same preferences. |
 
 On macOS, function keys may require Fn. Close dialogue, bag, chest, enlarged map,
 ending and credits before saving/loading. A living player with no active skills,
@@ -87,10 +88,10 @@ the final 0.6 seconds; there is no permanent black status strip. The menu and to
 both window axes. Escape closes an ordinary dialogue, bag, chest or map first; press it again
 to open the pause menu. Menu pause freezes simulation, not the safe-map restriction, so
 Battle and Training still cannot save/load. Music continues while the menu is open so volume
-can be previewed; volume survives in-game restart and loading. Title-menu Settings persists
-music volume and fullscreen in `${user.home}/.comp2120-game/settings.properties`, with 50%
-as the default volume when no preference is stored. The in-game slider changes the current
-session volume without writing that settings file.
+can be previewed; volume survives in-game restart and loading. Title-menu Settings and
+Esc → Settings both persist music volume and fullscreen in
+`${user.home}/.comp2120-game/settings.properties`, with 50% as the default volume when no
+preference is stored. Fullscreen changes are applied immediately from either menu.
 
 ## Current controls: one Hub portal, practice, battle or Memorial Hall
 
@@ -99,8 +100,9 @@ guardian stones are collected and `audio/victory_theme.wav` afterwards (no endin
 Training and Battle always use `audio/battle_theme.wav`. Moving between maps that share a song does
 not stop, reload or restart it, including Hub/Hall travel. A different song starts from its beginning.
 Music pauses/resumes with the application and is released when the game screen closes. Default volume
-is 50%, centralized in `BackgroundMusic.VOLUME`; the Esc menu adjusts music gain from 0–100%
-without restarting the track. No system-volume changes or sound effects are added.
+is 50%, centralized in `BackgroundMusic.VOLUME`; Esc → Settings adjusts music gain from
+0–100% without restarting the track and persists the preference. No system-volume changes or
+sound effects are added.
 
 Hub has one portal and a nearby **Portal Guide**. Approach the guide, press **E**,
 choose **Training Ground**, **Battle Map** or **Memorial Hall** with **Up/Down**, then press **E** to confirm

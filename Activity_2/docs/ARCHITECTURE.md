@@ -4,9 +4,10 @@
 
 The application now starts with `MainMenuScreen`: New Game enters a fresh Hub session;
 Continue uses `SaveSelection` to choose the newest readable save and attempts restoration;
-Settings persists music/fullscreen preferences through `GameSettings`. The gameplay Esc
-volume callback changes session gain without persisting the settings file. Legacy coordinate
-and weapon drawing implementations were removed in the 1 October cleanup.
+Settings persists music/fullscreen preferences through `GameSettings`. The title screen and
+gameplay Esc menu expose the same mouse/keyboard settings controls and immediately apply the
+shared persisted values. Legacy coordinate and weapon drawing implementations were removed in
+the 1 October cleanup.
 
 The team confirmed that achievements, following NPCs, general crafting and a scripted
 tutorial were outside the core playable loop. Achievements also depended on save/load,

@@ -3,6 +3,7 @@ package au.edu.anu.comp2120.screen;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Verifies main-menu focus navigation, especially skipping the disabled Continue row.
@@ -40,5 +41,15 @@ final class MainMenuScreenTest {
     void wrapsPastContinueWithoutSave() {
         assertTrue(MainMenuScreen.nextFocus(3, 1, false, CONTINUE_ROW, ROW_COUNT) == 0);
         assertTrue(MainMenuScreen.nextFocus(2, -1, false, CONTINUE_ROW, ROW_COUNT) == 0);
+    }
+
+    /** Settings pointer hit testing maps all clickable rows and rejects gaps/outside points. */
+    @Test
+    void settingsPointerRowsMatchRenderedButtons() {
+        assertEquals(0, SettingsScreen.pointerRow(100, 375));
+        assertEquals(1, SettingsScreen.pointerRow(100, 320));
+        assertEquals(2, SettingsScreen.pointerRow(100, 266));
+        assertEquals(-1, SettingsScreen.pointerRow(10, 375));
+        assertEquals(-1, SettingsScreen.pointerRow(100, 349));
     }
 }
