@@ -48,7 +48,7 @@ public final class GameConfig {
     public static final double MAX_FRAME_DELTA = 0.1;
     /** Compatibility view of the default class; all class tuning is centralized in PlayerClasses. */
     public static final AbilityLoadout PLAYER_ABILITIES = PlayerClasses.get(PlayerClasses.DEFAULT).abilities();
-    /** Inset separating the player's hurtbox from its movement collision/placeholder body. */
+    /** Inset separating the player's hurtbox from its movement collision body. */
     public static final double COMBAT_HURTBOX_INSET = 4;
     /** Collision size shared by the Boss and stationary training target, independent of artwork. */
     public static final double ENCOUNTER_BODY_SIZE = 64;
@@ -136,48 +136,60 @@ public final class GameConfig {
             "notice_board", "Notice Board",
             250.0, 220.0, 24.0, 32.0,
             List.of(
-                    "=== HUB NOTICE BOARD ===\n\n"
-                        + "-- CONTROLS --\n"
-                        + "WASD move | E interact | B bag | M map\n"
-                        + "Menus: W/S or Up/Down select | E/Enter confirm | Esc back\n"
-                        + "Storage: A/D or Left/Right column | Q/R or PgUp/PgDn page\n"
-                        + "Items/NPC options: left-click select, right-click confirm\n"
-                        + "J light attack | K class skill | L dash | O ultimate\n"
-                        + "P use health potion\n"
-                        + "Travel: speak to the Portal Guide, then enter the portal.\n"
-                        + "Battle: accept a task from the Quest Keeper first.",
+                    """
+                    === HUB NOTICE BOARD ===
 
-                    "-- SAVE / LOAD --\n"
-                        + "Close other panels, then Esc opens the pause menu.\n"
-                        + "Save manually: save the current game. F5 is the shortcut.\n"
-                        + "Manage saves: Load automatic or Load manual. F9 opens this menu.\n"
-                        + "Save/load requires a living player in Hub or Memorial Hall with no active skills.\n"
-                        + "No manual save/load in Battle or Training.\n"
-                        + "Boss victory triggers an automatic save after settlement; defeat does not autosave.\n"
-                        + "Automatic and manual saves are separate. Check the save-complete message.\n"
-                        + "Loading replaces unsaved progress, including Boss wins and items.\n"
-                        + "Overwrite/load confirmation: E/Enter confirms; Esc cancels.",
+                    -- CONTROLS --
+                    WASD move | E interact | B bag | M map
+                    Menus: W/S or Up/Down select | E/Enter confirm | Esc back
+                    Storage: A/D or Left/Right column | Q/R or PgUp/PgDn page
+                    Items/NPC options: left-click select, right-click confirm
+                    J light attack | K class skill | L dash | O ultimate
+                    P use health potion
+                    Travel: speak to the Portal Guide, then enter the portal.
+                    Battle: accept a task from the Quest Keeper first.\
+                    """,
 
-                    "-- CLASS ABILITIES --\n"
-                        + "ARCHER: J arrow | K spread shot | L dash\n"
-                        + "Archer O: Arrow Rain / Untargetable (not invincible)\n"
-                        + "MAGE: J elemental orb | K switch element | L dash\n"
-                        + "Mage O: fixed Magic Circle / Rapid Element Barrage\n"
-                        + "KATANA: J slash | K parry into counter dash | L dash\n"
-                        + "Katana O: Watermoon Stance / Rising Slash\n"
-                        + "Choose your class and O mode at the Class Master in Hub only.",
+                    """
+                    -- SAVE / LOAD --
+                    Close other panels, then Esc opens the pause menu.
+                    Save manually: save the current game. F5 is the shortcut.
+                    Manage saves: Load automatic or Load manual. F9 opens this menu.
+                    Save/load requires a living player in Hub or Memorial Hall with no active skills.
+                    No manual save/load in Battle or Training.
+                    Boss victory triggers an automatic save after settlement; defeat does not autosave.
+                    Automatic and manual saves are separate. Check the save-complete message.
+                    Loading replaces unsaved progress, including Boss wins and items.
+                    Overwrite/load confirmation: E/Enter confirms; Esc cancels.\
+                    """,
 
-                    "-- IN THE HUB --\n"
-                        + "Old Sage - start here | Quest Keeper - boss tasks\n"
-                        + "Portal Guide - Training, accepted Battle or Memorial Hall\n"
-                        + "Weapon Merchant - equipment upgrades and potion supplies\n\n"
-                        + "P uses one carried potion: up to 30 HP. Full HP consumes none.\n"
-                        + "The quickbar counts carried potions only, not Storage Chest stock.\n"
-                        + "Open B to manage items. Menus pause battle; close them to resume.\n"
-                        + "Victory or defeat returns you to Hub with full HP.",
+                    """
+                    -- CLASS ABILITIES --
+                    ARCHER: J arrow | K spread shot | L dash
+                    Archer O: Arrow Rain / Untargetable (not invincible)
+                    MAGE: J elemental orb | K switch element | L dash
+                    Mage O: fixed Magic Circle / Rapid Element Barrage
+                    KATANA: J slash | K parry into counter dash | L dash
+                    Katana O: Watermoon Stance / Rising Slash
+                    Choose your class and O mode at the Class Master in Hub only.\
+                    """,
 
-                    "Defeat all five guardians to awaken the Memorial Hall stones.\n"
-                        + "Then speak to Old Sage in Memorial Hall to complete your journey."),
+                    """
+                    -- IN THE HUB --
+                    Old Sage - start here | Quest Keeper - boss tasks
+                    Portal Guide - Training, accepted Battle or Memorial Hall
+                    Weapon Merchant - equipment upgrades and potion supplies
+
+                    P uses one carried potion: up to 30 HP. Full HP consumes none.
+                    The quickbar counts carried potions only, not Storage Chest stock.
+                    Open B to manage items. Menus pause battle; close them to resume.
+                    Victory or defeat returns you to Hub with full HP.\
+                    """,
+
+                    """
+                    Defeat all five guardians to awaken the Memorial Hall stones.
+                    Then speak to Old Sage in Memorial Hall to complete your journey.\
+                    """),
             null
     );
     /** Storage chest that accepts and returns whatever the player carries. */

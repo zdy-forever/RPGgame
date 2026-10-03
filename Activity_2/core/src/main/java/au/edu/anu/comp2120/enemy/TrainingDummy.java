@@ -8,7 +8,8 @@ import au.edu.anu.comp2120.world.CollisionBox;
 import java.util.Objects;
 
 /**
- * Stationary, non-attacking practice receiver that counts damage delivered by CombatSystem.
+ * Stationary practice receiver that counts damage delivered by CombatSystem.
+ * {@link au.edu.anu.comp2120.screen.CombatDemo} separately schedules the target's periodic shots.
  * Shared Health validates and absorbs each hit, then immediately refills for uninterrupted practice.
  * It never moves, submits attacks, switches maps or grants rewards from a damage callback.
  * Positive final damage includes reactions; misses, blocked hits and zero damage do not score.

@@ -371,7 +371,7 @@ public final class CombatDemo {
     }
 
     /**
-     * Provides hurtboxes and receiver status to the placeholder renderer.
+     * Provides hurtboxes and receiver status for combat presentation.
      * @return immutable membership snapshot of the current arena
      */
     public List<Combatant> getCombatants() {
@@ -404,7 +404,7 @@ public final class CombatDemo {
     }
 
     /**
-     * Exposes the optional encounter for diagnostics and future pickup integration.
+     * Exposes the current Boss for presentation and encounter diagnostics.
      * @return current Boss, empty in maps without a valid encounter placement
      */
     public Optional<Boss> getBoss() {
@@ -429,7 +429,7 @@ public final class CombatDemo {
     }
 
     /**
-     * Returns unclaimed current-map reward data for the geometry-only view.
+     * Returns unclaimed current-map reward geometry for presentation.
      * @return immutable list containing zero or one Boss material drop
      */
     public List<MaterialDrop> getDrops() {
@@ -499,7 +499,7 @@ public final class CombatDemo {
     public void synchronizePausedMap() { syncMap(); }
 
     /**
-     * Rebuilds only debug registrations after a map transition and cancels every old invocation.
+     * Rebuilds combat registrations after a map transition and cancels every old invocation.
      * @return true if a new scope was created
      */
     private boolean syncMap() {

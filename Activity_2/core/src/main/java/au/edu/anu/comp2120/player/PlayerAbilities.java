@@ -66,9 +66,9 @@ public final class PlayerAbilities {
     private double insetX;
     /** Vertical inset from the player's movement body to its independent hurtbox. */
     private double insetY;
-    /** Preserved hurtbox width, independent of placeholder rendering. */
+    /** Preserved hurtbox width, independent of sprite artwork. */
     private double hurtWidth;
-    /** Preserved hurtbox height, independent of placeholder rendering. */
+    /** Preserved hurtbox height, independent of sprite artwork. */
     private double hurtHeight;
     /** Last horizontal intent; facing right is the initial default. */
     private int facingX = 1;
@@ -177,7 +177,7 @@ public final class PlayerAbilities {
     }
 
     /**
-     * Exposes stateful execution for placeholder diagnostics and tests.
+     * Exposes stateful execution for skill feedback and tests.
      * @return phase name, independent of rendering
      */
     public String getSkillStatus() {

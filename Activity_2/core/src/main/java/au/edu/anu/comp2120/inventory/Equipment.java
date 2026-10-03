@@ -27,6 +27,7 @@ public final class Equipment {
     /** Binds equipment and a capacity-change observer.
      * @param inventory owning bag
      * @param changed observer invoked after changes
+     * @throws NullPointerException if inventory or changed is null
      */
     public Equipment(Inventory inventory, Runnable changed) {
         this.inventory = Objects.requireNonNull(inventory, "inventory");
@@ -71,7 +72,7 @@ public final class Equipment {
         return worn.getOrDefault(slot, "");
     }
 
-    /** Supplies an immutable snapshot suitable for future persistence.
+    /** Reconciles missing items and supplies immutable worn identities for save snapshots.
      * @return worn item identities by position
      */
     public Map<EquipmentSlot, String> snapshot() {

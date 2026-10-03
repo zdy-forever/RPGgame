@@ -13,7 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies that domain models and remaining placeholders can be constructed without a
+ * Verifies that core domain models and the empty NPC constructor can be used without a
  * running graphics context.
  *
  * @author Daoyan Zhu (u7782042)
@@ -25,7 +25,7 @@ final class CoreSkeletonTest {
     }
 
     /**
-     * Confirms that the core model skeleton remains independent of LibGDX
+     * Confirms that core model construction remains independent of LibGDX
      * desktop initialization.
      */
     @Test

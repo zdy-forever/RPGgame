@@ -15,7 +15,7 @@ public final class ReactionTuning {
     /** Electro-charged damage per tick. */ public static final int CHARGED_DAMAGE = 8;
     /** Electro-charged lifetime; four ticks at 0.5 second intervals. */ public static final double CHARGED_SECONDS = 2;
     /** Electro-charged tick spacing. */ public static final double CHARGED_INTERVAL = 0.5;
-    /** Short first-version freeze for any recipient, including Boss. */ public static final double FREEZE_SECONDS = 0.8;
+    /** Shared freeze duration for any recipient, including Boss encounters. */ public static final double FREEZE_SECONDS = 0.8;
     /** Superconduct area base damage. */ public static final int SUPERCONDUCT_DAMAGE = 12;
     /** Superconduct square half-extent. */ public static final double SUPERCONDUCT_RADIUS = 70;
     /** Physical vulnerability duration. */ public static final double RESISTANCE_SECONDS = 4;

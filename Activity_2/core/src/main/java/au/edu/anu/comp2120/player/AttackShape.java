@@ -11,7 +11,7 @@ import java.util.Objects;
  */
 @FunctionalInterface
 public interface AttackShape {
-    /** All-direction rectangle used by the original common abilities and placeholder area spells. */
+    /** Rectangle extending the source body equally in all directions by the configured range. */
     AttackShape AREA = AttackShape::area;
     /** Rectangle covering the source and its normalized forward reach; not a moving projectile. */
     AttackShape FORWARD = new AttackShape() {

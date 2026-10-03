@@ -29,7 +29,7 @@ public final class NPC {
     private final String dialogueText;
     /** Item granted once, or null when this NPC gives nothing. */
     private final String rewardItemId;
-    /** Whether the one-time reward has already been taken. */
+    /** Whether dialogue completion or reward collection has been recorded for this NPC. */
     private boolean interacted;
 
     /**
@@ -41,8 +41,9 @@ public final class NPC {
      * @param y lower-left y in world units
      * @param width body width in world units
      * @param height body height in world units
-     * @param lines ordered dialogue lines, shown one per key press
+     * @param lines ordered dialogue lines, shown one per key press; null means an empty script
      * @param rewardItemId item granted once on completion, or null
+     * @throws NullPointerException if a non-null lines list contains a null entry
      */
     public NPC(String id, String name, double x, double y, double width, double height,
                List<String> lines, String rewardItemId) {
@@ -160,13 +161,13 @@ public final class NPC {
      *
      * @return reward item id, or null
      */
-    @SuppressWarnings("unused") // Public API reserved for Inventory integration
+    @SuppressWarnings("unused") // Reward identity used by inventory and merchant services
     public String getRewardItemId() {
         return rewardItemId;
     }
 
     /**
-     * Reports whether the reward has already been taken.
+     * Reports whether this NPC has been marked as interacted with.
      *
      * @return true once the dialogue has been completed
      */
@@ -174,7 +175,7 @@ public final class NPC {
         return interacted;
     }
 
-    /** Marks the one-time reward as taken. */
+    /** Marks dialogue completion or reward collection; does not itself grant an item. */
     public void setInteracted() {
         this.interacted = true;
     }

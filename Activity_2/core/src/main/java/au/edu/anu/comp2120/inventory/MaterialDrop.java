@@ -4,12 +4,14 @@ import au.edu.anu.comp2120.world.CollisionBox;
 import java.util.Objects;
 
 /**
- * Asset-free world reward data; storage and pickup rules belong to the future inventory integration.
+ * Immutable encounter reward data, independent of artwork and inventory mutation.
+ * The encounter result retains the reward until {@link InventoryRewards} transfers it to storage;
+ * this record does not implement physical pickup or collection distance.
  * @param id unique reward instance identifier, not the reusable material type
  * @param materialId stable material type
  * @param quantity positive stack quantity
  * @param mapId owning map identity
- * @param bounds world placement for geometry-only display/pickup checks
+ * @param bounds world geometry recorded at reward creation
  * @author Daoyan Zhu (u7782042)
  */
 public record MaterialDrop(String id, String materialId, int quantity, String mapId, CollisionBox bounds) {

@@ -55,6 +55,7 @@ public final class SaveStore {
      * @param slot selected slot
      * @return whether a file was removed
      * @throws IOException if deletion fails or the path is a directory
+     * @throws NullPointerException if slot is null
      */
     public synchronized boolean delete(SaveSlot slot) throws IOException {
         Path target = file(slot).path();
@@ -64,7 +65,7 @@ public final class SaveStore {
         return Files.deleteIfExists(target);
     }
 
-    /** Reads a slot's path for diagnostics and future UI feedback.
+    /** Reads a slot's path for diagnostics and save-menu feedback.
      * @param slot requested slot
      * @return absolute normalized destination
      * @throws NullPointerException if slot is null

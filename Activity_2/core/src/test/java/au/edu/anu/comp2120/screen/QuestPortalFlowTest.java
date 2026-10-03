@@ -38,7 +38,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Exercises the production admission/outcome boundary using two explicit Battle/portal fixtures.
- * The live catalogue now has one Battle map and one practice map; multi-route contract coverage
+ * The live campaign has five Boss arenas and one practice map; multi-route contract coverage
  * stays independent of that scene configuration.
  * No Quest, NPC, Inventory implementation or graphics context is substituted into the loop.
  * @author Daoyan Zhu (u7782042)

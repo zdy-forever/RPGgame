@@ -2,17 +2,18 @@ package au.edu.anu.comp2120.screen;
 
 /**
  * Graphics-free resize policy shared by the persistent HUD and class/ability/potion quickbar.
- * Both window axes constrain scaling; growth beyond the reference size never enlarges the HUD.
+ * Both window axes constrain scaling. The health scale is capped at the reference size;
+ * quickbar and panel scales grow within a separate limit on larger windows.
  * Hidden expanded maps must also release their modal input lock in the screen.
  * @param scale uniform font/geometry scale; zero for non-positive window dimensions
  * @param healthVisible whether HP can be shown
- * @param detailsVisible whether coordinates, minimap, weapon and quickbar can be shown
+ * @param detailsVisible whether detailed HUD elements such as the objective tracker, minimap and quickbar can be shown
  * @param skillScale dedicated scale for the class/ability/potion quickbar; grows on large windows
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
  */
 public record HudLayout(float scale, boolean healthVisible, boolean detailsVisible, float skillScale) {
-    /** Icon side length before the common capped HUD scale is applied. */
+    /** Icon side length before the dedicated quickbar scale is applied. */
     private static final float SKILL_ICON_SIZE = 30;
     /** Extra scale added to the skill bar for each unit of window ratio above the reference size. */
     private static final float SKILL_EXTRA_SCALE_PER_RATIO = 0.2f;

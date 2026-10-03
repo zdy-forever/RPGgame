@@ -12,9 +12,9 @@ import java.util.Random;
 
 /**
  * The five campaign guardians' signature behaviours and their movement-feel tuning.
- * Every guardian keeps the shared health, reward, phase and attack template; only the trait
- * below and the arena's bolt element differ, so one balance change still reaches all five.
- * Arenas outside the campaign receive {@link BossTrait#NONE} and behave exactly as before.
+ * Guardians share a base health, reward, phase and attack template, with per-trait navigation tuning
+ * and arena-specific bolt elements. Fire also reduces direct melee damage to accompany burning.
+ * Arenas outside the campaign receive {@link BossTrait#NONE}, leaving their supplied tuning unchanged.
  * @author Daoyan Zhu (u7782042)
  */
 public final class BossTraits {

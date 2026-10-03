@@ -42,14 +42,15 @@ public final class ItemCatalog {
         return Optional.empty();
     }
 
-    /** Lists all supported wearable definitions.
-     * @return immutable catalogue
+    /** Lists the base wearable definitions; {@link #gear(String)} also resolves their +1/+2 variants.
+     * @return immutable base catalogue
      */
     public static List<Gear> equipment() { return GEAR; }
 
     /** Formats an item for the existing text UI.
      * @param id stable non-null item ID
      * @return readable label
+     * @throws NullPointerException if id is null
      */
     public static String name(String id) {
         return gear(id).map(Gear::name).orElse(id.replace('_', ' ').replace('-', ' '));
@@ -77,6 +78,7 @@ public final class ItemCatalog {
      * @param attackPercent added damage percentage
      * @param defencePercent added damage reduction percentage
      * @param setId armour set identity, empty for no set
+     * @author Hao Liu (u7998420)
      */
     public record Gear(String id, String name, EquipmentSlot slot,
                        int attackPercent, int defencePercent, String setId) {

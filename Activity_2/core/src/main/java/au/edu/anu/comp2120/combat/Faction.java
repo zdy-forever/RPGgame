@@ -8,6 +8,6 @@ package au.edu.anu.comp2120.combat;
 public enum Faction {
     /** Player-controlled actors and their allies. */
     PLAYER,
-    /** Hostile actors, including future bosses. */
+    /** Hostile actors, including Boss encounters and the training target. */
     ENEMY
 }

@@ -48,7 +48,7 @@ public final class MainMenuScreen extends ScreenAdapter {
     private final BitmapFont font = new BitmapFont();
     /** Shared shape renderer for the panel and rows. */
     private final ShapeRenderer shapes = new ShapeRenderer();
-    /** Whether at least one valid save slot exists. */
+    /** Whether at least one readable slot with valid metadata exists; gameplay validation occurs on load. */
     private final boolean hasSave;
     /** Current keyboard/mouse focus row. */
     private int focus = 0;
@@ -60,6 +60,10 @@ public final class MainMenuScreen extends ScreenAdapter {
         hasSave = SaveSelection.latestValid(SAVE_DIR).isPresent();
     }
 
+    /**
+     * Processes menu input and draws the title menu using the current logical window size.
+     * @param delta elapsed frame seconds; menu input and layout do not use this value
+     */
     @Override
     public void render(float delta) {
         update();
@@ -86,13 +90,13 @@ public final class MainMenuScreen extends ScreenAdapter {
         shapes.end();
 
         batch.begin();
-        label(layout, "COMP2120 GAME", 24, 434, 452, 28, 1.55f, Color.WHITE);
+        label(layout, "COMP2120 GAME", 24, 434, 1.55f, Color.WHITE);
         for (int row = 0; row < ROWS.length; row++) {
             boolean enabled = row != CONTINUE_ROW || hasSave;
-            label(layout, ROWS[row], 36, 384 - row * 54, 428, 20, 1.1f, enabled ? Color.WHITE : Color.GRAY);
+            label(layout, ROWS[row], 36, 384 - row * 54, 1.1f, enabled ? Color.WHITE : Color.GRAY);
         }
         label(layout, "W/S or Up/Down: select | E/Enter: confirm | Mouse: click",
-                24, 46, 452, 34, 0.85f, Color.LIGHT_GRAY);
+                24, 46, 0.85f, Color.LIGHT_GRAY);
         batch.end();
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -189,13 +193,11 @@ public final class MainMenuScreen extends ScreenAdapter {
      * @param value text to draw
      * @param x left edge in reference coordinates
      * @param top baseline y in reference coordinates
-     * @param width unused horizontal bound
-     * @param height unused vertical bound
      * @param size font scale
      * @param color text color
      */
     private void label(SaveMenu.Layout layout, String value, float x, float top,
-                       float width, float height, float size, Color color) {
+                       float size, Color color) {
         font.getData().setScale(size * layout.scale());
         font.setColor(color);
         font.draw(batch, value, layout.x() + x * layout.scale(), layout.y() + top * layout.scale());

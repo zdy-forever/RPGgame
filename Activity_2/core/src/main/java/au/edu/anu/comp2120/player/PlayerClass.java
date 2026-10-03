@@ -2,15 +2,15 @@ package au.edu.anu.comp2120.player;
 
 /**
  * Stable class identity, independent of artwork and the concrete Player implementation.
- * Use the explicit ID rather than enum ordinals for future external configuration.
+ * Use the explicit ID rather than enum ordinals when storing or looking up class choices.
  * @author Daoyan Zhu (u7782042)
  */
 public enum PlayerClass {
-    /** Bow-oriented class using shared straight-projectile prototypes. */
+    /** Bow class with single/spread arrows, a dash, and arrow-rain or untargetability ultimates. */
     ARCHER("archer", "Archer"),
-    /** Magic bolt and area-pulse prototypes; elements are opt-in shared combat metadata. */
+    /** Magic class with selectable elemental bolts, a dash, and magic-circle or rapid-barrage ultimates. */
     MAGE("mage", "Mage"),
-    /** Directional light/heavy slashes and a surrounding ultimate; weapon combos remain future work. */
+    /** Sword class with a directional slash, parry, dash, and counter-stance or thrust-finisher ultimates. */
     KATANA("katana", "Katana");
 
     /** Stable machine-readable identifier. */

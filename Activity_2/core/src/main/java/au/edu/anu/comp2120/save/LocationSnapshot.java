@@ -63,6 +63,9 @@ public record LocationSnapshot(String mapId, double x, double y, int hp, int max
     /** Validates against capacity computed from the saved equipment before changing live state.
      * @param session destination session
      * @param expectedMaxHp saved equipment capacity
+     * @throws NullPointerException if session is null
+     * @throws IllegalArgumentException if the map is missing or unsafe, the body is blocked,
+     *         or the saved health capacity differs from expectedMaxHp
      */
     public void validateFor(GameSession session, int expectedMaxHp) {
         var map = session.getMap(mapId);

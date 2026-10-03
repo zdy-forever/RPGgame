@@ -108,7 +108,7 @@ public final class PlaceholderRenderer implements Disposable {
     /**
      * Follows the player's centre with map clamping, then draws the art-backed scene.
      * Position is recalculated from current data every frame, including the first frame after travel.
-     * Only the default spawn is marked; alternate test spawns remain usable but are not drawn.
+     * Spawn anchors remain invisible; portals, actors and objective markers supply visual guidance.
      *
      * @param map        collision world to display
      * @param player     player to display
@@ -243,7 +243,7 @@ public final class PlaceholderRenderer implements Disposable {
     }
 
     /**
-     * Draws shared class/ability icons using the caller's screen-space batch and capped HUD policy.
+     * Draws shared class/ability icons using the caller's screen-space batch and quickbar scale.
      * @param batch active HUD batch
      * @param font existing HUD font
      * @param player current player

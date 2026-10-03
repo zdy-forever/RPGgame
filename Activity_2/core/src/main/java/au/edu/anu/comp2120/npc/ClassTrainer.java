@@ -10,7 +10,7 @@ import java.util.Objects;
 
 /**
  * Hub NPC choices delegating class and ultimate selection to the existing ability controller.
- * Does not replace the player, heal, reset cooldowns or redefine J/K/L skills.
+ * Class selection installs the catalogue loadout on the same player, preserving health and cooldowns.
  * @author Daoyan Zhu (u7782042)
  */
 public final class ClassTrainer {

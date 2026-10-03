@@ -16,11 +16,11 @@ public final class GameMap implements WalkableArea {
     private final String id;
     /** Human-readable map name. */
     private final String name;
-    /** Gameplay role, independent of its placeholder appearance. */
+    /** Gameplay role, independent of map artwork. */
     private final MapType type;
     /** Outer boundary, anchored at the world origin. */
     private final CollisionBox bounds;
-    /** Immutable obstacle data, also usable by a placeholder renderer. */
+    /** Immutable obstacle geometry shared with navigation and presentation. */
     private final List<CollisionBox> obstacles;
     /** Immutable named placement anchors. */
     private final Map<String, SpawnPoint> spawnPoints;
@@ -88,7 +88,7 @@ public final class GameMap implements WalkableArea {
     /**
      * Returns the map's gameplay role.
      *
-     * @return hub or battle role
+     * @return Hub, training, Memorial Hall or battle role
      */
     public MapType getType() {
         return type;

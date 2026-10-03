@@ -12,7 +12,8 @@ import java.util.Properties;
 /**
  * Single-user preferences persisted next to the save directory, independent of any running game.
  * Holds the music volume and fullscreen preference so the main menu and in-game pause menu share one source.
- * Failures to read or write fall back to sensible defaults without interrupting startup.
+ * Missing files and read IO failures retain defaults; invalid volume text uses the default volume.
+ * Writes are best-effort: an IO failure leaves the current in-memory preferences in effect.
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
@@ -36,12 +37,12 @@ public final class GameSettings {
     /** Prevents construction of the settings utility. */
     private GameSettings() { }
 
-    /** Reads the persisted music percentage.
+    /** Reads the current in-memory music percentage.
      * @return integer percentage in zero through one hundred
      */
     public static int musicVolume() { return musicVolume; }
 
-    /** Persists and clamps the music percentage.
+    /** Clamps the in-memory music percentage and attempts to persist both preferences.
      * @param percent desired percentage, clamped to zero through one hundred
      */
     public static void setMusicVolume(int percent) {
@@ -49,12 +50,12 @@ public final class GameSettings {
         save();
     }
 
-    /** Reads the persisted fullscreen preference.
+    /** Reads the current in-memory fullscreen preference.
      * @return whether the game should launch in fullscreen
      */
     public static boolean fullscreen() { return fullscreen; }
 
-    /** Persists the fullscreen preference.
+    /** Updates the in-memory fullscreen preference and attempts to persist both preferences.
      * @param value whether fullscreen is wanted
      */
     public static void setFullscreen(boolean value) {
@@ -62,20 +63,23 @@ public final class GameSettings {
         save();
     }
 
-    /** Loads preferences once, ignoring a missing or malformed file. */
+    /** Loads preferences once, retaining defaults for missing files and read IO failures.
+     * Invalid volume text falls back to the default; only the text "true" (ignoring case) enables fullscreen.
+     * @throws IllegalArgumentException if the properties file contains a malformed Unicode escape
+     */
     private static void load() {
         if (!Files.exists(FILE)) { return; }
         try (InputStream in = Files.newInputStream(FILE)) {
             Properties properties = new Properties();
             properties.load(in);
-            musicVolume = clampInt(properties.getProperty("music.volume"), DEFAULT_VOLUME);
+            musicVolume = clampInt(properties.getProperty("music.volume"));
             fullscreen = Boolean.parseBoolean(properties.getProperty("fullscreen", "false"));
         } catch (IOException | NumberFormatException ignored) {
-            // Keep defaults if the file is unreadable or malformed.
+            // Keep defaults for IO failures or invalid numeric data.
         }
     }
 
-    /** Writes preferences atomically enough for a local single-user file. */
+    /** Overwrites the local preferences file directly, ignoring IO failures; replacement is not atomic. */
     private static void save() {
         try {
             Files.createDirectories(FILE.getParent());
@@ -90,18 +94,17 @@ public final class GameSettings {
         }
     }
 
-    /** Parses a percentage, clamped to the valid range.
+    /** Parses a percentage, using the default volume for missing or invalid text.
      * @param value raw property text
-     * @param fallback default when missing or invalid
      * @return clamped percentage
      */
-    private static int clampInt(String value, int fallback) {
-        if (value == null) { return fallback; }
+    private static int clampInt(String value) {
+        if (value == null) { return DEFAULT_VOLUME; }
         try {
             int parsed = Integer.parseInt(value.trim());
             return Math.max(0, Math.min(100, parsed));
         } catch (NumberFormatException error) {
-            return fallback;
+            return DEFAULT_VOLUME;
         }
     }
 }

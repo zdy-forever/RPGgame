@@ -15,7 +15,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Graphics-free acceptance tests for the specified first-version skills on the one shared pipeline.
+ * Graphics-free acceptance tests for the configured class skills on the shared combat pipeline.
  * @author Daoyan Zhu (u7782042)
  */
 final class FinalClassSkillsTest {
@@ -415,7 +415,7 @@ final class FinalClassSkillsTest {
     }
 
     /**
-     * Builds a real controller and canonical hostile health receiver on placeholder geometry.
+     * Builds a real controller and canonical hostile health receiver on fixture map geometry.
      * @param type initial class
      * @param mode initial Hub-selected mode
      * @param walls static blockers

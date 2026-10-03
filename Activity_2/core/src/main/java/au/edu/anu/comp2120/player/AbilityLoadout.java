@@ -5,8 +5,9 @@ import au.edu.anu.comp2120.combat.ProjectileSpec;
 import java.util.Objects;
 
 /**
- * Immutable tuning for the common placeholder abilities, injectable without changing input code.
- * Attack geometry is replaceable; these placeholders are not final class skill implementations.
+ * Immutable light, special, dash and primary ultimate definitions for one player class.
+ * Shapes, projectile specifications and skill kinds describe execution without depending on input
+ * or artwork; {@link PlayerAbilities} owns cooldowns and delegates stateful skills to {@link ClassSkills}.
  * @param light light attack tuning
  * @param special special attack tuning
  * @param dash movement burst tuning
@@ -67,7 +68,7 @@ public record AbilityLoadout(AreaAttack light, AreaAttack special, Dash dash, Ar
         }
 
         /**
-         * Preserves the original all-direction placeholder constructor.
+         * Creates a directly executed area attack extending equally around the source.
          * @param attack validated combat specification
          * @param range extension on all sides
          * @throws NullPointerException if attack is null
@@ -84,7 +85,7 @@ public record AbilityLoadout(AreaAttack light, AreaAttack special, Dash dash, Ar
          * @param shape hitbox construction strategy
          * @param projectile optional flight mode; shape is used only when this is null
          * @param kind gameplay execution kind
-         * @throws NullPointerException if attack or shape is null
+         * @throws NullPointerException if attack, shape or kind is null
          * @throws IllegalArgumentException if range is invalid or cooldown is shorter than active time
          */
         public AreaAttack {

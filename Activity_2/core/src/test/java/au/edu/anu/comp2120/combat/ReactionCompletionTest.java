@@ -15,7 +15,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * First-version reaction matrix, real Boss controls, bounded fields and shared class damage.
+ * Built-in reaction matrix, real Boss controls, bounded fields and shared class damage.
  * All tests run through confirmed-hit settlement without graphics or a second damage engine.
  * @author Daoyan Zhu (u7782042)
  */

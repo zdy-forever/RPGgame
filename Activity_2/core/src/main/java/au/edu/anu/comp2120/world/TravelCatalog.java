@@ -3,7 +3,8 @@ package au.edu.anu.comp2120.world;
 import java.util.List;
 
 /**
- * Asset-free portal routes and initial fast-travel state for the built-in map demonstration.
+ * Built-in gameplay portal routes and initial fast-travel state, independent of artwork.
+ * Separate unrestricted routes support isolated travel tests.
  *
  * @author Daoyan Zhu (u7782042)
  */
@@ -48,7 +49,7 @@ public final class TravelCatalog {
     /**
      * Defines the two outbound Hub routes and standalone demo return routes.
      * Demo returns overlap Battle entry spawns to exercise the leave-before-retrigger rule;
-     * production uses createQuestPortals and never registers these return routes.
+     * production uses {@link #createGameplayPortals()} and does not register these test return routes.
      *
      * @return immutable portal definitions in deterministic trigger priority order
      */
@@ -65,7 +66,7 @@ public final class TravelCatalog {
     }
 
     /**
-     * Defines destinations; unlocking remains an explicit in-memory operation, not a save rule.
+     * Defines initial destinations; TravelSystem owns runtime unlocks and GameSaves persists their state.
      *
      * @return immutable initial fast-travel definitions
      */

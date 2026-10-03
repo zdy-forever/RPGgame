@@ -125,6 +125,7 @@ public final class Inventory {
      *
      * @param materialId stable material type
      * @param quantity positive stack quantity
+     * @author Jiaqi Chen (u7851266)
      */
     public record ItemStack(String materialId, int quantity) {
     }

@@ -498,9 +498,9 @@ public final class Boss {
     }
 
     /**
-     * Transfers the pending drop at most once to a future inventory/pickup adapter.
-     * The caller must check capacity/acceptance before claiming, on the game-loop thread.
-     * This foundation does not store items, enforce pickup distance or persist rewards.
+     * Clears and returns the pending reward at most once.
+     * The encounter coordinator records the reward in its result outbox before calling this method
+     * on the game-loop thread. This method alone neither stores items nor persists rewards.
      * @return reward transferred to the caller, or empty when none remains
      */
     public Optional<MaterialDrop> claimDrop() {

@@ -6,12 +6,12 @@ package au.edu.anu.comp2120.world;
  * @author Daoyan Zhu (u7782042)
  */
 public enum MapType {
-    /** Base used for preparation and future NPC interactions. */
+    /** Safe base for class selection, NPC services, storage and challenge preparation. */
     HUB,
-    /** Non-hostile practice area with a stationary damage-scoring target. */
+    /** Practice area with a damage-scoring target, periodic target shots and player health safeguards. */
     TRAINING,
     /** Peaceful hall displaying guardian stones and hosting the final Sage conversation. */
     MEMORIAL,
-    /** Area intended for future combat encounters. */
+    /** Boss arena with combat, victory rewards and defeat return to Hub. */
     BATTLE
 }

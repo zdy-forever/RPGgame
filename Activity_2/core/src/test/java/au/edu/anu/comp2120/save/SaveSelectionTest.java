@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Verifies the newest-valid-slot selection used by the main menu Continue action.
+ * Verifies readable-slot and metadata selection for Continue, independently of full gameplay restoration.
  * @author Jiaqi Chen (u7851266)
  */
 final class SaveSelectionTest {

@@ -13,6 +13,7 @@ public final class GearUpgrades {
     /** Reads a validated catalogue item's enhancement level.
      * @param id equipment ID
      * @return level zero through two
+     * @throws IllegalArgumentException if id is null or not a supported equipment identity
      */
     public static int level(String id) {
         ItemCatalog.gear(id).orElseThrow(() -> new IllegalArgumentException("Unknown equipment"));
@@ -24,7 +25,7 @@ public final class GearUpgrades {
      * @param slot position to upgrade
      * @param bag carried items
      * @param equipment worn slots
-     * @return candidate ID or empty when no item is carried
+     * @return candidate ID or an empty string when no matching item is carried
      */
     public static String candidate(EquipmentSlot slot, Inventory bag, Equipment equipment) {
         String worn = equipment.itemAt(slot);

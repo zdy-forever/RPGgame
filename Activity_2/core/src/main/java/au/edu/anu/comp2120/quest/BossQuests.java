@@ -25,7 +25,7 @@ import java.util.UUID;
  * @author Jiaqi Chen (u7851266)
  */
 public final class BossQuests {
-    /** Replaceable short first-version ending; no artwork or cinematic engine is required. */
+    /** One-time ending dialogue after the guardian campaign, before repeatable Credits access. */
     public static final List<String> ENDING_LINES = List.of(
             "The five guardians have fallen. The paths to the Hub are safe once more.",
             "Old Sage: The five stones shine together. Their power has restored the ancient seal.",

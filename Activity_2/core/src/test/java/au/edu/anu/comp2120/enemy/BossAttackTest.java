@@ -210,6 +210,7 @@ final class BossAttackTest {
      * @param boss tested controller
      * @param victim health-owning target
      * @param target registered adapter
+     * @author Daoyan Zhu (u7782042)
      */
     private record Fixture(CombatSystem combat, Boss boss, Enemy victim, Combatant target) { }
 }
