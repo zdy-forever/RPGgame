@@ -22,6 +22,28 @@ No host JDK, XQuartz, host PulseAudio server, sound-device mount or GPU passthro
 required. The image does not request microphone or webcam access. The runtime base
 provides x86-64 and ARM64 images; actual platform results must be recorded separately.
 
+## Start Docker before building
+
+Docker Desktop must be running, not just installed. On macOS, open **Docker** from
+Applications and wait until the engine is running. On Windows, open **Docker Desktop**
+and use Linux containers. On Linux, start your installed Docker Engine service.
+
+With a recent Docker Desktop CLI, you can also start it from the terminal:
+
+```sh
+docker desktop start --timeout 60
+```
+
+Confirm that the engine is reachable before continuing:
+
+```sh
+docker info
+```
+
+This must succeed and show a **Server** section without a connection error. Seeing a
+Docker client version alone does not prove the engine is running. Repeat this check
+after a reboot or after quitting Docker Desktop.
+
 ## Build and play with sound
 
 Run this from **any directory inside this Git checkout**, including `Activity_2` or
@@ -35,6 +57,8 @@ docker compose -f Activity_4/compose.yaml up --build -d
 The first line locates the repository root. The runnable blocks below use the same
 pattern, so their paths do not depend on which activity directory you started in.
 Run only the block for the operation you need; alternative launch methods are optional.
+In zsh, `cmdand>` after the first line is the normal continuation prompt for `&&`;
+paste the second command without copying the prompt itself.
 
 Alternatively, choose the short command matching your **current directory**:
 
@@ -211,7 +235,21 @@ volume changes, save persistence and browser input.
 
   An empty browser canvas alone cannot distinguish game startup failure from a streaming
   failure. Keep the log output when reporting this problem.
-- **Docker connection error:** start Docker Desktop and wait for `docker info` to work.
+- **`docker.sock: connect: no such file or directory`:** Docker cannot reach its engine;
+  the image build has not started. Follow [Start Docker before building](#start-docker-before-building),
+  wait for `docker info` to succeed, then retry the same Compose command. The macOS
+  endpoint `unix:///Users/<user>/.docker/run/docker.sock` is normal for Docker Desktop;
+  Docker creates the socket when its engine starts. Do not create that file manually.
+  If Docker Desktop says it is running but the connection still fails, inspect
+  `docker context ls`. For this Docker Desktop workflow, test its context explicitly:
+
+  ```sh
+  docker --context desktop-linux info
+  ```
+
+  If that succeeds while plain `docker info` fails, check terminal `DOCKER_HOST` or
+  `DOCKER_CONTEXT` overrides and the selected context before retrying. A stopped engine
+  is not fixed by changing the Compose file path or rebuilding the image.
 - **Port in use:** stop the old service or change the mapping to
   `127.0.0.1:6081:3001`, then use `https://localhost:6081/`.
 - **Download failure:** check registry/package connectivity and retry. Runtime base
@@ -233,6 +271,8 @@ repository already declares this default tag.
 
 ## References
 
+- [Start Docker Desktop](https://docs.docker.com/reference/cli/docker/desktop/start/)
+- [Docker Desktop on macOS](https://docs.docker.com/desktop/setup/install/mac-install/)
 - [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/)
 - [Docker build contexts](https://docs.docker.com/build/concepts/context/)
 - [Eclipse Temurin images](https://hub.docker.com/_/eclipse-temurin)
