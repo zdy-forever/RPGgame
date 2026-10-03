@@ -30,7 +30,7 @@ See [Planning and Schedule](Planning-and-Schedule) for delivered team responsibi
 | JUnit | Jupiter 5.13.4 |
 | GitLab CI | Build, tests and strict JavaDoc audit |
 
-Docker is not required to play or test locally. The [Docker page](Docker) explains the CI image declaration and the limits of project-level container support.
+Docker is not required to play or test locally. The [Docker page](Docker) explains the CI image declaration and the `Activity_4` container deliverable, including what is still unverified.
 
 ## Quick Links
 

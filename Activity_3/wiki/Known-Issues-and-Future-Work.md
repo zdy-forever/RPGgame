@@ -8,7 +8,7 @@
 - Current-source automated evidence is available: [pipeline #1052436](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052436) for `59de4e6` passed 1,302 tests with zero failures, errors or skips, plus build/JavaDoc checks. See [Game Tester](game-tester) for the report screenshot and job log. Any later submitted commit needs its own pipeline check.
 - No line/branch coverage percentage has been measured in the inspected configuration.
 - The automatic tester is the JUnit command/action-to-state suite described in [Game Tester](game-tester). It exercises the assignment's examples without requiring a separate interactive command language; rendered desktop behavior still requires manual checks.
-- A project Dockerfile and validated graphical container workflow are not present in this baseline.
+- A container deliverable is committed in `Activity_4` (`Dockerfile`, `compose.yaml`, launch and health-check scripts). Static checks pass and a successful build has been reported, but browser gameplay, audible output and the full acceptance checklist in `Activity_4/VERIFICATION.md` remain unverified. See [Docker](Docker).
 - [Playtest and Screenshots](Playtest-and-Screenshots) now includes title/settings, combat, five-win saves, Hall ending, Credits and fixed Training layout. All 41 native captures are indexed in Activity 2; a debug-console screenshot and wider platform/input/audio acceptance remain outstanding.
 - The restricted coursework license and its corrected final sentence are present in the latest team `main`. The final submission should retain that `LICENSE.md` unchanged unless the team deliberately revises its terms.
 
