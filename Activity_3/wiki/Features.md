@@ -50,7 +50,7 @@ Manual and automatic slots are independent. Manual saving and loading require a 
 
 The Esc menu provides saving, slot loading/deletion, restarting, quitting and a Settings submenu. Its mouse/keyboard volume and fullscreen controls share the persisted title-menu preferences. Confirmations protect overwrite, load, deletion, restart and quit operations. Slot times are displayed in Australia/Sydney, including AEST/AEDT; stored timestamps remain UTC.
 
-Short-lived translucent notifications appear centrally and fade away. The enlarged map identifies NPCs and live targets; the minimap marks the player and Boss/Training target. Bag, storage, dialogue and pause interfaces stop simulation. Keyboard and mouse options share the same item/menu actions.
+Short-lived translucent notifications appear centrally and fade away. The minimap draws colour-coded markers for obstacles, portals, NPCs, the Boss/training target and the player, but carries no names; the enlarged map (M) adds NPC name labels and a colour legend. Bag, storage, dialogue and pause interfaces stop simulation. Keyboard and mouse options share the same item/menu actions.
 
 ## Objectives and HUD scaling
 

@@ -42,6 +42,7 @@ The campaign uses predefined maps and one Boss per arena. Procedural generation 
 - Equipment is not profession-restricted; the staff's equipment bonus does not replace each class's skill set.
 - Upgrades stop at +2 and use a shared material. Balance remains provisional.
 - Title-screen Settings and Esc → Settings share and persist music volume and fullscreen preferences in `.comp2120-game/settings.properties`.
+- The minimap is deliberately minimal: it draws colour-coded rectangles only — grey obstacles, purple portals (dimmed while disabled), yellow NPCs, red Boss/training target and the green player — with no names, icons or terrain detail. NPC names appear only on the expanded map (M), and Memorial Hall omits the minimap entirely so all five guardian stones stay visible. On the expanded map, name labels shift to avoid each other for a bounded number of attempts and are still drawn if no free slot is found, so labels can overlap where Hub services are clustered.
 - Restart preserves slots; a later save or victory may replace the corresponding older timeline.
 - Debug use disables saving for the live session, even after switches are turned off. Restart to return to a clean session.
 - Legacy weapon/coordinate drawing implementations were removed in the 1 October cleanup. Inspect equipment in the bag; the refreshed Activity 2 reports reflect the current implementation.
