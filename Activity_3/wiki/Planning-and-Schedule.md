@@ -4,7 +4,7 @@
 
 ## Planning evidence
 
-The repository contains a [work plan](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_1/1.2.md), [story catalogue](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity-1-User-Stories.md) and dated architecture/implementation reports. GitLab provides the execution record:
+The repository contains a [work plan](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_1/1.2.md), [story catalogue](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity-1-User-Stories.md) and dated architecture/implementation reports. GitLab provides the execution record:
 
 - [Issues](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/issues)
 - [Milestones](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/milestones)
@@ -32,6 +32,7 @@ The plan explains that M1 was initial discussion/document preparation and was no
 | Wind guardian correction | [Issue #49](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/issues/49), commit `36ce30d` |
 | Pause/save management and equipment progression | Commits `a4c7e9f` and `bbe814b` |
 | UI, controls and Training tools | Commit `5aa5c49` |
+| Documentation refresh, native evidence and Training HUD correction | [Commit 626e88e](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/commit/626e88eba47cace51d30c471e20c1976cbcea2b9), [merge 59de4e6](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/commit/59de4e66120654605150c8baad4ca49dea39224f), [dated playtest](Playtest-and-Screenshots) and [passing main pipeline](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052436) |
 | Debug console and interaction fixes | Commit `3d5638e` and the debug/Training implementation report |
 
 Use the issue/MR discussion, changed files and tests together when reviewing a feature. A closed issue or merge alone does not prove all acceptance checks passed. Some tasks were documented after implementation; the record should preserve their real dates.
@@ -47,10 +48,10 @@ No meeting minutes are reproduced here because verified minutes were not availab
 | Team member | Recorded delivered responsibilities |
 | --- | --- |
 | Daoyan Zhu (`u7782042`) | Build/CI, player/world/combat/enemy systems, quest and encounter integration, audio, shared screen integration, tests and documentation |
-| Jiaqi Chen (`u7851266`) | Hub NPC/dialogue work, health bar/minimap/coordinate HUD, inventory and weapon prototypes, storage chest and Notice Board |
+| Jiaqi Chen (`u7851266`) | NPC/dialogue and inventory prototypes, storage/minimap/HUD, title/settings screens, objective and endgame UI, associated tests |
 | Hao Liu (`u7998420`) | Inventory/equipment integration, save/load, pause/save management UI, merchant potion supplies and equipment upgrades |
 
-This summarizes the dated contribution evidence in [Architecture](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ARCHITECTURE.md). It is not an exhaustive allocation of every later change or a ranking of effort. The original plan differs from the delivered allocation: for example, inventory began as a prototype and was later integrated by another contributor. `u8350466` remains part of the repository name but is not in the active development allocation recorded there.
+This summarizes the dated contribution evidence in [Architecture](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md). It is not an exhaustive allocation of every later change or a ranking of effort. The original plan differs from the delivered allocation: for example, inventory began as a prototype and was later integrated by another contributor. `u8350466` remains part of the repository name but is not in the active development allocation recorded there.
 
 ## Scope decisions and dependencies
 
@@ -60,7 +61,7 @@ The original plan's smoke-tester row records a deferral to M4. The delivered aut
 
 ## Implementation references
 
-- [Architecture and contribution evidence](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ARCHITECTURE.md): original boundaries, feature priorities and actual integration records.
-- [Documentation index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/README.md): report navigation and dated delivery evidence.
-- [Inventory integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md) and [save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): feature handoffs, changes and validation boundaries.
-- [Debug/Training follow-up](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): regression findings and verification checklist.
+- [Architecture and contribution evidence](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md): original boundaries, feature priorities and actual integration records.
+- [Documentation index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/README.md): report navigation and dated delivery evidence.
+- [Inventory integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md) and [save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/SAVE_LOAD_REPORT.md): feature handoffs, changes and validation boundaries.
+- [Debug/Training follow-up](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): regression findings and verification checklist.

@@ -287,11 +287,11 @@ public final class GameScreen extends ScreenAdapter {
                 combatDemo.getDrops(), quests.getCompleted(), currentObjective().markerNpcId());
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         drawHealth(hud);
-        drawTrainingScore();
+        float objectiveBottom = drawObjectivePanel(hud);
+        drawTrainingScore(objectiveBottom);
         drawInventory();
         drawInteractionPrompt();
         drawMinimap(hud);
-        drawObjectivePanel(hud);
         drawChest();
         drawSkillHud(hud);
         drawDialogue();
@@ -620,7 +620,7 @@ public final class GameScreen extends ScreenAdapter {
         String primary = tasks.isEmpty() ? "Free explore: leave via Portal Guide" : tasks.get(0);
         String secondary = tasks.size() > 1 ? tasks.get(1) : null;
 
-        String marker = null;
+        String marker;
         if (session.getCurrentMap().getType() == MapType.MEMORIAL) {
             // Inside the Memorial Hall, point to the Old Sage until the ending has played.
             marker = quests.hasEndingStarted() ? null : GameConfig.GUIDE.getId();
@@ -1033,13 +1033,14 @@ public final class GameScreen extends ScreenAdapter {
      * Mirrors the dialogue box styling (dark panel with a gold border).
      *
      * @param hud current size and visibility policy
+     * @return lower edge of the rendered panel, or the window top when the panel is hidden
      */
-    private void drawObjectivePanel(HudLayout hud) {
+    private float drawObjectivePanel(HudLayout hud) {
         if (inventoryOpen || chestOpen || bigMap) {
-            return;
+            return Gdx.graphics.getHeight();
         }
         if (!hud.detailsVisible() || session.getCurrentMap().getType() == MapType.MEMORIAL) {
-            return;
+            return Gdx.graphics.getHeight();
         }
         Objective objective = currentObjective();
 
@@ -1098,6 +1099,7 @@ public final class GameScreen extends ScreenAdapter {
                     wrapW - 8f * scale, Align.left, true);
         }
         dialogueBatch.end();
+        return top - panelH;
     }
 
     /**
@@ -1142,8 +1144,11 @@ public final class GameScreen extends ScreenAdapter {
         return tasks;
     }
 
-    /** Draws final delivered damage totals for the current stationary practice target only. */
-    private void drawTrainingScore() {
+    /**
+     * Draws practice totals below the measured objective panel without covering its wrapped text.
+     * @param objectiveBottom lower edge of the objective panel, or window top when it is hidden
+     */
+    private void drawTrainingScore(float objectiveBottom) {
         var practice = combatDemo.getTrainingDummy();
         if (practice.isEmpty()) {
             return;
@@ -1153,7 +1158,7 @@ public final class GameScreen extends ScreenAdapter {
         int h = Gdx.graphics.getHeight();
         float scale = Math.max(0.1f, Math.min(1.4f, Math.min(w / 960f, h / 720f)));
         float x = 12f * scale;
-        float top = h - 85f * scale;
+        float top = Math.min(h - 85f * scale, objectiveBottom - 8f * scale);
         float boxW = 330f * scale;
         float boxH = 225f * scale;
         dialogueShapes.setProjectionMatrix(new Matrix4().setToOrtho2D(0, 0, w, h));

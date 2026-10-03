@@ -1,26 +1,35 @@
 # Background music
 
-Reviewed 2026-09-30: potion HUD, input feedback and save/load onboarding do not change music
-selection, gain or looping. BackgroundMusicTest and MusicVolumeTest cover the model/fake-player
-contract; [current verification status](../../docs/TEST_COVERAGE_REVIEW.md) distinguishes this
-from actual audio-device and uninterrupted-playback checks.
+Reviewed 2026-10-02 against BackgroundMusic, GameSettings, GameScreen and the shipped WAV files.
 
-The user-supplied WAV files were renamed without re-encoding or modifying their audio content:
-
-| Original filename | Runtime filename | Use |
+| Original supplied filename | Runtime filename | Current use |
 | --- | --- | --- |
-| 大厅背景音乐.wav | hub_theme.wav | Hub and Memorial Hall before five stones |
+| 大厅背景音乐.wav | hub_theme.wav | Hub and Memorial Hall before all five stones |
 | 战斗背景音.wav | battle_theme.wav | Training and all Battle maps |
-| 通关音乐.wav | victory_theme.wav | Hub and Memorial Hall after five stones |
+| 通关音乐.wav | victory_theme.wav | Hub and Memorial Hall after all five distinct guardians |
 
-All tracks are stereo 48 kHz, 16-bit PCM WAV. Approximate durations are 163.4, 152 and 198 seconds,
-respectively. BackgroundMusic uses streamed, looping LibGDX Music playback and a centralized 50% gain.
-The same track continues across map changes; map transitions do not own or dispose audio.
-Switching to a different track starts that song from the beginning. The Esc menu provides a
-0–100 music-volume slider (mouse drag or focused Left/Right arrows). Gain changes apply to
-cached and future tracks without restarting the song. Menu pause leaves audio playing for
-preview; lifecycle pause still pauses it. In-game restart retains gain; a new application
-launch uses the default 50%. No crossfade, system-volume change or disk preference is added.
+The supplied files were renamed without re-encoding. All three are stereo, 48 kHz,
+16-bit PCM WAV; durations are approximately 163.4, 152.0 and 198.0 seconds respectively.
+The five-stone music change does not wait for the ending dialogue.
 
-The existing desktop resources configuration includes this folder for IDEA, Gradle and distributions.
-All tracks were generated using Suno during an active paid subscription with commercial-use rights; see `../README.md` for licensing/attribution details.
+BackgroundMusic owns lazy, cached LibGDX Music streams for the gameplay screen. Tracks loop.
+Selecting the same track across map changes continues playback without restarting it. Selecting
+a different track starts that track from the beginning. Map transitions do not dispose streams;
+screen disposal does. There is no crossfade or change to system volume.
+
+Default gain is 50%. Title-menu Settings persists a 0–100 volume preference and fullscreen
+in `${user.home}/.comp2120-game/settings.properties`; New Game/Continue uses that volume.
+The Esc menu slider changes the current game's gain, applying to cached and future tracks
+without restarting playback. Zero mutes. In-game restart retains that gain, but Esc changes do
+not write the title preference; a later application launch uses the persisted setting.
+Neither gameplay save slot contains volume/fullscreen.
+
+In-game menus leave music playing for preview while gameplay pauses. Application lifecycle
+pause pauses music. BackgroundMusicTest/MusicVolumeTest verify selection, gain, looping,
+pausing and disposal through fake players. Actual device playback and transition continuity
+still require listening in the native game. Current execution evidence is documented at
+`Activity_2/docs/TEST_COVERAGE_REVIEW.md` from the repository root.
+
+The desktop resources configuration packages this folder for IDE, Gradle and distributions.
+Recorded provenance: generated using Suno during an active paid subscription; see
+[asset attribution](../README.md) for the project's licensing boundary.

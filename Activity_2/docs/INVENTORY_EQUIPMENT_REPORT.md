@@ -1,206 +1,106 @@
-# Inventory and equipment integration
+# Inventory, equipment, potions and upgrades
 
-Implemented by Hao Liu (u7998420) on `feature/inventory-equipment`.
+Reviewed against `7fea86a` on 2026-10-02. Integration was implemented by Hao Liu (`u7998420`)
+after the inventory/UI prototypes; later team changes include P use and HUD feedback.
+Sources: [ItemCatalog](../core/src/main/java/au/edu/anu/comp2120/inventory/ItemCatalog.java),
+[Equipment](../core/src/main/java/au/edu/anu/comp2120/inventory/Equipment.java),
+[GearUpgrades](../core/src/main/java/au/edu/anu/comp2120/inventory/GearUpgrades.java).
 
-## Integration status
+## Obtain, equip and store items
 
-Inventory/equipment implementation: `21de2898`; merged into the team repository through
-!38, merge commit `b3ac158b`. Later save/load integration persists bag, chest and equipped
-slots together; see [Save/load](SAVE_LOAD_REPORT.md). The P potion shortcut was added by
-the subsequent team change `721f9e6`, using the same potion rules.
+A new Player owns an empty bag and Equipment backed by that bag. The separate Hub chest starts
+with Guardian hood, coat, gloves, boots and three health potions. Weapon Merchant at (650, 250)
+grants the Lightning staff once through dialogue. Items and equipment persist across travel.
 
-## Behaviour
+B opens the bag. Select with W/S or arrows and use E/Enter or right-click to equip/unequip gear
+or drink a potion. Left-click selects a row. Q/R or PageUp/PageDown changes pages. Rows show
+effects and worn state; the footer shows attack/reduction percentages and armour-set progress.
+Gear is inspected here; no top-right weapon or coordinate HUD is displayed.
 
-Working-tree review, 2026-09-30: new potion regression tests exercise all three classes,
-edge-triggered use, equipped maximum HP, independent bag/chest stock and save/recovery behavior.
-Both bag use and P report actual healing or a specific refusal in a four-second toast.
-The quickbar is a read-only presentation; compact 999+ text does not cap real stock.
-See [Test coverage review](TEST_COVERAGE_REVIEW.md) for current execution status and native QA limits.
+E near Storage Chest opens two columns. A/D or Left/Right selects a column, W/S or arrows a row,
+and E/Enter or right-click transfers the entire stack. B switches from storage to bag so items
+can be equipped. Equipped items remain counted in the bag. Moving the last carried unit of worn
+gear into the chest removes its benefit; leaving another unit carried retains it. Transfers do
+not equip an item automatically. Bag/chest panels pause combat and consume their closing frame.
 
-- The existing player now owns the bag and equipment, preserving their identity across map changes.
-  GameScreen reuses that bag, the existing merchant reward, and the existing chest interface.
-- B opens the bag. Right-click a wearable to equip/unequip it, or a health potion to use it.
-- Every class quickbar includes a red potion bottle labelled P with the live bag quantity (`xN`).
-  Counts above 999 display `999+` at a fixed readable font scale; the bag retains the exact quantity.
-  Zero stock is greyed out; chest stock is excluded. The slot follows the existing capped HUD
-  scaling and visibility policy, and Mage keeps its separate element slot before the potion.
-  W/S or Up/Down selects a row; E/Enter uses or toggles it. Q/R or PageUp/PageDown changes pages; B or Escape closes it. Rows show item effects and `[Worn]` status.
-- P uses one health potion directly during gameplay, including Boss battles, without opening the bag.
-  It triggers once per press, not continuously while held; it is disabled while a modal panel is open.
-  The existing bag right-click action remains available. Both paths use the same health/ownership checks.
-  Both actions show a four-second notification with actual healing and remaining stock, or a specific
-  full-health, defeated-player or empty-bag message. Inventory management pauses combat.
-- The bag footer shows total attack/reduction percentages and guardian set progress.
-- E near the Storage Chest opens it. Right-click transfers the entire selected stack.
-  A/D or Left/Right selects the column; W/S or Up/Down selects a row. E/Enter transfers the stack. Q/R or PageUp/PageDown pages both columns; Escape closes it. B closes storage and opens the bag
-  for equipping. The footer explicitly distinguishes transfer from equip. Moving the last owned unit of worn gear
-  to the chest removes its equipment benefit. Equipped items remain part of bag counts.
-- The initial chest contains four guardian armour pieces and three health potions. These are
-  provisional starter contents so the feature can be exercised without a new crafting system.
-- Weapon Merchant at Hub (650,250) grants the Lightning staff once: E opens the service menu; select the weapon
-  service and confirm with E/Enter. Close dialogue, press B and right-click the staff to equip.
-- The legacy WEAPON HUD drawing implementation was removed in the 1 October cleanup.
-  Check `[Worn]` rows and bag totals to inspect equipment.
-- Settled Boss rewards are consumed from EncounterFlow's existing outbox on the game-loop thread.
-  Overflow is checked before claiming. Unaccepted rewards remain pending; repeated polling cannot
-  duplicate them. Existing material IDs, quantities and quest ownership remain unchanged.
-- The shared CombatSystem applies equipment after reaction/physical modifiers and floors once.
-  This covers direct, projectile and reaction damage through the same pipeline. No equipment
-  means multipliers of one, retaining previous combat behaviour. Equipment is read at hit settlement.
-- A potion heals up to 30 HP and consumes exactly one unit only for a living, injured player.
-  It neither revives a dead player nor consumes a potion at full health.
-- Inventory additions reject integer overflow without changing the previous stack quantity.
+## Current item values
 
-## Provisional balance and boundaries
+Values come from ItemCatalog and Equipment, before elemental/status effects.
 
-The project documents describe equipment slots and set bonuses, but do not supply final values.
-These initial values are centralized in ItemCatalog and Equipment for review:
-
-| Item / set | Effect |
-| --- | --- |
-| Lightning Staff | +20% attack damage |
-| Guardian hood | +20 maximum HP |
-| Guardian coat | 8% damage reduction |
-| Guardian gloves | 10% K/L/O cooldown reduction |
-| Guardian boots | +10% ordinary movement speed |
-| Two guardian pieces | Additional 5% damage reduction |
-| Four guardian pieces | Additional 10% attack damage; retains two-piece bonus |
-
-Reduction is capped at 60%. The base full set provides 13% reduction (8% coat + 5% set).
-Slots are weapon, head, body, hands and feet. Wearables are not profession-restricted in this version;
-existing class/element/skill selection and character artwork remain unchanged.
-
-The original inventory change introduced no crafting, enchanting or new NPC. The existing
-text/shape UI is reused; equipment artwork and final balance remain future polish.
-Save/load now restores bag, chest, worn slots and NPC reward flags together, replacing initial
-contents rather than adding starter items again. Equipment bonuses are recomputed from restored
-ownership and slots, not trusted as independent saved totals.
-
-## Files
-
-Added production files:
-
-- inventory/EquipmentSlot.java
-- inventory/ItemCatalog.java
-- inventory/Equipment.java
-- inventory/InventoryRewards.java
-- combat/EquipmentModifiers.java
-
-Modified production files:
-
-- inventory/Inventory.java: overflow-safe stack addition and documentation.
-- player/Player.java: persistent bag/equipment, shared combat modifier interface and potion use.
-- combat/CombatSystem.java: equipment multipliers inside the existing damage calculation.
-- screen/GameScreen.java: bag binding, reward adapter, starter chest, equipment/potion input,
-  effects display, paging and panel sizing.
-
-Added tests: core/src/test/java/au/edu/anu/comp2120/inventory/EquipmentIntegrationTest.java.
-New and modified Java declarations include JavaDoc; existing authors are retained.
-
-## Original verification (2026-09-23)
-
-These results describe the original inventory integration, not the current full-suite status.
-Subsequent team and save/load changes supersede that baseline; do not carry the historical
-11 failures forward as a claim about the current checkout.
-
-The repository requests JDK 25, which is absent locally. Verification used the installed JDK 26
-with a temporary `/tmp/inventory-java26.gradle` init script that overrides only the local toolchain
-selection after project evaluation. The repository's build configuration and Java 17 release target
-were not changed. A plain Gradle invocation still requires the configured JDK 25.
-
-Commands run from Activity_2, each with `--init-script /tmp/inventory-java26.gradle`:
-
-- `./gradlew core:compileJava lwjgl3:compileJava`: passed.
-- `./gradlew core:test --tests '*EquipmentIntegrationTest'`: 7 passed.
-- `./gradlew test javadocAudit`: test task failed on existing baseline failures.
-  Core: 1,080 tests, 11 failures, zero errors/skips. Desktop: 4 tests passed.
-- `./gradlew javadocAudit`: independently passed both strict audits.
-- `./gradlew lwjgl3:run`: desktop process started and remained running. The native UI tool could
-  not identify its Java window, so visual/mouse interaction acceptance is not claimed.
-- `git diff --check`: passed.
-
-The five failing test classes were rerun on a temporary snapshot of the original HEAD, with the
-same JDK override and unchanged assets: 124 tests, the same 11 failures. XML comparison confirmed
-identical failing test names and messages. The original problems are missing assets/art_resources
-and stale Boss/combat/defeat expectations in ArtIntegrationTest, BossDemoTest, CombatDemoTest,
-CoreGameplayIntegrationTest and PlayerDefeatTest. They were not bypassed or rewritten here.
-
-## Manual regression checklist
-
-1. Talk to the existing weapon merchant and receive the staff.
-2. Open the chest, take armour and potions, then close it.
-3. Open B, right-click the staff and armour. Confirm worn labels and attack/defence totals;
-   check two- and four-piece thresholds by toggling pieces.
-4. Compare identical attacks against the training dummy with the staff equipped and unequipped.
-5. Store a worn item in the chest; reopen the bag and confirm its bonus has disappeared.
-6. Use a potion while injured; confirm healing and quantity. Try again at full HP: no consumption.
-7. Complete a Boss encounter; confirm its material enters the bag once and survives travel.
-8. Resize the window and use Q/R or PageUp/PageDown pages; confirm displayed rows match right-click targets.
-
-The original feature is merged. The later storage-help and empty-weapon-label refinement
-passed core compilation and the core JavaDoc audit on 2026-09-25. Its visual regression
-check remains to be performed; compiling does not establish mouse/layout acceptance.
-
-
-### Repeatable potion supplies
-
-Talk to the **Weapon Merchant** in the Hub to open his service menu. Use Up/Down to
-select **Claim Lightning Staff** or **Replenish potions**, E to confirm, and Esc to leave.
-The weapon row shows Available/Claimed from the existing saved reward flag. The potion
-row shows bag, chest and combined quantities, plus the shortfall or Full status. Statuses
-refresh immediately and the menu stays open after each service.
-
-Weapon collection is once-only and does not replenish potions. Potion supplies do not
-claim the weapon: if the combined total is below three, only the shortfall is added to
-the bag. Stored potions and any surplus are retained. Repeated requests cannot accumulate
-extra potions. Opening or closing the menu grants nothing. Save manually to persist changes;
-neither service automatically writes a save slot.
-
-
-### Merchant equipment upgrades
-
-Talk to Weapon Merchant → Upgrade equipment. Up/Down chooses one of the five equipment
-slots; E opens a preview showing current/next effects and available shared cores. E again
-confirms spending, while Esc cancels or returns one menu level. Equipment must be in the
-bag; the worn item is selected first, otherwise the highest-level carried item in that slot.
-A max-level selected item must be unequipped and stored to choose a lower-level duplicate.
-
-Every Boss continues to drop the same `sentinel-core`. Each upgrade costs **one core**,
-consumed from the bag before the chest. All five equipment types cap at **+2**. Each level
-adds 5 percentage points to weapon attack; armour effects follow the attribute table below. Existing set bonuses and the 60% total defence cap still apply. Upgrading replaces
-one item only and keeps it equipped when it was worn. Missing items/materials, max-level
-items and full destination stacks consume nothing.
-
-Enhanced items retain their level when stored, transferred or restored from either save
-slot. Base-level saves remain compatible. Upgrades do not automatically overwrite saves;
-save manually afterwards. Returning to a previous save restores its items and materials.
-
-
-### Equipment attributes and NPC feedback
-
-| Equipment | Base | +1 | +2 |
+| Item/effect | Base | +1 | +2 |
 | --- | --- | --- | --- |
-| Lightning Staff | ATK +20% | +25% | +30% |
-| Guardian hood | Max HP +20 | +30 | +40 |
-| Guardian gloves | Skill CDR 10% | 20% | 30% |
-| Guardian coat | DEF 8% | 10% | 12% |
-| Guardian boots | Move speed +10% | +20% | +30% |
+| Lightning staff attack | +20% | +25% | +30% |
+| Guardian hood maximum HP | +20 HP | +30 HP | +40 HP |
+| Guardian coat damage reduction | 8% | 10% | 12% |
+| Guardian gloves K/L/O cooldown reduction | 10% | 20% | 30% |
+| Guardian boots ordinary movement speed | +10% | +20% | +30% |
 
-Hoods scale current and maximum HP together, preserving the health percentage. A stored
-ratio prevents repeated swaps from generating HP or accumulating rounding loss. Living players
-retain at least 1 HP; dead players stay dead. Damage/healing resets this ratio. Gloves reduce new K/L/O cooldowns,
-not J attacks; running cooldowns retain their remaining duration when equipment changes.
-Boots affect normal walking only, not dash speed/distance. Set bonuses remain 2 pieces:
-DEF +5%, 4 pieces: ATK +10%; only coats contribute individual armour reduction.
+Two worn Guardian armour pieces add 5 percentage points of damage reduction; four add 10
+percentage points of attack. Armour/set reduction is additive and capped at 60%. Weapon/set
+attack is additive. Equipment modifiers enter shared combat settlement rather than a separate
+inventory damage engine. The staff is usable by all three classes; its name does not force
+all attacks to become Lightning.
 
-NPC action results (quest acceptance, class selection, portal selection, merchant rewards,
-potion supplies and upgrades) now share the save menu's translucent four-second toast,
-including repeated identical actions. Dialogue instructions and live item/quest statuses
-remain in their panels. Toasts are centred horizontally and vertically in the game window,
-including during dialogue and pause menus. The HP bar now reads actual current/max HP, including headgear bonuses.
+Hood capacity changes preserve living HP proportion through Health's capacity API and do not
+revive a dead player. Gloves affect K/L/O, not J, and do not retroactively recalculate remaining
+cooldowns. Boots affect ordinary walking rather than class dash/thrust constants. Upgraded item
+IDs carry their own level through bag, worn slot, chest and save restoration.
 
-Both item panels show a selection marker and support left-click selection, right-click action and clickable page/action/close controls. Keyboard and mouse share the same equip/use/transfer operations. Opening, closing and interacting with these panels consumes the frame; storage now pauses simulation alongside the bag.
+## Potions and supplies
 
-For the free-upgrade debug toggle, Training equipment checks and the coverage matrix, see
-[Debug, Training and UI refinement](DEBUG_TRAINING_UI_REPORT.md). Free upgrades never bypass
-ownership, stack capacity or +2 limits, and enabling the toggle prevents save writes in that live game.
+One potion heals up to 30 HP, capped at the current equipment-adjusted maximum. Full-health,
+dead or empty-bag use is refused without consumption. P is edge-triggered during ordinary play,
+including Boss battles; holding it does not repeatedly consume. Bag use follows the same rules.
+Chest stock cannot be drunk directly and modal panels own input before P sampling.
+
+Every class quickbar displays a procedural P bottle and carried quantity: grey at zero,
+`xN` through 999, then `999+`. The bag retains the exact count. Mage also retains its element
+slot. Both P and bag use report actual healing and remaining stock, or a specific refusal,
+in a four-second toast. HUD formatting does not cap the underlying stack.
+
+The merchant offers free potion replenishment to a combined bag-plus-chest total of three.
+It adds only the deficit to the bag. Hiding potions in the chest therefore does not create
+extra supplies. This service remains available after the one-time staff dialogue.
+
+## Upgrades and rewards
+
+Merchant upgrades cover the weapon and four armour slots. The candidate is the worn item,
+otherwise the highest-level carried item in that slot. Gear stored only in the chest must first
+be moved to the bag. Preview/confirmation names the item and effect before material consumption.
+
+Each step costs one `sentinel-core`, consumed from the bag before the chest. Maximum level is
++2. The operation validates ownership, distinct stores, material stock and destination-stack
+capacity before mutation. It replaces one carried item with the next variant and keeps worn
+gear equipped. Debug freeupgrade bypasses cost only, preserving all other guards.
+
+An admitted Boss success supplies its one-time reward through EncounterFlow and InventoryRewards.
+The current shared reward is one sentinel core. Collection checks integer-stack capacity before
+claiming; overflow leaves the reward pending. Failure/Training gives no campaign reward, and
+repeat polling cannot duplicate a settled reward. A fresh accepted rematch can earn another core.
+
+Bag/chest/equipment, upgraded identities and pending rewards are saved together. See
+[Save/load](SAVE_LOAD_REPORT.md) for snapshot validation and independent timeline behavior.
+A separate recipe-based crafting/forging/enchanting system was reduced to these merchant upgrades
+because it was not a core feature.
+
+## Verification
+
+Run from Activity_2:
+
+```sh
+./gradlew core:test --tests 'au.edu.anu.comp2120.inventory.*' \
+  --tests '*MerchantServicesTest' --tests '*PotionGameplayTest' \
+  --tests '*PotionFeedbackTest' --tests '*GameSavesTest'
+```
+
+Tests cover stack operations/overflow, equipment ownership and reconciliation, bonuses/capacity,
+movement/cooldown effects, whole-store material accounting, upgrade guards, potion eligibility,
+edge input, one-time rewards and save restoration. The [tester guide](TEST_COVERAGE_REVIEW.md)
+records actual CI execution and distinguishes these assertions from visual checks.
+
+[Native checks on 2026-10-03](PLAYTEST_REPORT.md) verified chest-to-bag transfer, four armour
+slots/bonuses, staff claim and duplicate guard, missing-material upgrade rejection, full-health
+P feedback without consumption, and the first real victory core restored from AUTO. The
+follow-up verified five cores after all five wins (Wind completed by the user without debug). Screenshots show
+the equipped bag and reward. Still verify mouse/paging/tiny-window rows, damaged-player healing,
+successful upgrades and upgraded worn-item display.

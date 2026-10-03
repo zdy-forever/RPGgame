@@ -1,141 +1,76 @@
-# Unified combat wall occlusion
+# Movement collision and combat wall occlusion
 
-> Current integration note (2026-09-26): The occlusion contract below is still current. Its test counts belong to the original checkout; equipment modifiers now also enter the same shared damage calculation.
-> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
-> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+Reviewed against `7fea86a` on 2026-10-02. Core implementation: Daoyan Zhu (`u7782042`).
+Sources: [GameMap](../core/src/main/java/au/edu/anu/comp2120/world/GameMap.java),
+[CollisionSweep](../core/src/main/java/au/edu/anu/comp2120/world/CollisionSweep.java),
+[CombatSystem](../core/src/main/java/au/edu/anu/comp2120/combat/CombatSystem.java).
 
-## Result
+## Current map scope
 
-Gameplay attacks now use the existing world collision data at settlement. No class-specific
-damage branches, additional projectile wall engine, physics dependency or art/audio assets
-were introduced. Battle scenes remain Player plus one Boss; generic damage contracts still
-support other receivers in isolated tests and future consumers.
+All built-in map interiors are open. Map boundaries remain solid; obstacle rectangles are
+supported by the engine and constructed explicitly in automated tests. Painted arena borders,
+NPC sprites and Boss sprites do not create hidden solid walls. The game does not implement
+dynamic body-to-body collision.
 
-## Contract and origins
+Player movement resolves swept X displacement followed by swept Y displacement, including dash
+and other collision-controlled motion. This prevents tunnelling through thin walls on either
+axis. It is not a continuous diagonal sweep; large versus small diagonal steps may take different
+routes around a corner. GameScreen caps normal simulation delta at 0.1 seconds.
 
-`WalkableArea.hasLineOfSight(fromX, fromY, toX, toY)` asks whether a segment crosses static
-blockers. GameMap uses its existing obstacle rectangles and the new
-`CollisionSweep.segmentCrossesInterior` slab query. The original projectile rectangle sweep
-is unchanged, including strict target overlap and **wall wins equal-time tie**.
+## Visibility and attack origins
 
-| Delivery | Origin / obstruction check |
+`WalkableArea.hasLineOfSight` tests a segment against static world blockers. GameMap uses
+`CollisionSweep.segmentCrossesInterior`; sprite dimensions never enter the calculation.
+
+| Delivery | World check |
 | --- | --- |
-| Archer arrows and Mage bolts | Existing swept projectile body against target/walls. |
-| Forward melee, including Katana J/K | Captured attacker hurtbox centre to current target hurtbox centre. |
-| Mage K/O, Katana O and custom fixed areas | Captured effect centre to current target centre. |
-| Boss patterns | The same AttackShape origin policy as player slots. |
-| Reaction-derived areas | Captured child effect centre, not the parent's caster position. |
-| Future Arrow Rain / ElementField adapters | Explicit fixed effect centre through the same attack API. |
+| Arrows and elemental bolts, including Boss/Training projectiles | Swept projectile body against world and targets; a wall wins equal-time contact |
+| Forward melee | Captured attacker hurtbox centre to current target centre |
+| Fixed area skills, Arrow Rain and Magic Circle | Captured effect centre to current target centre |
+| Boss patterns | Shared AttackShape origin policy |
+| Reaction child areas and ground-field pulses | Captured child/effect centre, independent of the caster's later position |
 
-Attack stores an immutable origin anchor independently of its fixed hitbox. Moving or turning
-the caster after casting cannot redirect either. AttackShape's default origin is the created
-effect; FORWARD overrides it with the source hurtbox. Custom melee shapes should override
-origin as well. AttackSpec remains damage/timing/element data, not world or visual state.
+Mage K changes the selected element; it is not an area attack. Arrow Rain, Magic Circle and
+ElementField are implemented and use the shared gate, not hypothetical future adapters.
 
-Fixed settlement is: valid target → overlap → world visibility → existing damage calculation
-and Health delivery → hit ledger / element / reaction processing. A blocked target receives
-no damage or attachment, consumes no prior attachment and creates no child. It is not added
-to that attack's hit ledger, so becoming visible during the active window permits one hit.
-Existing derived-generation bounds, next-update timing and cleanup remain unchanged.
+Attack stores an immutable origin separately from its fixed hitbox. Moving/turning the caster
+does not redirect it. Forward shapes use the source origin; default area shapes use the effect
+origin. Legal effect placement is a separate concern: a field on the far side of a wall checks
+from that field, not across the entire distance back to its caster.
 
-## Boundaries
+## Boundary behavior
 
-- A segment through solid obstacle interior is blocked, including a zero-length origin inside a wall.
-- Pure edge/corner tangency and endpoint-only contact with a wall boundary are clear.
-- Finite endpoints outside the closed world bounds are blocked; non-finite geometry throws.
-- One centre ray is used per candidate. This is deliberately not partial-cover sampling, polygon
-  clipping or a visibility graph. A partially visible large target can be conservatively rejected.
-- Fixed yellow placeholder rectangles are not visually clipped; visible overlap alone no longer
-  implies a hit. No texture dimensions are consulted.
-- Fixed effect placement/range is separate from damage occlusion. An effect placed on the far
-  side of a wall checks sight from that location, not from its distant caster. Future targeted
-  skills must validate their own legal cast locations/ranges.
+A segment crossing a solid rectangle's interior is blocked, including a zero-length point
+inside a wall. Edge/corner tangency or endpoint-only wall-boundary contact is clear. Finite
+endpoints outside world bounds are blocked; non-finite geometry is rejected.
 
-## World scope and integration
+Fixed-hit settlement requires overlap and visibility before damage/attachment/reaction delivery.
+A wall-blocked candidate gains no hit-ledger entry, so it may be hit once if it becomes visible
+within the attack's active lifetime. Interception/invulnerability and the other ordinary damage
+guards still apply. One centre ray is used per target: partial cover is not sampled, and a large
+partially visible target can be rejected. Visual effects are not clipped to the visibility ray.
 
-CombatSystem.bindWorld assigns one collision provider to the arena. CombatDemo binds it on
-map synchronization and reset; PlayerAbilities binds when attached/rebound, EnemyAI binds at
-construction (including Boss composition), and projectile launches bind their existing world.
-Binding the same provider is harmless. A different provider requires clearing the old scope;
-clear removes the world together with attacks, registrations, cooldowns and attachments.
-No old attack is allowed to silently adopt a different map's blockers.
+## World lifetime
 
-Standalone map-free CombatSystem calculations remain compatible: without a world there are
-no known blockers. All existing gameplay paths bind a world automatically. New generic
-adapters not using these controllers must bind their world before settlement.
-
-## Arrow Rain / ElementField availability
-
-Current review (2026-09-30): both Arrow Rain and ElementField now exist. ClassSkills and
-CombatSystem route their finite ticks through the same world gate. Mage K cycles elements and
-is not an AoE attack; the table's Mage K entry describes the old prototype. Current regressions
-are CombatOcclusionTest, WorldOcclusionTest and ReactionCompletionTest. See
-[coverage and execution status](TEST_COVERAGE_REVIEW.md); no native scene was revalidated in this audit.
-
-**Historical stage only:** neither a concrete Arrow Rain skill nor an ElementField class existed in the original checkout.
-Archer O is still the configured five-arrow fan. This branch does not silently replace it or
-create an unrelated periodic-field system. Tests configure an Archer O fixed-area fixture
-and a field-style elemental invocation through the real public pipeline to verify fixed
-origin, obstruction, damage/attachment and expiry/deduplication contracts. These are **adapter
-contract tests**, not a claim that missing final skills were implemented or exercised.
-
-## Changed files
-
-Production Java, relative to `core/src/main/java/au/edu/anu/comp2120/`:
-
-- `world/WalkableArea.java`: common static visibility contract.
-- `world/CollisionSweep.java`: exact segment/interior rectangle query; original projectile entry retained.
-- `world/GameMap.java`: query using current static blockers and map bounds.
-- `combat/Attack.java`: captured immutable origin.
-- `combat/CombatSystem.java`: world binding, explicit-origin overload, shared fixed-hit gate and derived origins.
-- `player/AttackShape.java`: source/effect origin policy without profession dispatch.
-- `player/PlayerAbilities.java`: bind current world and submit the shape-selected origin.
-- `enemy/EnemyAI.java`: bind the AI's world for common settlement.
-- `enemy/Boss.java`: forward the pattern's origin to shared combat.
-- `screen/CombatDemo.java`: bind current map on scope rebuild/reset.
-
-Tests, relative to `core/src/test/java/au/edu/anu/comp2120/`:
-
-- New `world/WorldOcclusionTest.java`: 23 cases covering crossings, symmetry, horizontal/vertical/
-  diagonal rays, tangency, endpoints, interior origins, thin walls, world bounds and invalid numbers.
-- New `combat/CombatOcclusionTest.java`: 37 cases covering all three classes' offensive slots with/
-  without walls, fixed-area rain/field contracts, captured origins, visibility changes, elemental
-  and derived settlement, all four Boss patterns, scope replacement and invalid origins.
-- `combat/ProjectileTest.java`: retain front-of-wall and clear-diagonal assertions; explicitly
-  clear/re-register before the second fixture changes collision worlds. Existing wall/tie tests remain.
-- `enemy/EnemyNavigationTest.java`: delegate the new visibility method through its counting wrapper.
-
-Documentation: `README.md`, `docs/ARCHITECTURE.md`, `docs/COMBAT_OCCLUSION_REPORT.md`.
+CombatSystem binds one WalkableArea for a scope. Gameplay coordinators bind the current map on
+entry/reset; changing world requires clearing the old scope. Clearing removes old actors,
+attacks, projectiles and element/status effects so they cannot silently use a new map's walls.
+Map-free unit fixtures can intentionally have no blockers; production paths bind a world.
 
 ## Verification
 
-Executed from Activity_2:
+From Activity_2:
 
-```bash
-./gradlew core:test
-./gradlew core:test --tests '*CombatOcclusionTest' --tests '*WorldOcclusionTest' --tests '*ProjectileTest'
-./gradlew clean test build javadocAudit
+```sh
+./gradlew core:test --tests '*PlayerTest' --tests '*CollisionSweepTest' \
+  --tests '*WorldOcclusionTest' --tests '*CombatOcclusionTest' \
+  --tests '*ProjectileTest' --tests '*EnemyNavigationTest' \
+  --tests '*ReactionCompletionTest'
 ```
 
-- Full suite: **719 tests in 39 suites; 0 failures, 0 errors, 0 skipped**.
-- Added 60 cases; no existing test was deleted or disabled.
-- Clean compilation and core/desktop packaging: **BUILD SUCCESSFUL**.
-- Both modules' strict JavaDoc audits: **passed**, including production/test/private members,
-  full doclint and warnings-as-errors. Added/modified Java uses the confirmed author
-  **Daoyan Zhu (u7782042)** and applicable descriptions/parameter/return/exception documentation.
-- No graphics assets or graphics context are needed by the new logic/tests. This branch's
-  validation is automated model/build verification, not a claim of fresh manual desktop playtesting.
-
-## Suggested handoff
-
-Commit message:
-
-```text
-feat(combat): enforce shared static-wall occlusion for fixed attacks
-```
-
-MR title:
-
-```text
-Prevent attacks and elemental effects from hitting through solid walls
-```
+WorldOcclusionTest checks horizontal/vertical/diagonal rays, tangency, inside-wall origins,
+thin walls, bounds and invalid values. CombatOcclusionTest covers source/effect origins,
+blocked delivery/attachment, visibility changes, Boss patterns and world replacement.
+ProjectileTest retains swept collision and wall-tie checks. These are explicit obstacle
+fixtures; a native tour of the current open arenas cannot replace them.
+See [test execution and manual limits](TEST_COVERAGE_REVIEW.md).

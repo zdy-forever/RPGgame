@@ -1,0 +1,20 @@
+name: comp6120-activity4
+services:
+  game:
+    image: comp6120-game:activity4
+    build:
+      context: ..
+      dockerfile: Activity_4/Dockerfile
+    environment:
+      PUID: "10001"
+      PGID: "10001"
+      TZ: Australia/Sydney
+    ports:
+      - "127.0.0.1:6080:3001"
+    shm_size: 1gb
+    volumes:
+      - game-data:/config/.comp2120-game
+    stop_grace_period: 10s
+
+volumes:
+  game-data:

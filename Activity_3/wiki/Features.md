@@ -6,7 +6,7 @@
 
 Movement supports eight directions with normalized diagonals, so diagonal travel is not faster than horizontal or vertical travel. Swept collision makes the player slide along walls rather than pass through or stick to them. L performs the class-specific collision-safe dash.
 
-The Hub uses a road, boundary fence, huts, trees, water and name tags to make its services readable. Interaction prompts change with the target, such as talking, reading and opening. Its NPCs cover quests, portal destinations, class/ultimate selection, merchant services, guidance and the ending flow; the storage chest is a separate item interface.
+The Hub uses a road, boundary fence, huts, trees, water and name tags to make its services readable. Interaction prompts change with the target, such as talking, reading and opening. Its NPCs cover quests, portal destinations, class/ultimate selection, merchant services, guidance and the ending flow; the storage chest is a separate item interface. A Notice Board adds the onboarding reference: it repeats controls, save/load steps, class abilities and Hub directions as short grouped sections shown one section at a time, so no scripted tutorial is needed.
 
 ## Campaign and exploration
 
@@ -52,51 +52,64 @@ The Esc menu provides saving, slot loading/deletion, restarting, quitting and a 
 
 Short-lived translucent notifications appear centrally and fade away. The enlarged map identifies NPCs and live targets; the minimap marks the player and Boss/Training target. Bag, storage, dialogue and pause interfaces stop simulation. Keyboard and mouse options share the same item/menu actions.
 
+## Objectives and HUD scaling
+
+A persistent objectives panel shows the current goal while playing. It lists one primary task and, where relevant, one secondary task, and marks the next objective NPC with an interaction marker. Onboarding follows Old Sage → Class Master → Quest Keeper → Portal Guide. Once a guardian is accepted, the primary task becomes defeating that guardian and the secondary task becomes talking to the Portal Guide to enter the battle. After all five guardians fall, the panel points to the Old Sage and then to the Portal Guide for the Memorial Hall. It is hidden inside the Memorial Hall. Objective text is plain English: a regression test fails if any line reintroduces characters the UI bitmap font cannot draw.
+
+Guidance is also reinforced outside the panel. The NPC that currently drives progression carries an exclamation marker drawn above its head, so the next step is visible without opening the panel. When a dialogue closes, a short centred notification states the next objective, prefixed by any reward just received; the message fades without pausing the game.
+
+Persistent HUD elements scale with the window up to a 960 × 540 reference size and never grow beyond it. Below 640 × 360 the coordinate readout, minimap and weapon HUD are hidden; below 320 × 180 even the health bar is hidden. The objectives panel is drawn beneath the health bar, and the class/ability/potion quickbar uses its own scale so it stays usable on large windows.
+
 ## Testing tools
 
-Training displays delivered damage, hit count, walking speed and incoming damage. Its stationary target fires upward practice shots, allowing armour checks. A living player retains at least 1 HP and recovers fully after five simulation seconds without a positive hit. R resets practice without relocating the player or target.
+Training is stacked below the actual Objectives panel height, including wrapped text. Training displays delivered damage, hit count, walking speed and incoming damage. Its stationary target fires upward practice shots, allowing armour checks. A living player retains at least 1 HP and recovers fully after five simulation seconds without a positive hit. R resets practice without relocating the player or target.
 
 The debug console offers damage immunity, one-shot damage, free upgrades and zero cooldowns. Using a cheat blocks save writes for that live session, protecting normal saves. See [Game Tester](game-tester).
 
 ## Visual evidence
 
-Five existing screenshots below demonstrate Hub services, map labels, inventory, upgrades and save management. Their capture commit/date was not recorded, so they should not be treated as proof of the latest build or a completed manual regression run. Additional evidence still needed: title menu, Boss combat/elemental reactions, Memorial Hall ending, Training and debug console.
+These are real desktop captures from 3 October 2026. See [Playtest and Screenshots](Playtest-and-Screenshots) for capture versions, test preparation, all-five completion, Hall ending, Credits and remaining acceptance. Screenshots demonstrate the displayed state, not exhaustive behavior or coverage.
 
-### Hub and NPC services
+### Hub and exploration
 
-The Hub exposes NPC services, storage, the portal, health, class state and ability controls in one playable scene.
+![Hub with NPC services and configurable portal.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/04-hub.jpg)
 
-![Hub gameplay](uploads/49dd769f14ed3b5096087caefc5978ee/clipboard.png){width=900}
+Hub with NPC services and configurable portal.
 
-### Expanded map
+![Expanded map identifies Hub services.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/11-expanded-map.jpg)
 
-The expanded map labels NPCs and services so players can identify destinations at different window sizes.
+Expanded map identifies Hub services.
 
-![Expanded Hub map with NPC labels](uploads/ab44df0ea294303c87fb346a4e8d5291/clipboard.png){width=900}
+### Equipment and saving
 
-### Equipment and progression
+![Four equipped armour pieces show HP 120/120, DEF 13% and Set 4/4.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/09-equipped-inventory.jpg)
 
-The bag shows equipped slots, upgrade levels, shared materials and set bonuses.
+Four equipped armour pieces show HP 120/120, DEF 13% and Set 4/4.
 
-![Equipped inventory and set bonuses](uploads/49f7be2734981b642e0b538ea4baa1ba/clipboard.png){width=900}
+![Merchant upgrades show available equipment and shared materials; this capture records an attempted upgrade without sufficient cores.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/12-merchant-upgrades.jpg)
 
-The merchant upgrade page displays the shared sentinel-core pool, current effects and the +2 cap.
+Merchant upgrades show available equipment and shared materials; this capture records an attempted upgrade without sufficient cores.
 
-![Weapon Merchant equipment upgrade page](uploads/d1aa3666eb92457579ddf9efa4e53afa/clipboard.png){width=900}
+![After the final Wind victory, AUTO records 5/5 guardians while the independent older MANUAL records 4/5.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/27-five-guardians-autosave.jpg)
 
-### Save management
+After the final Wind victory, AUTO records 5/5 guardians while the independent older MANUAL records 4/5.
 
-The pause-menu save manager provides independent automatic and manual slots, load/delete actions and Australia/Sydney timestamps.
+### Training layout
 
-![Save management menu](uploads/ab9835f62cb0e185e8567a3da08f5827/clipboard.png){width=900}
+![The fixed Training panel is below the wrapped Objectives panel, with a visible gap.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/41-training-layout-fixed-resized.jpg)
+
+The fixed Training panel is below the wrapped Objectives panel, with a visible gap.
+
 
 ## Implementation references
 
-Source links are pinned to `1a2c60c` for reproducibility; dated sections retain their original verification scope.
+Source links are pinned to `59de4e6` for reproducibility; dated sections retain their original verification scope.
 
-- [Current game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/README.md): controls, game systems and setup.
-- [Inventory and equipment](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md): item ownership, stat bonuses, potions and merchant upgrades.
-- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): independent slots, safe-state restrictions and restoration.
-- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/BOSS_TRAIT_REPORT.md): five guardian mechanics and provisional balance.
-- [Debug, Training and UI](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): practice rules, commands and verification boundaries.
-- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ART_INTEGRATION.md): imported artwork and procedural presentation.
+- [Current game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/README.md): controls, game systems and setup.
+- [Inventory and equipment](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/INVENTORY_EQUIPMENT_REPORT.md): item ownership, stat bonuses, potions and merchant upgrades.
+- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/SAVE_LOAD_REPORT.md): independent slots, safe-state restrictions and restoration.
+- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/BOSS_TRAIT_REPORT.md): five guardian mechanics and provisional balance.
+- [Debug, Training and UI](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): practice rules, commands and verification boundaries.
+- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ART_INTEGRATION.md): imported artwork and procedural presentation.
+
+[Full class skills](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/FINAL_CLASS_SKILLS_REPORT.md) · [Element reactions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ELEMENT_REACTION_COMPLETION_REPORT.md) · [Quest, Hall and Credits flow](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/QUEST_PORTAL_FLOW_REPORT.md) · [Native results and limitations](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/PLAYTEST_REPORT.md)

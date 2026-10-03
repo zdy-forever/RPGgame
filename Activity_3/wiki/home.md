@@ -30,12 +30,14 @@ See [Planning and Schedule](Planning-and-Schedule) for delivered team responsibi
 | JUnit | Jupiter 5.13.4 |
 | GitLab CI | Build, tests and strict JavaDoc audit |
 
-Docker is not required to play or test locally. The [Docker page](Docker) explains the CI image declaration and the limits of project-level container support.
+Docker is not required to play or test locally. The [Docker page](Docker) explains the CI image declaration and the `Activity_4` container deliverable, including what is still unverified.
 
 ## Quick Links
 
 - [Installation and Setup](installation-and-setup)
 - [Features](features)
+- [Playtest and Screenshots](Playtest-and-Screenshots)
+- [Documentation Index and References](Documentation-Index)
 - [Game Engine](game-engine)
 - [Game Tester](game-tester)
 - [User Manual](User-Manual)
@@ -48,21 +50,27 @@ Docker is not required to play or test locally. The [Docker page](Docker) explai
 
 ## Documentation baseline
 
-Reviewed on **3 October 2026** against team `main` commit [`7fea86a`](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/commit/7fea86a83d8eae720650bed84511ad3c989f7c1b). The delivered `Activity_2` implementation is pinned in detailed source references at `1a2c60c`; later commits update documentation and Activity 0 material without changing that implementation baseline. Fixed commit links keep the reviewed contents inspectable even after later branch work.
+Reviewed on **3 October 2026** against team `main` commit [59de4e6](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/commit/59de4e66120654605150c8baad4ca49dea39224f), including the merged Activity 2 documentation, 41 native screenshots and Training HUD fix. Repository references below are pinned to this revision so later changes do not silently change the evidence.
 
-The original Wiki baseline was `1a6ed22`. Dated implementation reports retain historical test results and may describe earlier controls; use the updated Installation, User Manual and Game Tester pages for current instructions. A source review is not a fresh passing test run or visual acceptance. Repository names, Java packages, save paths and runner tags retain their existing `comp2120` identifiers; the coursework title on this Wiki is COMP6120.
+Activity 2 feature reports describe the reviewed implementation. Dated test records retain their original execution scope: the campaign captures used `1ae3c78`; screenshots 40–41 captured the Training fix later committed in `626e88e` and merged into this baseline. See [Playtest and Screenshots](Playtest-and-Screenshots) for provenance and limits. The repository/package identifiers remain `comp2120`; the coursework title is COMP6120.
 
 ## Current automated verification
 
-[Pipeline #1052111](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052111) for `7fea86a` passed **1,302 tests, with zero failures, errors or skipped tests**. The build job also passed both modules' JavaDoc audits. [Game Tester](game-tester) provides the exact command, test scenarios, job log, report screenshot and limits of this evidence.
+[Pipeline #1052436](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052436) for `59de4e6` passed **1,302 tests, with zero failures, errors or skipped tests**. The build job also passed both modules' JavaDoc audits. [Game Tester](game-tester) provides the exact command, test scenarios, job log, report screenshot and limits of this evidence.
 
 ## Repository documentation
 
 | Start here | What it supports |
 | --- | --- |
-| [Documentation index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/7fea86a83d8eae720650bed84511ad3c989f7c1b/Activity_2/docs/README.md) | Implementation reports and their dated verification boundaries |
-| [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/7fea86a83d8eae720650bed84511ad3c989f7c1b/Activity_2/README.md) | Setup, controls, gameplay and module overview |
-| [Architecture](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/7fea86a83d8eae720650bed84511ad3c989f7c1b/Activity_2/docs/ARCHITECTURE.md) | Engine boundaries, original planning and delivered contribution records |
-| [Test coverage review](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/7fea86a83d8eae720650bed84511ad3c989f7c1b/Activity_2/docs/TEST_COVERAGE_REVIEW.md) | Automated scenario map, recorded execution status and remaining native QA |
+| [Documentation index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/README.md) | Implementation reports and their dated verification boundaries |
+| [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/README.md) | Setup, controls, gameplay and module overview |
+| [Architecture](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md) | Engine boundaries, original planning and delivered contribution records |
+| [Test coverage review](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/TEST_COVERAGE_REVIEW.md) | Automated scenario map, recorded execution status and remaining native QA |
 
-Feature-specific references are provided on Features, Game Engine, Game Tester and User Manual. The six early integration/combat/class/element reports are historical design evidence, not replacements for current controls.
+The [Documentation Index](Documentation-Index) maps every Activity 2 report to the relevant Wiki page and assignment requirement. Build/run/test instructions are on [Installation and Setup](installation-and-setup); gameplay steps are on [User Manual](User-Manual).
+
+## Game preview
+
+![Memorial Hall after five distinct guardian victories; the ending and all Credits pages are documented in the playtest gallery.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/29-memorial-hall-five-stones.jpg)
+
+Memorial Hall after five distinct guardian victories; the ending and all Credits pages are documented in the playtest gallery.
