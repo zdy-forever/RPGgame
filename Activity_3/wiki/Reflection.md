@@ -2,28 +2,28 @@
 
 [Home](home) · [Planning and Schedule](Planning-and-Schedule)
 
-This reflection describes specific repository/process examples and improvements. It does not substitute for fixing remaining defects or missing deliverables.
-
 ## Keeping documentation aligned with implementation
 
-Several early descriptions became stale as the project grew. The class-skills report originally assigned F5 to ultimate-mode selection; production later reserved F5 for manual saving and moved ultimate selection to Class Master. Earlier Training descriptions called the target non-hostile; later armour-testing shots changed that behavior. The initial Home listed Docker among technologies before a project Dockerfile existed in the inspected baseline.
+During development, we discussed changing requirements in team meetings, so the developers understood the latest agreed behavior. However, we did not update the documentation at the same pace as the implementation. Some reports therefore continued to describe earlier controls or behavior even though the team already knew what had changed.
 
-These discrepancies can send players or assessors through obsolete steps. Dated integration notes now distinguish historical reports from current behavior, and this Wiki uses current controls and explicit implementation limits. Future feature reviews should include a documentation checklist covering controls, setup, tests and screenshots. Historical reports should remain dated rather than silently masquerading as current manuals.
+Shared understanding within the team was not enough to keep the written instructions reliable for players and assessors. We later reviewed the Activity 2 reports against the code and updated the Wiki. In future, each agreed requirement change should include a documentation task with a clear owner, and the related instructions should be updated as part of the same feature or merge request. This would reduce the amount of documentation work left until the end.
 
 ## Commit and issue granularity
 
-Commits `a4c7e9f` and `bbe814b` share the title “feat: improve pause menu, save management and equipment progression”; `aa2a8d5` is titled “update README.md”. The first two titles make separate changes difficult to distinguish without opening their diffs, while the README title does not explain what instructions changed. Some planning entries also remained “to be created” after related work existed.
+Our usual process was to write an issue draft and then start development. As implementation made the scope clearer, we gradually created and expanded the corresponding issue in GitLab. This helped us record decisions as they emerged, but it meant that the shared issue sometimes followed the work instead of providing a complete plan before it began. Some planning entries also remained “to be created” after related work already existed.
 
-This weakens traceability between requirements, implementation and acceptance checks. A better workflow is to open a focused issue before implementation, reference it in the MR, and describe the concrete behavior changed in each commit. Retrospective records should retain their true creation dates. Already shared history should be explained honestly rather than rewritten solely for presentation.
+A better approach would be to agree on a complete initial plan before starting implementation: define the scope, break the work into tasks, identify dependencies, assign responsibilities and specify acceptance checks. Publishing that plan as an issue first would give development a clearer order and make progress easier for the whole team to follow. We could still update the issue when implementation reveals new information, while keeping the reasons for scope changes visible.
 
-## Shared-file integration
+Commit descriptions could also be more specific. For example, commits `a4c7e9f` and `bbe814b` share the title “feat: improve pause menu, save management and equipment progression”, while `aa2a8d5` is titled “update README.md”. Describing the concrete change in each commit and linking the issue from its merge request would make the work easier to review and trace.
 
-The source branch became eight commits behind its target during a later MR. Synchronizing required reconciling both `ARCHITECTURE.md` and the documentation index; merge commit `6d8b8a3` records that integration. Shared documents collect contributions from multiple feature streams, so editing an old baseline can create conflicts or discard another contributor's updates if resolved carelessly.
+## Tracking time and meeting the deadline
 
-Smaller integration intervals and reviewing the target branch before broad documentation edits would reduce this risk. Conflict resolution should preserve both relevant contributions and rerun applicable checks before pushing.
+We rarely recorded time spent in issues or merge requests. Although we completed the work before the submission deadline, we have little recorded evidence for comparing estimated effort with actual effort or understanding which tasks took longer than expected. Meeting the deadline alone does not show that our estimates or workload allocation were accurate.
+
+For future projects, we should record an initial estimate in each issue and update the time spent as work progresses, with a short summary in the merge request when useful. Reviewing these records at milestones would help us spot delays earlier, distribute work more evenly and make better estimates for later tasks.
 
 ## What testing evidence can establish
 
-The F10 console originally failed because the desktop backend cancelled the native text-input path; model-level command tests did not establish that an actual desktop dialog opened. The final console uses an in-game input adapter. Similarly, a successful layout-model test does not prove that resized text and pointer targets look correct on screen.
+We sometimes found bugs during manual playtesting even when every CI check was green. For example, the Objectives panel overlapped the Training information in the running game despite passing automated checks. A successful CI run shows that the configured checks passed for that revision; it does not prove that every player interaction, screen layout or gameplay sequence works correctly.
 
-These cases show why automated logic checks and manual desktop checks must be recorded separately. We added targeted regression tests for console input ownership and Training reset/pause behavior, and maintain a visual acceptance checklist. Future work should attach actual platform/check results and measured coverage rather than treating test counts as complete verification.
+We should therefore treat CI as one source of verification evidence and combine it with manual testing of the actual game. Before accepting a feature, we should run the relevant automated checks, play through its user-facing behavior and record any bugs with reproduction steps and expected versus actual results. Where practical, a manually discovered bug should also lead to a regression test. This would make CI more useful over time while retaining the manual checks needed for rendering, input and the overall gameplay experience.

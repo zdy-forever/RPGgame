@@ -61,7 +61,7 @@ A passing test means its assertions hold for the scenario tested. For example, t
 
 ## Assignment examples mapped to real tests
 
-Source references below are fixed at `1a2c60c`. The current CI result for that commit is recorded below.
+Source references below are fixed at `59de4e6`. The current CI result for that commit is recorded below.
 
 | Requirement | Input/actions performed | Expected state/event | Test evidence |
 | --- | --- | --- | --- |
@@ -72,9 +72,9 @@ Source references below are fixed at `1a2c60c`. The current CI result for that c
 | Cannot attack through walls | Execute class attacks with blocked/unblocked lines of sight | The wall blocks damage; the unblocked control can hit | `CombatOcclusionTest.classAttacksCannotHitBossThroughWall` |
 | Illegal actions do not change valid state | Request invalid movement/time or disallowed equipment upgrades | Reject invalid input without state corruption; rejected upgrades spend no materials; upgrades stop at +2 | `PlayerTest.rejectsInvalidTimeWithoutChangingState`, `rejectsInvalidDirection`; `GearUpgradesTest.rejectedUpgradesNeverSpendMaterials`, `allSlotsUseSharedCoresAndStopAtTwo` |
 
-An actual portal scenario advances the production model with:
+An actual portal scenario advances the production model with the following statement inside the test method. This is an excerpt, not a standalone Java file:
 
-```java
+```text
 frame(0.1, new PlayerCommand(1, 0, false, false, false, false));
 ```
 
@@ -96,19 +96,19 @@ The current CI result below establishes that the suite passed for the identified
 
 | Item | Observed result |
 | --- | --- |
-| Source commit | `7fea86a83d8eae720650bed84511ad3c989f7c1b` |
-| Pipeline | [#1052111](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052111), passed |
-| Build job | [gradle-build #7716533](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7716533), passed |
+| Source commit | `59de4e66120654605150c8baad4ca49dea39224f` |
+| Pipeline | [#1052436](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052436), passed |
+| Build job | [gradle-build #7717341](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7717341), passed |
 | Environment | GitLab Docker executor, `eclipse-temurin:25-jdk`, Gradle 9.7.1 |
 | Executed command | `./gradlew clean build javadocAudit --no-daemon` from `Activity_2` |
 | JUnit report | **1,302 passed; 0 failures; 0 errors; 0 skipped** |
 | Build/JavaDoc | Both modules compiled and tested; `core:javadocAudit` and `lwjgl3:javadocAudit` completed; log ends `BUILD SUCCESSFUL` |
 
-**Observed outcome:** the automatic tests met their assertions for this commit. GitLab reports the same 1,302-test result for the latest pipeline. The screenshot below was captured from pipeline #1052082 on 2 October 2026 and shows that report format and count; the links above are the authoritative evidence for the later `7fea86a` run. The displayed 100% is the test success rate, not source-code line/branch coverage. This CI result does not establish manual desktop, audio or complete campaign acceptance.
+**Observed outcome:** the automatic tests met their assertions for this commit. GitLab reports the same 1,302-test result for the latest pipeline. The screenshot below was captured from pipeline #1052082 on 2 October 2026 and shows that report format and count; the links above are the authoritative evidence for the later `59de4e6` run. The displayed 100% is the test success rate, not source-code line/branch coverage. This CI result does not establish manual desktop, audio or complete campaign acceptance.
 
 ![GitLab pipeline 1052082: 1302 tests passed, zero failures, errors or skipped tests](uploads/55b3cca95fa485eda6abad6b996ff2a2/clipboard.jpeg){width=900}
 
-A post-merge local run of `./gradlew clean build javadocAudit --no-daemon` also completed successfully on 3 October 2026. The linked main pipeline remains the reproducible submission evidence; later source commits must be checked against their own pipeline.
+The Training fix was also checked locally with direct JDK compilation, 83 selected JUnit tests and strict JavaDoc for `GameScreen`. That local run did not complete through Gradle; the full Gradle result above is the separately observed GitLab run for the merged source.
 
 ### Historical result
 
@@ -118,7 +118,7 @@ No measured line/branch coverage percentage is available in the inspected build 
 
 ## CI and JavaDoc
 
-The repository's [CI configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/.gitlab-ci.yml) defines `gradle-build` using `eclipse-temurin:25-jdk` and the teaching runner tag `comp2120`. It runs `clean build javadocAudit --no-daemon` and uploads JUnit XML even when the job fails. The job has no branch filter excluding main; verify the resulting main pipeline at submission.
+The repository's [CI configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/.gitlab-ci.yml) defines `gradle-build` using `eclipse-temurin:25-jdk` and the teaching runner tag `comp2120`. It runs `clean build javadocAudit --no-daemon` and uploads JUnit XML even when the job fails. The job has no branch filter excluding main; verify the resulting main pipeline at submission.
 
 [View pipelines](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines). Open the relevant commit's job for its log and test report. Security jobs are separate from gameplay tests.
 
@@ -135,7 +135,12 @@ The repository's [CI configuration](https://gitlab.comp.anu.edu.au/u7782042/comp
 | Training | Compare boots/coat effects; take damage, step away and recover; repeatedly press R beside/overlapping the target without relocation. |
 | Campaign | Accept quest, choose Battle, win/lose, verify return and progress; five distinct wins unlock the Hall ending. |
 
-These manual cases are a checklist, not a record that all have passed on every platform.
+The 3 October native session now records title/settings, save restoration and relaunch, equipment, five distinct victories, Hall ending and all Credits pages. Wind was won normally by the user; other travel scenarios used position-only save fixtures. Training overlap was subsequently fixed and captured. See [Playtest and Screenshots](Playtest-and-Screenshots) and [the detailed native report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/PLAYTEST_REPORT.md). The checklist above still includes cases not completed; do not treat it as an all-platform pass.
+
+![Training is a manual testing aid showing damage/hits and practice instructions. This image verifies layout; automated correctness is evidenced by the JUnit report above.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/41-training-layout-fixed-resized.jpg)
+
+Training is a manual testing aid showing damage/hits and practice instructions. This image verifies layout; automated correctness is evidenced by the JUnit report above.
+
 
 ## Debug console
 
@@ -147,9 +152,11 @@ Enabling any cheat permanently blocks save writes for the current live game, eve
 
 ## Implementation references
 
-- [Production gameplay integration scenarios](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/CoreGameplayIntegrationTest.java).
-- [Player movement and invalid-input tests](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PlayerTest.java), [collision sweeps](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/test/java/au/edu/anu/comp2120/world/CollisionSweepTest.java) and [attack wall occlusion](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatOcclusionTest.java).
-- [Equipment upgrade validation](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/GearUpgradesTest.java).
-- [Test coverage review](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/TEST_COVERAGE_REVIEW.md): coverage map, dated execution blockers and manual QA gaps; not a measured coverage percentage.
-- [Debug, Training and UI report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): commands, training behavior and feature-to-test mapping.
-- [Save/load report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): slot safety, persistence and dated checks.
+- [Production gameplay integration scenarios](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/CoreGameplayIntegrationTest.java).
+- [Player movement and invalid-input tests](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PlayerTest.java), [collision sweeps](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/test/java/au/edu/anu/comp2120/world/CollisionSweepTest.java) and [attack wall occlusion](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatOcclusionTest.java).
+- [Equipment upgrade validation](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/GearUpgradesTest.java).
+- [Test coverage review](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/TEST_COVERAGE_REVIEW.md): coverage map, dated execution blockers and manual QA gaps; not a measured coverage percentage.
+- [Debug, Training and UI report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/DEBUG_TRAINING_UI_REPORT.md): commands, training behavior and feature-to-test mapping.
+- [Save/load report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/SAVE_LOAD_REPORT.md): slot safety, persistence and dated checks.
+
+[Complete document/reference map](Documentation-Index).

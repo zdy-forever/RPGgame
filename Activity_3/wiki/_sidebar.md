@@ -2,6 +2,8 @@
 
 - [Installation and Setup](installation-and-setup)
 - [Features](features)
+- [Playtest and Screenshots](Playtest-and-Screenshots)
+- [Documentation Index](Documentation-Index)
 - [User Manual](User-Manual)
 - [Game Engine](game-engine)
 - [Game Tester](game-tester)

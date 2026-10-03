@@ -2,7 +2,7 @@
 
 [Home](home) · [Planning and Schedule](Planning-and-Schedule)
 
-The full story catalogue is maintained in [Activity-1-User-Stories.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity-1-User-Stories.md). The [work plan](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_1/1.2.md) maps story IDs to tasks, dependencies, estimates and issue references.
+The full story catalogue is maintained in [Activity-1-User-Stories.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity-1-User-Stories.md). The [work plan](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_1/1.2.md) maps story IDs to tasks, dependencies, estimates and issue references.
 
 ## Delivered player journeys
 
@@ -20,4 +20,4 @@ Later refinements include merchant upgrades, potion replenishment, save manageme
 
 ## Scope changes
 
-The architecture records achievements and NPC following as dropped, general crafting/enchanting as reduced to merchant upgrades, and guided tutorial flow as reduced to NPC/Notice Board guidance. The coordinate HUD was implemented during development and later hidden for presentation. Refer to [Known Issues and Future Work](Known-Issues-and-Future-Work) for current limits rather than treating all original stories as delivered unchanged.
+The architecture records achievements and NPC following as dropped, general crafting/enchanting as reduced to merchant upgrades, and guided tutorial flow as reduced to NPC/Notice Board guidance. The coordinate HUD was implemented during development and later removed during presentation cleanup. Refer to [Known Issues and Future Work](Known-Issues-and-Future-Work) for current limits rather than treating all original stories as delivered unchanged.

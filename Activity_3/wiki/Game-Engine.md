@@ -23,9 +23,9 @@ Maps, class definitions and Boss configuration are Java data objects. For exampl
 
 Five guardians share a Boss implementation with composed `BossTrait` strategies. Player and enemy attacks share collision, hostility and damage settlement. Equipment bonuses feed that settlement instead of implementing separate damage rules in the UI.
 
-## Alternatives considered
+## Configuration trade-offs
 
-Hard-coding content inside the game loop was rejected because every new map or enemy would modify coordination code. External JSON/YAML would separate data more strictly and is a common production approach, but typed Java configuration gives compile-time validation without requiring a parser, schema or editor in this project. A larger third-party engine was also considered unnecessary because libGDX already supplied the platform layer while the assignment required us to design and test our own gameplay architecture.
+Keeping content in configuration objects reduces the need to modify coordination code for tuning changes. External JSON/YAML would separate data more strictly and is a common production approach, but typed Java configuration gives compile-time validation without requiring a parser, schema or editor in this project. libGDX supplies the platform layer while the project implements and tests its own gameplay architecture.
 
 Typed configuration still has a cost: designers must edit Java and rebuild, and presentation assets may need renderer/asset work. We therefore describe it as a configuration-driven Java engine rather than claiming a no-code content editor.
 
@@ -47,15 +47,17 @@ The same damage pipeline supports a player arrow, a Boss bolt, an elemental fiel
 
 The current campaign uses predefined arenas and one Boss per battle. It does not provide procedural dungeon generation, multiplayer, achievements, a general crafting system or a scripting editor.
 
-For implementation details and historical design decisions, see the repository's [architecture document](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_2/docs/ARCHITECTURE.md) and [report index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_2/docs/README.md). Dated sections describe their recorded development stage.
+For implementation details and historical design decisions, see the repository's [architecture document](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md) and [report index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/README.md). Dated sections describe their recorded development stage.
 
 ## Reproducible configuration example
 
-The examples and implementation links below refer to source commit `1a2c60c` (reviewed 2 October 2026). They illustrate editable Java configuration; no example change is applied to the submitted game.
+The examples and implementation links below refer to source commit `59de4e6` (reviewed 3 October 2026). They illustrate editable Java configuration; no example change is applied to the submitted game.
 
-In [`MapCatalog.createMaps()`](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapCatalog.java), Training has a named entry spawn:
+In [`MapCatalog.createMaps()`](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapCatalog.java), Training has a named entry spawn:
 
-```java
+The following expression is an excerpt from the map configuration, not a standalone Java file:
+
+```text
 Map.of("entry", new SpawnPoint(80, 80),
        "far-side", new SpawnPoint(680, 480))
 ```
@@ -100,8 +102,16 @@ flowchart TD
 
 ## Implementation references
 
-- [Architecture and module contracts](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ARCHITECTURE.md): ownership, frame ordering, persistence and historical scope decisions.
-- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/BOSS_TRAIT_REPORT.md): shared Boss lifecycle and five composed behaviors.
-- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ART_INTEGRATION.md): resource loading, animation and rendering boundaries.
-- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/SAVE_LOAD_REPORT.md): snapshot validation and restoration.
-- [Historical combat occlusion report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/COMBAT_OCCLUSION_REPORT.md) and [element reaction report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/docs/ELEMENT_REACTION_COMPLETION_REPORT.md): design contracts and dated implementation evidence; use the current User Manual for controls.
+- [Architecture and module contracts](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md): ownership, frame ordering, persistence and historical scope decisions.
+- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/BOSS_TRAIT_REPORT.md): shared Boss lifecycle and five composed behaviors.
+- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ART_INTEGRATION.md): resource loading, animation and rendering boundaries.
+- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/SAVE_LOAD_REPORT.md): snapshot validation and restoration.
+- [Combat occlusion report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/COMBAT_OCCLUSION_REPORT.md) and [element reaction report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ELEMENT_REACTION_COMPLETION_REPORT.md): current behavior, design contracts and dated verification boundaries.
+
+## Engine behavior on screen
+
+![Wind encounter rendered from shared player, Boss, health and combat state. This capture comes from an unsuccessful attempt; the later normal user victory is recorded separately.](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/25-wind-battle.jpg)
+
+Wind encounter rendered from shared player, Boss, health and combat state. This capture comes from an unsuccessful attempt; the later normal user victory is recorded separately.
+
+See [Playtest and Screenshots](Playtest-and-Screenshots) for the five-win checkpoint, Hall progression and restored ending, and [Documentation Index](Documentation-Index) for all engine reports.

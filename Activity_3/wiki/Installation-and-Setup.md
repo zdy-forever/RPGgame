@@ -73,6 +73,13 @@ The desktop window opens the title menu. Select **New Game** to enter Hub, or **
 
 In IntelliJ, open/import `Activity_2/build.gradle` as a Gradle project, choose JDK 25 for the project and Gradle JVM, reload Gradle, and run the `lwjgl3:run` task. Using that task applies the same launch settings as the terminal.
 
+## Tutor verification route
+
+1. Run the full build/test/JavaDoc command above and inspect both test reports.
+2. Run `lwjgl3:run`, choose New Game, and check the Hub appears. Use [User Manual](User-Manual) for controls, quests and portal selection.
+3. Enter Training through Portal Guide for a short combat/control check; use the [Game Tester](game-tester) scenario commands for repeatable automatic checks.
+4. Follow [Playtest and Screenshots](Playtest-and-Screenshots) for expected UI, Hall and Credits states. Its temporary capture wrapper and position fixtures are not installation prerequisites or normal player steps.
+
 ## Test and documentation reports
 
 ```bash
@@ -106,8 +113,6 @@ Music/fullscreen preferences set through the title menu are stored separately in
 | Window cannot open over SSH or in CI | Use a graphical desktop to play; run the model tests in headless environments. |
 | F5/F9/F10 changes a macOS system setting | Use Fn with the function key. Esc provides save management; backtick also opens the console. |
 
-The earlier `/tmp/inventory-java26.gradle` workaround is not required for this JDK 25 setup and is not part of the distributed project.
-
 ## Build a distribution
 
 From `Activity_2`:
@@ -120,6 +125,6 @@ On macOS/Linux, run `lwjgl3/build/install/lwjgl3/bin/lwjgl3`; on Windows, build 
 
 ## Implementation references
 
-- [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/README.md): setup, resource packaging and distribution workflow.
-- [Build toolchain](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/build.gradle), [dependency versions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/gradle.properties) and [desktop build configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/lwjgl3/build.gradle): source configuration at `1a2c60c`.
-- [Main menu](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/1a2c60c2b7602e2501d86ac380c364b1d704b175/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java): New Game/Continue/Settings/Quit behavior.
+- [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/README.md): setup, resource packaging and distribution workflow.
+- [Build toolchain](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/build.gradle), [dependency versions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/gradle.properties) and [desktop build configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/lwjgl3/build.gradle): source configuration at `59de4e6`.
+- [Main menu](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java): New Game/Continue/Settings/Quit behavior.
