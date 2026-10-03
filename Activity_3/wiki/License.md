@@ -4,7 +4,7 @@
 
 ## Project license
 
-The repository uses a custom restricted coursework license in [LICENSE.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/LICENSE.md).
+The repository uses a custom restricted coursework license in [LICENSE.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/LICENSE.md).
 
 The existing license reserves rights in the source code and permits ANU teaching staff to access, execute, reproduce and inspect the project as reasonably needed for assessment and academic administration. Uses outside course assessment require permission from the copyright holders under its wording.
 
@@ -18,7 +18,7 @@ The restricted coursework licence expressly permits ANU teaching staff to access
 
 ## Artwork and music
 
-The [asset attribution file](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/assets/README.md) records OpenAI-generated visual assets and music generated using Suno during an active paid subscription. Those are project attribution records, not independently verified subscription evidence. The assets are excluded from the source-code license and remain subject to applicable service terms.
+The [asset attribution file](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/assets/README.md) records OpenAI-generated visual assets and music generated using Suno during an active paid subscription. Those are project attribution records, not independently verified subscription evidence. The assets are excluded from the source-code license and remain subject to applicable service terms.
 
 | Resource | Project record |
 | --- | --- |
@@ -31,10 +31,10 @@ Java, libGDX, LWJGL, Gradle and JUnit are third-party dependencies with their ow
 
 ## Document completeness
 
-The latest team `main` at `59de4e6` contains the corrected final sentence, “which they were generated.” This was an editorial correction only and did not change the stated permissions. The repository's current `LICENSE.md` remains the authoritative license text.
+The reviewed team `main` at `64310bf` retains the corrected final sentence, “which they were generated.” This was an editorial correction only and did not change the stated permissions. The repository's current `LICENSE.md` remains the authoritative license text.
 
 ## Asset reference files
 
-- [Asset attribution](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/assets/README.md).
-- [Visual pack description](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/assets/art/README.txt) and [per-file manifest](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/assets/art/ASSET_MANIFEST.csv).
-- [Audio track and playback notes](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/assets/audio/README.md).
+- [Asset attribution](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/assets/README.md).
+- [Visual pack description](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/assets/art/README.txt) and [per-file manifest](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/assets/art/ASSET_MANIFEST.csv).
+- [Audio track and playback notes](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/assets/audio/README.md).

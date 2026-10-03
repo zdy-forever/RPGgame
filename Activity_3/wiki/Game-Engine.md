@@ -47,13 +47,13 @@ The same damage pipeline supports a player arrow, a Boss bolt, an elemental fiel
 
 The current campaign uses predefined arenas and one Boss per battle. It does not provide procedural dungeon generation, multiplayer, achievements, a general crafting system or a scripting editor.
 
-For implementation details and historical design decisions, see the repository's [architecture document](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md) and [report index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/README.md). Dated sections describe their recorded development stage.
+For implementation details and historical design decisions, see the repository's [architecture document](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/ARCHITECTURE.md) and [report index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/README.md). Dated sections describe their recorded development stage.
 
 ## Reproducible configuration example
 
-The examples and implementation links below refer to source commit `59de4e6` (reviewed 3 October 2026). They illustrate editable Java configuration; no example change is applied to the submitted game.
+The examples and implementation links below refer to source commit `64310bf` (reviewed 3 October 2026). They illustrate editable Java configuration; no example change is applied to the submitted game.
 
-In [`MapCatalog.createMaps()`](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapCatalog.java), Training has a named entry spawn:
+In [`MapCatalog.createMaps()`](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapCatalog.java), Training has a named entry spawn:
 
 The following expression is an excerpt from the map configuration, not a standalone Java file:
 
@@ -102,11 +102,11 @@ flowchart TD
 
 ## Implementation references
 
-- [Architecture and module contracts](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md): ownership, frame ordering, persistence and historical scope decisions.
-- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/BOSS_TRAIT_REPORT.md): shared Boss lifecycle and five composed behaviors.
-- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ART_INTEGRATION.md): resource loading, animation and rendering boundaries.
-- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/SAVE_LOAD_REPORT.md): snapshot validation and restoration.
-- [Combat occlusion report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/COMBAT_OCCLUSION_REPORT.md) and [element reaction report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ELEMENT_REACTION_COMPLETION_REPORT.md): current behavior, design contracts and dated verification boundaries.
+- [Architecture and module contracts](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/ARCHITECTURE.md): ownership, frame ordering, persistence and historical scope decisions.
+- [Guardian traits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/BOSS_TRAIT_REPORT.md): shared Boss lifecycle and five composed behaviors.
+- [Art integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/ART_INTEGRATION.md): resource loading, animation and rendering boundaries.
+- [Save/load integration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/SAVE_LOAD_REPORT.md): snapshot validation and restoration.
+- [Combat occlusion report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/COMBAT_OCCLUSION_REPORT.md) and [element reaction report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/ELEMENT_REACTION_COMPLETION_REPORT.md): current behavior, design contracts and dated verification boundaries.
 
 ## Engine behavior on screen
 

@@ -41,18 +41,18 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 An IDE-downloaded JDK may require selecting its actual installation directory instead. IntelliJ Project SDK and Gradle JVM settings are separate from terminal `JAVA_HOME`.
 
-## Build, test and audit JavaDoc
+## Build, test, audit JavaDoc and measure coverage
 
 macOS / Linux:
 
 ```bash
-./gradlew clean build javadocAudit --no-daemon
+./gradlew clean build javadocAudit :core:jacocoTestReport --no-daemon
 ```
 
 Windows PowerShell:
 
 ```powershell
-./gradlew.bat clean build javadocAudit --no-daemon
+./gradlew.bat clean build javadocAudit :core:jacocoTestReport --no-daemon
 ```
 
 Successful completion ends with `BUILD SUCCESSFUL`. Tests or JavaDoc failures make the command fail. The first build downloads the wrapper and dependencies; later builds use Gradle's cache.
@@ -92,6 +92,8 @@ In IntelliJ, open/import `Activity_2/build.gradle` as a Gradle project, choose J
 | Core test report | `core/build/reports/tests/test/index.html` |
 | Desktop test report | `lwjgl3/build/reports/tests/test/index.html` |
 | JUnit XML | Each module's `build/test-results/test/` |
+| Core JaCoCo HTML | `core/build/reports/jacoco/test/html/index.html` |
+| Core JaCoCo XML | `core/build/reports/jacoco/test/jacocoTestReport.xml` |
 | Strict JavaDoc output | Each module's `build/docs/javadoc-audit/index.html` |
 
 See [Game Tester](game-tester) for selected scenarios and interpretation of results.
@@ -125,6 +127,6 @@ On macOS/Linux, run `lwjgl3/build/install/lwjgl3/bin/lwjgl3`; on Windows, build 
 
 ## Implementation references
 
-- [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/README.md): setup, resource packaging and distribution workflow.
-- [Build toolchain](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/build.gradle), [dependency versions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/gradle.properties) and [desktop build configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/lwjgl3/build.gradle): source configuration at `59de4e6`.
-- [Main menu](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java): New Game/Continue/Settings/Quit behavior.
+- [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/README.md): setup, resource packaging and distribution workflow.
+- [Build toolchain](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/build.gradle), [dependency versions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/gradle.properties) and [desktop build configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/lwjgl3/build.gradle): source configuration at `64310bf`.
+- [Main menu](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java): New Game/Continue/Settings/Quit behavior.

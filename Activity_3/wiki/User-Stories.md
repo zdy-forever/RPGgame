@@ -2,7 +2,7 @@
 
 [Home](home) · [Planning and Schedule](Planning-and-Schedule)
 
-The full story catalogue is maintained in [Activity-1-User-Stories.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity-1-User-Stories.md). The [work plan](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_1/1.2.md) maps story IDs to tasks, dependencies, estimates and issue references.
+The full story catalogue is maintained in [Activity-1-User-Stories.md](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity-1-User-Stories.md). The [work plan](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_1/1.2.md) maps story IDs to tasks, dependencies, estimates and issue references.
 
 ## Delivered player journeys
 
