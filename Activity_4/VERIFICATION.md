@@ -41,6 +41,20 @@ report export. Compose configuration resolution was checked from the repository 
 
 ## Completed static checks
 
+On 4 October 2026, a user-supplied Docker gameplay screenshot showed the Quest Keeper
+with five completed guardians but vertically displaced green checks. This establishes
+that the game reached the quest menu, not an audio or full container acceptance pass.
+The shared game rendering fix and automated regression are recorded in the
+[quest/portal report](../Activity_2/docs/QUEST_PORTAL_FLOW_REPORT.md#quest-keeper-completion-check-alignment--4-october-2026).
+The running container must be rebuilt before checking the corrected layout; that
+post-fix Docker visual check has not yet been recorded.
+
+A second screenshot showed the Portal Guide objective remaining after the Hall task.
+The game now uses its persisted ending flag to show `feel free to explore this game!`
+and clear the NPC task marker after the Hall ending is triggered. Local JUnit checks
+cover ending/Credits, return to Hub and save/load; the rebuilt Docker UI still needs
+visual confirmation for this fix as well.
+
 | Check | Result |
 | --- | --- |
 | Shell syntax for launch and health scripts | Passed |

@@ -67,11 +67,45 @@ trigger. Completing the dialogue offers credits or closing the conversation. Lat
 Hall conversations can offer credits again; credits do not exit the game or change rewards.
 The player may continue exploring/practising/rematching.
 
+Once the Hall Sage triggers the one-time ending, the objective tracker shows
+`feel free to explore this game!` and no NPC receives a task marker. The tracker uses
+the existing saved ending-consumption flag, so returning to Hub or loading a completed
+save keeps this message. Five guardian victories or revealing the Hall route alone
+still show the appropriate Sage/Portal Guide instructions. Objectives remain hidden
+inside Memorial Hall itself.
+
 Save/load restores active permission, completed IDs, pending rewards, distinct wins, rematch
 counts, ending consumption, Hall hint and NPC flags. This is saved quest/ending progress, not a
 separate achievement subsystem. See [save/load](SAVE_LOAD_REPORT.md).
 
 ## Verification
+
+### Quest Keeper completion-check alignment — 4 October 2026
+
+A Docker playtest screenshot showed completed-guardian check marks beside the
+introduction and completion count instead of their Boss rows. The drawing code used
+an obsolete row offset that did not include the introduction, blank line and summary.
+This affected the shared game UI rather than a Docker-specific font.
+
+Checks now use the measured choice bounds already used for pointer selection, with a
+gap before the Boss name. `ScreenFlowTest.questChecksAlignWithBossGlyphs` compares
+captured check strokes with actual bitmap-font glyph positions at 960×540, 640×360,
+1920×1080 and 1280×240, including empty, partial and full completion. The regression
+failed at all four sizes before the fix. After the fix, direct JDK 25 compilation and
+JUnit execution passed all 45 selected ScreenFlow/GameSettings tests; strict core
+JavaDoc (production/test sources, private members, doclint and warnings as errors)
+also passed. This was a local run, not a new CI or container run. Rebuild the Docker
+image to include this source change; container visual acceptance of the rebuilt image
+remains pending.
+
+### Gameplay verification
+
+The 4 October 2026 objective follow-up passed 67 selected JUnit tests through direct
+JDK 25 compilation/execution, including ScreenFlow, GameScreenObjective, BossQuestFlow
+and MemorialHall. The screen scenario completes the ending/Credits, returns through
+the Hall portal, checks the free-exploration text and cleared marker, and verifies
+both survive a manual-save round trip. Strict core JavaDoc also passed. These local
+checks do not constitute a new CI run or post-rebuild Docker visual acceptance.
 
 From Activity_2:
 
@@ -84,7 +118,7 @@ From Activity_2:
 
 Scenarios cover locked/accepted admission, retries/replacements, practice preservation,
 movement-triggered arrival, outcome/reward deduplication, distinct stones, ending consumption,
-credits and persisted state. [Verified CI](TEST_COVERAGE_REVIEW.md#recorded-result) is recorded
+credits and persisted state. [Historical CI result](TEST_COVERAGE_REVIEW.md#historical-ci-result) is recorded
 separately from native acceptance. [Native checks on 2026-10-03](PLAYTEST_REPORT.md) exercised
 Quest Keeper acceptance, Guide selection, actual portal entry, five distinct wins/rewards,
 Wind defeat and retry, relaunch/Continue, Training, Hub Sage endgame guidance, all five Hall
