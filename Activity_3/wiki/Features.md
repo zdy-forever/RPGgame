@@ -56,6 +56,8 @@ Short-lived translucent notifications appear centrally and fade away. The enlarg
 
 A persistent objectives panel shows the current goal while playing. It lists one primary task and, where relevant, one secondary task, and marks the next objective NPC with an interaction marker. Onboarding follows Old Sage → Class Master → Quest Keeper → Portal Guide. Once a guardian is accepted, the primary task becomes defeating that guardian and the secondary task becomes talking to the Portal Guide to enter the battle. After all five guardians fall, the panel points to the Old Sage and then to the Portal Guide for the Memorial Hall. It is hidden inside the Memorial Hall. Objective text is plain English: a regression test fails if any line reintroduces characters the UI bitmap font cannot draw.
 
+Guidance is also reinforced outside the panel. The NPC that currently drives progression carries an exclamation marker drawn above its head, so the next step is visible without opening the panel. When a dialogue closes, a short centred notification states the next objective, prefixed by any reward just received; the message fades without pausing the game.
+
 Persistent HUD elements scale with the window up to a 960 × 540 reference size and never grow beyond it. Below 640 × 360 the coordinate readout, minimap and weapon HUD are hidden; below 320 × 180 even the health bar is hidden. The objectives panel is drawn beneath the health bar, and the class/ability/potion quickbar uses its own scale so it stays usable on large windows.
 
 ## Testing tools
