@@ -1,112 +1,77 @@
 # Project documentation
 
-Updated 2026-10-02 for Wiki references, current startup/settings behavior and verified CI evidence.
+All 18 documentation files under `Activity_2` were reviewed against the local source at
+`7fea86a` on 2026-10-02. This includes this directory, the game README and the three asset
+README files. Feature reports now describe the current implementation; superseded prototype
+controls, completed-feature TODOs, temporary local verification commands and old handoff
+suggestions have been removed. Development history remains available in Git.
 
-## Current source CI evidence — 2026-10-02
+Native evidence was added on **2026-10-03** at `1ae3c78`. After the campaign captures,
+`GameScreen.java` was changed to fix the Training/Objectives overlap; new captures distinguish
+that working-tree build from the original review baseline. See the [playtest report](PLAYTEST_REPORT.md) and
+[screenshot index](screenshots/README.md) for the executed checks and limitations.
 
-The GitLab report for commit `1a2c60c2b7602e2501d86ac380c364b1d704b175` records
-**1,302 passed, 0 failures, 0 errors and 0 skipped tests** in
-[pipeline #1052082](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052082).
-[Build job #7716451](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7716451)
-ran `./gradlew clean build javadocAudit --no-daemon` with the Docker executor and
-`eclipse-temurin:25-jdk`; both module test and JavaDoc audit tasks completed, ending in
-`BUILD SUCCESSFUL`. This was read from CI, not newly executed locally. The attempted local
-rerun was blocked by the Gradle cache lock. The current local follow-up changes Markdown only.
+## Reading guide and audit scope
 
+| Document | Current content checked against code |
+| --- | --- |
+| [Game README](../README.md) | Dependencies, build/run/package steps, title menu, settings, controls and playthrough |
+| [Architecture](ARCHITECTURE.md) | Modules, state ownership, frame order, persistence and real scope decisions |
+| [Integration](INTEGRATION_REPORT.md) | Production gameplay path, startup/settings, configuration and lifecycle |
+| [Automated game tester](TEST_COVERAGE_REVIEW.md) | How to run, command/action-to-state scenarios, illegal-operation checks, CI evidence and manual gaps |
+| [Class skills](FINAL_CLASS_SKILLS_REPORT.md) | Actual J/K/L/O skills, per-class selections, timing and shared combat integration |
+| [Element reactions](ELEMENT_REACTION_COMPLETION_REPORT.md) | Ordered reactions, attachment, statuses, fields and damage boundaries |
+| [Wall collision and occlusion](COMBAT_OCCLUSION_REPORT.md) | Movement/projectile wall checks, fixed-effect visibility and current open-map limits |
+| [Guardian traits](BOSS_TRAIT_REPORT.md) | Five mechanics, shared pattern framework, warnings and rematch scaling |
+| [Quest and portal flow](QUEST_PORTAL_FLOW_REPORT.md) | Quest acceptance, Guide routing, results, stones, Sage ending and credits |
+| [Player defeat](PLAYER_DEFEAT_REPORT.md) | Outcome priority, cleanup, preserved progress and retry behavior |
+| [Inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md) | Items, bonuses, potions, storage, upgrades and reward collection |
+| [Save/load](SAVE_LOAD_REPORT.md) | Both slots, Continue, management, safe states, snapshots, validation and debug restrictions |
+| [Debug/Training/UI](DEBUG_TRAINING_UI_REPORT.md) | Console commands, Training projectile/recovery/reset, HUD and input ownership |
+| [Native playtest](PLAYTEST_REPORT.md) | Dated native steps/results, position fixtures, screenshots, issues and remaining acceptance |
+| [Art integration](ART_INTEGRATION.md) | Current asset use, rendering ownership, HUD, status labels and native verification limits |
+| [Asset attribution](../assets/README.md) | Recorded visual/audio provenance and license references |
+| [Audio README](../assets/audio/README.md) | Three shipped tracks, switching, looping and persistent versus session volume |
+| [Art pack README](../assets/art/README.txt) | Current 232-image manifest and procedural UI boundary |
+
+The stable report filenames are retained so existing Wiki references remain usable.
 The [Wiki Game Tester page](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/wikis/game-tester)
-contains run instructions, command/action-to-state examples, illegal-operation checks,
-the actual CI screenshot and manual acceptance boundaries. The success rate is not line/branch
-coverage. Native input, rendering, audio and full campaign acceptance remain separate checks.
-The older execution blockers/results below are retained as dated historical records.
+contains the previously recorded CI screenshot. This local documentation audit does not claim
+to have republished or rechecked all Wiki pages.
 
-## Current working-tree verification — 2026-09-30
+## Verification reference
 
-See [Test coverage review](TEST_COVERAGE_REVIEW.md). The full `test javadocAudit` run was attempted,
-but sandbox access to the Gradle cache lock was denied; the elevated request is awaiting authorization.
-There is no new passing total, JavaDoc result or native visual acceptance to report for this checkout.
-New tests and the coverage map are not substitutes for execution. Historical evidence below is retained.
+[The tester guide](TEST_COVERAGE_REVIEW.md#recorded-result) is the single detailed result record:
+**1,302 passed, zero failed/error/skipped**, pipeline **#1052082**, source commit **1a2c60c**.
+Its build job ran `./gradlew clean build javadocAudit --no-daemon` with JDK 25.
+A local Git comparison confirms that `1a2c60c..7fea86a` changes only Markdown within Activity_2
+and does not change its source/assets/build configuration or root CI configuration.
+This supports the source comparison; it is not a new pipeline execution at `7fea86a`.
 
-## Recorded verification — 2026-09-28
+This update refreshes documentation, adds native screenshots and fixes the Training HUD overlap. The 2026-10-03 native
+scenario results are recorded separately from CI; no new full Gradle-suite success or coverage
+percentage is claimed. All five distinct wins, Hall ending, all Credits pages, save restoration and relaunch were
+verified across the combined session. Wind was completed by the user without debug features;
+agent-controlled travel used position-only fixtures. Remaining manual gaps are explicit in the report.
+No launch approval is pending; the user launched the temporary app successfully.
 
-`./Activity_2/gradlew -p Activity_2 test javadocAudit lwjgl3:classes` passed:
-**1,235 core + 4 desktop = 1,239 tests**, zero failures, errors or skipped tests.
-JavaDoc audits and desktop compilation passed. This audit adds nine test cases for console input
-ownership/editing/colour state, one-shot boundaries, all four no-CD slots, non-revival/isolation,
-and free-upgrade safety. `git diff --check` is clean.
+Local documentation checks on 2026-10-02 passed: 114 relative file/directory links and heading
+anchors resolve; all 87 documented test selectors match existing test classes; all 232 PNG
+manifest paths and recorded dimensions match the files. Referenced implementation commits
+exist in local Git history, Markdown fences are balanced, and `git diff --check` is clean.
+These checks validate documentation structure and source references, not test execution.
 
-The [coverage matrix and manual regression cases](DEBUG_TRAINING_UI_REPORT.md) distinguish model
-verification from actual window/key/mouse rendering checks. These results do not claim a fresh
-manual playthrough, and no commit/MR identity is assigned to uncommitted work.
+Final local checks on 2026-10-03 passed: 231 relative links/anchors resolve, all 87 documented
+test selectors match existing classes, all 41 JPEG captures have valid image headers/dimensions
+and recorded SHA-256 checksums, and `git diff --check` is clean. The images total approximately
+3.95 MB. The only production source change is the Training panel stacking in `GameScreen.java`;
+build configuration is unchanged. Fresh direct-JDK compilation, 83 selected JUnit tests and
+strict JavaDoc for that file passed; native captures verify the wrapped-objective layout.
 
-Follow-up interaction audit on the same date fixed NPC dialogue simulation and no-CD save
-restoration. Full verification now passes **1,237 core + 4 desktop = 1,241 tests**; JavaDoc
-and desktop compilation also pass. See the follow-up section in the coverage report.
+## Maintaining these documents
 
-## Where to start
-
-| Document | Purpose |
-| --- | --- |
-| [Game README](../README.md) | Setup, launch, current controls, gameplay and module overview. |
-| [Test coverage review](TEST_COVERAGE_REVIEW.md) | Current test inventory, new cross-module regressions, execution blockers and manual QA gaps. |
-| [Architecture](ARCHITECTURE.md) | Ownership, game-loop integration, persistence boundaries and contribution evidence. |
-| [Inventory and equipment](INVENTORY_EQUIPMENT_REPORT.md) | Obtaining/equipping items, storage transfers, bonuses, potions, merchant supplies, +1/+2 upgrades and one-time rewards. |
-| [Save and load](SAVE_LOAD_REPORT.md) | Esc menu, save management (load/delete), restart, volume, transient feedback, slot independence, safe-state rules and regression checks. |
-| [Debug, Training and UI](DEBUG_TRAINING_UI_REPORT.md) | Current commands, training rules, feature-to-test coverage and manual regression cases. |
-| [Art integration](ART_INTEGRATION.md) | Runtime artwork, HUD presentation and asset coverage. |
-| [Guardian traits](BOSS_TRAIT_REPORT.md) | Per-guardian signature mechanics, status labels, minimap Boss marker and balance measurements. |
-| [Asset attribution](../assets/README.md) | Visual/audio provenance and licensing references. |
-
-## Integration and historical reports
-
-| Report | Stage it records |
-| --- | --- |
-| [Placeholder integration](INTEGRATION_REPORT.md) | 2026-09-10 placeholder gameplay baseline (#15). |
-| [Player defeat](PLAYER_DEFEAT_REPORT.md) | Failure return to Hub and encounter reset (#16). |
-| [Wall occlusion](COMBAT_OCCLUSION_REPORT.md) | Shared static-wall line-of-sight gate for attacks (#17). |
-| [Quest portal flow](QUEST_PORTAL_FLOW_REPORT.md) | Quest-gated portal admission and outcome handoff (#18). |
-| [Class skills](FINAL_CLASS_SKILLS_REPORT.md) | First-version Archer/Mage/Katana skills and A/B ultimates (#19). |
-| [Element reactions](ELEMENT_REACTION_COMPLETION_REPORT.md) | Ordered reaction table, statuses and ground fields (#20). |
-
-These retain the design and test evidence from those development stages. Their old debug keys, missing-feature lists, test counts and
-suggested handoff text are not current release instructions. Use the game README for
-current controls and the feature reports above for inventory/persistence behavior.
-
-
-## Delivered work and evidence
-
-| Work | Traceability / validation boundary |
-| --- | --- |
-| Bag/equipment, item bonuses, potions, reward transfer (#47) | `21de2898`, merged through !38 / `b3ac158b`; original dated checks are retained in the inventory report. |
-| Save foundations and complete gameplay integration (#48) | `82f6a450`, `c8d14bc9`, merged as `d47a1f6b`; original integration run recorded 1,165 core and 4 desktop tests passing. |
-| Save UI refinement and persistence documentation (#48) | `534cb93`, merged through !41 as `12d6da8`. |
-| Pause menu, save management/deletion, restart, volume, merchant potion supplies | `ec0a8fb` (2026-09-25). |
-| Pause-menu improvements, hood/gloves/boots effects, Health capacity changes, +1/+2 equipment upgrades | `a4c7e9f`, `bbe814b` (2026-09-26); with `ec0a8fb`, merged through !42 as `ab76422`. Visual/manual acceptance of these screens is not recorded here. |
-| Guardian signature mechanics (#46) and minimap Boss marker (#45) | Merged through !37 / `3ffda97` and !36 / `0dcb746`; measurements in the guardian traits report. |
-| Wind Boss blink fix (#49) and P potion hotkey (#50) | !40 / `cabdce7`; `721f9e6` committed directly to main. |
-| User save/load acceptance | User reported restoration of position, bag/equipment and chest contents, including after restart. This does not establish every failure-path or Boss playthrough check. |
-| Notification lifetime, position and resizing | Follow-up working-branch refinement; 62 focused save/menu/HUD tests plus core JavaDoc audit and desktop compilation passed on 2026-09-24. Visual resize/dialogue regression remains to be checked. |
-| Storage-to-bag guidance and empty weapon wording | Follow-up working-branch refinement; core compilation and JavaDoc audit passed on 2026-09-25. Visual interaction check remains to be performed. |
-| Boss victory autosave | Covered by automated save integration tests; a complete manual victory/checkpoint/reload playthrough remains outstanding. |
-
-The subsequent Esc menu redesign passes **1,191 core and 4 desktop tests**, JavaDoc audits
-and desktop compilation. Its complete native visual/restart checklist is in the save/load
-report; it is not claimed as manually accepted. The earlier top-left notification design
-is superseded by this menu and transient-toast implementation.
-
-These results belong to their recorded code stages. The subsequent pre-merge verification on 2026-09-25 passed **1,184 core tests and 4 desktop
-tests**, plus JavaDoc/build checks using the local JDK 26 override. It does not establish
-that every checklist item has been manually accepted.
-The team subsequently changed Wind Boss behavior and added the P potion shortcut; those
-are distinct from Hao Liu's inventory/save implementation.
-
-**Recorded verification (2026-09-26, `ab76422`):** `./gradlew clean build javadocAudit` with JDK 25.0.4.1
-passed **1,211 core tests and 4 desktop tests** (0 failures, 0 skipped) plus the JavaDoc audit. This is an
-automated result only; it does not replace the outstanding manual/visual checks listed above.
-
-## Keeping documentation current
-
-When changing player behavior, update the game README and the relevant feature report.
-When changing ownership, frame ordering or snapshot contracts, also update Architecture.
-Record actual test commands/results separately from future regression instructions, and
-add the real commit or merge reference once it exists. An Issue tracks scope and completion;
-it complements these versioned project documents rather than replacing them.
+Update the game README and the relevant feature report when player behavior changes.
+Update Architecture when state ownership, frame order or persistence contracts change.
+Keep run instructions separate from dated execution results. Record actual commit/pipeline
+identities for results and distinguish model assertions from native window/audio checks.
+Do not copy stale test totals into each report or describe test-fixture shortcuts as game controls.

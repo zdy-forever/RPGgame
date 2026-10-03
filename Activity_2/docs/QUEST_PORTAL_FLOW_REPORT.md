@@ -1,177 +1,94 @@
-# Quest portal / gameplay integration report
+# Quests, portals, rewards and ending
 
-> Current integration note (2026-09-25): BossQuests now supplies the NPC quest flow, InventoryRewards collects settled rewards, and GameSaves persists progress, replay IDs and pending rewards. The adapter report and its test counts below record the original integration stage.
-> See [current controls](../README.md), [inventory/equipment](INVENTORY_EQUIPMENT_REPORT.md)
-> and [save/load](SAVE_LOAD_REPORT.md) for the current production behavior.
+Reviewed against `7fea86a` on 2026-10-02. Sources:
+[EncounterFlow](../core/src/main/java/au/edu/anu/comp2120/EncounterFlow.java),
+[BossQuests](../core/src/main/java/au/edu/anu/comp2120/quest/BossQuests.java),
+[PortalGuide](../core/src/main/java/au/edu/anu/comp2120/npc/PortalGuide.java),
+[TravelCatalog](../core/src/main/java/au/edu/anu/comp2120/world/TravelCatalog.java).
 
-## Scope
+## Player route
 
-Developer A now exposes task admission, single-Boss scope lifecycle, settled battle results
-and a one-time material transfer boundary. No QuestManager, Quest business rules, NPC,
-dialogue, UI, Inventory operations, save/load or formal art assets were added.
+1. In Hub, speak to Quest Keeper and choose one of five guardians. An unfinished task may be
+   replaced; an already completed guardian may be accepted again as a rematch.
+2. Acceptance prepares the exact battle permission and closes the Hub portal. Speak to Portal
+   Guide and select Battle to activate the accepted route. The menu names the target or explains
+   that Battle is locked until acceptance.
+3. Close dialogue and walk into the portal at (890, 245). Selection alone does not move/heal you.
+4. Victory returns you to Hub with full HP and rewards/progress; failure returns/heals with the
+   task retained for retry. Accept a fresh quest after success before another battle.
 
-## External adapter contract
+Portal Guide also selects Training Ground or Memorial Hall without a battle task. Either visit
+retains an accepted quest/retry identity; selecting Battle later restores that task's route.
+Training returns through its exit NPC; Memorial Hall uses the return portal. Arrival protection
+prevents immediate re-entry until the player leaves the trigger.
 
-Current integration (2026-09-30): BossQuests accepts via `EncounterFlow.prepare(...)`, keeping
-the portal closed until PortalGuide confirms Battle and calls activation. The production Hub
-uses `TravelCatalog.QUEST_PORTAL_ID`; Training is not a quest Battle map. InventoryRewards and
-GameSaves now consume/persist the result boundary. The API fragments below retain the original
-multi-portal prototype IDs and must not be copied as current configuration. U/1/2/3 travel keys
-are removed; the UI uses Portal Guide. See [current controls](../README.md) and
-[test coverage](TEST_COVERAGE_REVIEW.md) for current routing and verification limits.
+There is one configurable Hub portal, plus the Hall return portal. Internal fast-travel APIs
+serve adapters and tests; there are no U/1/2/3 gameplay travel shortcuts. In Manage saves, 1/2
+select save slots and have no travel meaning.
 
-All calls run on the simulation/game-loop thread, not a worker or damage callback.
+## Admission and one-time settlement
 
-```text
-EncounterFlow flow = gameScreen.getEncounterFlow();
+GameSession owns the current map/Player. TravelSystem owns route/enabled/unlock state and
+transition provenance. EncounterFlow owns exact ActiveEncounter acceptance IDs, admitted Battle
+lifetime, last result, completed IDs, victory counts and pending rewards. BossQuests owns the
+active target and distinct completion state, observing matching successful results once.
 
-// Developer B calls after an actual acceptance in Hub.
-// ID identifies this acceptance, not a reusable quest definition or map.
-flow.activate(new ActiveEncounter(
-        "acceptance-001", MapCatalog.CROSSROADS, "entry", "hub-crossroads"));
+`prepare` validates a living Hub context and stores permission while leaving admission closed.
+`activate` enables the exact accepted route. An unauthorized direct map switch must not create
+a production Boss fight. CombatDemo consumes admitted travel provenance and rebuilds one combat
+scope. Training creates a TrainingDummy without a Boss reward or campaign result.
 
-// Read-only observations: repeated reads cause no side effects.
-Optional<ActiveEncounter> permission = flow.getActiveEncounter();
-Optional<BattleResult> latest = flow.getLastResult();
-Map<BattleResult, MaterialDrop> unclaimed = flow.getPendingRewards();
+After combat settlement, Player death is checked before Boss death. Success copies the one-time
+material reward into EncounterFlow before clearing the old Boss. It closes admission, records
+completion/win count and returns/heals. Failure grants no material, keeps the task permission and
+returns/heals for a fresh retry. A completed acceptance cannot be replayed to create extra loot.
 
-// The external adapter chooses a pending result and is ready to own its payload.
-// Only its first claim succeeds. Do not claim speculatively before adapter readiness.
-Optional<MaterialDrop> transferred = flow.claimReward(result);
+InventoryRewards collects an outbox reward only when it fits. Overflow retains it for a later
+attempt and for persistence. GameScreen then reconciles equipment, synchronizes quests and
+requests victory autosave. Neither talking to Quest Keeper nor picking up a rendered object is
+needed to collect an ordinary successful reward.
 
-// Optional withdrawal/replacement in Hub; does not erase rewards or mutate a Quest.
-flow.clearActiveEncounter();
-flow.activate(new ActiveEncounter(
-        "acceptance-002", MapCatalog.TRAINING, "entry", "hub-training"));
-```
+## Hall, objectives and credits
 
-These are API call fragments, not a standalone Java compilation unit; `result` is a key selected from `unclaimed`.
-Developer B observes `(encounter.id, encounterVersion, outcome)` to distinguish retries
-and owns Quest completion/replacement. FAILURE does not clear gameplay permission, so the
-external Quest may remain ACTIVE. SUCCESS clears permission; the next acceptance must have
-a fresh encounter ID. Replaying an already successful ID throws even after reward claim.
+Each distinct guardian success lights its matching stone in Memorial Hall. Repeated wins
+increase rematch scaling but do not add another stone. Defeat/Training does not light a stone.
+The Hall is available before completion and is a safe save location.
 
-`EncounterFlow.complete(outcome, reward)` is a **gameplay coordinator endpoint**, not an
-external Quest/Inventory command. Only CombatDemo supplies settled Boss/player outcomes.
-External adapters must not enable owned portals directly or claim the live Boss drop;
-use this boundary's activation and retained reward methods instead.
+Hub guidance progresses through Old Sage, Class Master, Quest Keeper and Portal Guide, with
+current objective text below HP. After all five wins, Hub Old Sage supplies the Hall direction
+and records that hint; this guides the player rather than unlocking the Hall route itself.
+In Memorial Hall, minimap and objective panel are hidden, and the local Sage receives the
+relevant marker until the ending has started.
 
-## Lifecycle and cleanup
+The ending starts only on an explicit living-player interaction with the Hall Sage after all
+five distinct completions. It is a short implemented dialogue; it is not a missing future script.
+The consumption flag is set when it starts, so cancelling it does not create another first-time
+trigger. Completing the dialogue offers credits or closing the conversation. Later completed
+Hall conversations can offer credits again; credits do not exit the game or change rewards.
+The player may continue exploring/practising/rematching.
 
-1. `TravelCatalog.createQuestPortals()` supplies closed Hub task portals, without manual
-   Battle-to-Hub return portals. `EncounterFlow` explicitly owns their enabled states.
-2. Activation validates references, Battle type and full-body player spawn before replacing
-   a route. It disables old task portals, then enables the selected route. Invalid requests
-   leave the old permission and route unchanged. Replacement/withdrawal require a live Hub.
-3. Actual portal entry uses TravelSystem -> GameSession. A portal ID plus the exact session
-   transition stamp authorizes the encounter. CombatDemo creates one Boss, no ordinary mobs.
-4. The coordinator checks settled outcomes before travel/input and after the shared combat
-   update. Player death takes precedence on simultaneous player/Boss death: FAILURE, no reward.
-5. FAILURE returns through GameSession and retains permission for retry.
-6. SUCCESS synchronizes Boss death once, observes the immutable material, returns through
-   GameSession and retains material in the outbox. It consumes Boss.claimDrop before clearing
-   old registrations, closes task portals and clears active permission.
-7. Both paths reuse combat.clear / ability rebind: old Boss/AI registrations, attacks,
-   hitboxes, projectiles, attachments, queued derived attacks, dash and launch states are
-   cancelled or detached. Only the same persistent Player is registered in Hub, then its
-   existing Health.restoreFull is called. Slot cooldowns follow the existing preservation rule.
-8. Re-entry after FAILURE constructs a fresh Boss with full HP, phase 1 and initial state,
-   not a revived or reused object. The return frame accepts no further movement/abilities/portals.
+Save/load restores active permission, completed IDs, pending rewards, distinct wins, rematch
+counts, ending consumption, Hall hint and NPC flags. This is saved quest/ending progress, not a
+separate achievement subsystem. See [save/load](SAVE_LOAD_REPORT.md).
 
-Invalid Hub configuration throws before result publication, admission closure or Boss reward
-claim. Repeated failed return attempts keep the same Boss material, without producing duplicates.
+## Verification
 
-## Rewards and results
-
-- `getLastResult` retains the latest immutable BattleResult, not a Quest state or event bus.
-- A separate in-memory outbox retains every unclaimed SUCCESS material across map changes and
-  later acceptances. Reading a snapshot does not duplicate a reward or consume it.
-- `claimReward(result)` removes one payload. Repeated, unknown or FAILURE claims return empty.
-- MaterialDrop contains only existing ID/material/quantity/map/geometry data, no old Boss reference.
-- No inventory add, capacity, pickup, reward accounting or persistence is implemented.
-
-## Class, O configuration and fast travel
-
-The production PlayerAbilities instance enforces Hub-only runtime class/loadout changes,
-including same-class O configuration changes. Existing class/ultimate objects survive both
-return paths. The subsequent final-class-skills implementation adds per-class A/B modes,
-Hub-only selection and persistent choices; see FINAL_CLASS_SKILLS_REPORT.md. R is ignored in production Battle scopes and remains a Hub debug reset.
-
-Fast travel remains independent: existing unlocks, validation, map switching and arrival
-guards still work. It does not constitute task portal admission, even for the selected map.
-Consequently debug U/2/3 visits contain no task Boss. Travelling away clears the old scope
-without a success/failure result and retains retry permission; normal task play uses outcomes.
-
-The old `CombatDemo(session)` constructor remains an explicitly unrestricted isolated demo/test
-harness. Production GameScreen uses `CombatDemo(session, encounterFlow)`; adapters must not
-construct the unrestricted harness for task gameplay.
-
-## Files
-
-New:
-
-- `core/src/main/java/au/edu/anu/comp2120/ActiveEncounter.java`
-- `core/src/main/java/au/edu/anu/comp2120/BattleResult.java`
-- `core/src/main/java/au/edu/anu/comp2120/EncounterFlow.java`
-- `core/src/test/java/au/edu/anu/comp2120/screen/QuestPortalFlowTest.java`
-- `docs/QUEST_PORTAL_FLOW_REPORT.md`
-
-Modified:
-
-- `TravelSystem.java`: validated retargeting, portal observation and exact arrival provenance.
-- `screen/CombatDemo.java`: optional production boundary, outcome settlement, reward handoff/cleanup.
-- `screen/GameScreen.java`: production wiring, adapter getter and pre/post-settlement arbitration.
-- `player/PlayerAbilities.java`: Hub-only selection policy for the production controller.
-- `world/TravelCatalog.java`: separate initially closed task-only route catalogue.
-- `screen/PlayerDefeatTest.java`: explicit null cast to retain the original constructor validation
-  test after adding an overload; no test removed or assertion weakened.
-- `README.md` and `docs/ARCHITECTURE.md`: current contract and standalone-debug distinction.
-
-## Validation
-
-Final full rebuild:
+From Activity_2:
 
 ```sh
-./gradlew clean test build javadocAudit
+./gradlew core:test --tests '*QuestPortalFlowTest' --tests '*BossQuestFlowTest' \
+  --tests '*PortalGuideTrainingTest' --tests '*CoreGameplayIntegrationTest' \
+  --tests '*MemorialHallTest' --tests '*CreditsDialogueTest' \
+  --tests '*GameScreenObjectiveTest' --tests '*GameSavesTest'
 ```
 
-Result: **BUILD SUCCESSFUL**, all 14 tasks executed. **740 tests in 40 suites**, zero failures,
-errors or skipped tests. The new integration suite adds 21 cases over the prior 719-test baseline.
-Strict JavaDoc audit covers private main/test declarations in core and lwjgl3; it passed.
-New files use the explicitly supplied author Daoyan Zhu (u7782042).
-
-Coverage includes closed/open/configured portals, correct spawn, exactly one Boss, failure
-retry and phase reset, Hub replacement, shared-combat lethal success, one-time reward claim,
-multiple pending rewards, no replay of successful acceptance, both-outcome identity/O retention,
-Hub-only configuration, fast-travel isolation, no return loop, projectile/dash/old-Boss cleanup,
-elemental/derived cleanup, invalid spawn/wiring/settlement and invalid Hub reward preservation.
-
-Development validation also ran `./gradlew test build javadocAudit` and
-`./gradlew test javadocAudit`. Initial compile errors in test calls were corrected (ambiguous
-null overload and the nullable Projectile accessor); the final clean run above is authoritative.
-
-Startup smoke check: `./gradlew lwjgl3:run` launched the desktop process without a startup
-exception. `jcmd <launched-pid> Thread.print` confirmed the live Lwjgl3Application loop after
-more than 40 seconds. The smoke process was then intentionally stopped with Ctrl-C.
-No manual keyboard combat or visual UI verification is claimed; flow coverage is JUnit-based.
-
-## Remaining limits / separate work
-
-- Fresh production startup intentionally has closed task portals. There is no fake acceptance
-  key, NPC or task UI; Developer B must call the adapter boundary to begin normal battles.
-- Reward outbox/completed-ID replay protection are in memory only. Unclaimed rewards accumulate
-  until an adapter consumes them. Save/load and crash-safe cross-module delivery are separate work.
-- External adapters must coordinate ownership/readiness before claim. This is at-most-once
-  gameplay transfer, not a durable transaction with Inventory or an acknowledgement/retry protocol.
-- Only the latest result is retained; Developer B should observe results during ordinary game-loop
-  integration. Reward payloads, unlike the latest result snapshot, are retained individually.
-- Custom Battle maps still need a valid existing GameConfig Boss placement candidate. This branch
-  validates player entry geometry but does not add a new Boss-spawn configuration system.
-- O modes/skills are now implemented by the subsequent final-class-skills work. Final balance,
-  inventory adapters, Quest state, UI and persistence remain separate work. No formal art or Git/GitLab operation was used.
-
-## Suggested handoff text
-
-Commit: `feat(gameplay): integrate quest portal admission and battle outcome handoff`
-
-MR title: `Integrate quest-controlled portals, battle returns and one-time Boss rewards`
+Scenarios cover locked/accepted admission, retries/replacements, practice preservation,
+movement-triggered arrival, outcome/reward deduplication, distinct stones, ending consumption,
+credits and persisted state. [Verified CI](TEST_COVERAGE_REVIEW.md#recorded-result) is recorded
+separately from native acceptance. [Native checks on 2026-10-03](PLAYTEST_REPORT.md) exercised
+Quest Keeper acceptance, Guide selection, actual portal entry, five distinct wins/rewards,
+Wind defeat and retry, relaunch/Continue, Training, Hub Sage endgame guidance, all five Hall
+stones, three ending lines and all five Credits pages. Wind was completed by the user without
+debug features; NPC/portal approaches used disclosed position-only fixtures. Ending state was
+saved and reloaded in Hall. Normal walking routes, rematches and exhaustive objective/marker
+and ending cancellation/replay cases remain outside this session.

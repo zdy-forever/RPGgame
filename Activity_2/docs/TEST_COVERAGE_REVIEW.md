@@ -1,131 +1,189 @@
-# Test coverage and documentation review — 2026-09-30
+# Automated game tester and verification
 
-## Follow-up CI evidence — 2026-10-02
+Reviewed against `7fea86a` on 2026-10-02. This page explains how to run the tester,
+what it checks and which results have actually been observed.
 
-The current-source GitLab report was inspected for commit
-`1a2c60c2b7602e2501d86ac380c364b1d704b175`:
-[pipeline #1052082](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052082)
-reports **1,302 passed, 0 failures, 0 errors and 0 skipped tests**.
-[gradle-build #7716451](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7716451)
-executed `./gradlew clean build javadocAudit --no-daemon` in `Activity_2`, using
-`eclipse-temurin:25-jdk` with the Docker executor. Both module test and JavaDoc audit tasks
-completed, and the log ends `BUILD SUCCESSFUL`.
+## What the tester is
 
-This supersedes the absence of current-source automated evidence in the original review below.
-It does not turn the earlier blocked local attempts into successful runs: the 2 October local
-attempt was also blocked at the wrapper cache lock. The Wiki includes the actual CI report
-screenshot. Native/manual checks listed below remain outstanding; test success is not measured
-line/branch coverage or an end-to-end graphical playthrough. Later commits require their own CI.
+The automated game tester is the set of JUnit gameplay scenarios that drive the same
+GameSession, PlayerCommand, TravelSystem, EncounterFlow, PlayerAbilities and CombatSystem
+used by the game. They submit commands/actions, advance bounded simulation frames, and
+assert resulting state: positions, HP, admission, rewards, map transitions and saved progress.
 
-## Status and evidence boundary
+These higher-level scenarios are distinct from normal unit tests for individual geometry,
+parsing or arithmetic methods, although both use the Gradle/JUnit runner. There is no separate
+native window-driving executable or standalone smoke-test application. The console is a manual
+debug tool; it does not assert outcomes or replace the tester.
 
-This is a source/test/documentation audit of the current working tree, not a coverage-percentage
-measurement or a claim that all code paths have tests. No production behavior is changed by this
-review. Existing tests are retained; old branch results and contribution attributions are not rewritten.
+Some fixtures arrange an initial position or directly settle a Boss for a focused persistence
+check. Other scenarios use real attacks to complete fights. A direct death fixture must not
+be described as a full mouse/keyboard playthrough.
 
-Attempted from the repository root:
+## Dependencies and commands
 
-```sh
-./Activity_2/gradlew -p Activity_2 test
-```
+Use JDK 25 and the checked-in Gradle wrapper. Full setup is in the [game README](../README.md).
+Run the following from `Activity_2`. On Windows substitute `./gradlew.bat`.
 
-It exited before Gradle started because the sandbox could not open the wrapper cache's `.zip.lck`
-file under the user's Gradle directory (`Operation not permitted`). An elevated request was submitted
-from Activity_2 for:
+Full build, both test modules and strict JavaDoc audit (same command as CI):
 
 ```sh
-./gradlew test javadocAudit
+./gradlew clean build javadocAudit --no-daemon
 ```
 
-That request is awaiting authorization. **There is no current passing test total, compilation result
-or strict JavaDoc result.** Prior successful runs in other reports remain dated historical evidence.
-All changed/new test declarations have JavaDoc in source. Once authorized, rerun the command above;
-it includes core and desktop tests plus private/test JavaDoc. Do not delete tests to obtain green results.
+Force both test tasks to execute again:
 
-## Newly filled gaps in this review
+```sh
+./gradlew test --rerun-tasks --no-daemon
+```
 
-| Gap | Added test | Verification performed by the test |
+Run the higher-level gameplay scenarios separately from the complete unit suite:
+
+```sh
+./gradlew core:test --rerun-tasks --no-daemon \
+  --tests '*CoreGameplayIntegrationTest' \
+  --tests '*QuestPortalFlowTest' \
+  --tests '*BossQuestFlowTest' \
+  --tests '*PortalGuideTrainingTest' \
+  --tests '*PlayerDefeatTest' \
+  --tests '*MemorialHallTest' \
+  --tests '*EquipmentIntegrationTest' \
+  --tests '*PotionGameplayTest' \
+  --tests '*GameSavesTest'
+```
+
+Run movement/wall and illegal-operation checks:
+
+```sh
+./gradlew core:test --rerun-tasks --no-daemon \
+  --tests '*PlayerTest' --tests '*CollisionSweepTest' \
+  --tests '*WorldOcclusionTest' --tests '*CombatOcclusionTest' \
+  --tests '*ProjectileTest' --tests '*TravelSystemTest' \
+  --tests '*GearUpgradesTest' --tests '*GameSavesTest'
+```
+
+JUnit reports failures through Gradle's nonzero exit status and assertion output. Passing
+runs end with `BUILD SUCCESSFUL`. HTML reports are in `core/build/reports/tests/test/index.html`
+and `lwjgl3/build/reports/tests/test/index.html`; XML reports are under each module's
+`build/test-results/test/`. A filtered run reports only its selected cases, not the full-suite
+total. Parameterized test invocations are counted separately. Tests use substitutes for
+LibGDX input/audio where appropriate and temporary directories for save-file scenarios.
+
+## Command/action-to-state examples
+
+Test paths in the table are relative to `core/src/test/java/au/edu/anu/comp2120/`.
+
+| Scenario | Input/action | Expected state asserted by the tester |
 | --- | --- | --- |
-| Saved win counts might restore as data but not affect new encounters | `save/GameSavesTest.restoredWinsScaleOnlyTheMatchingGuardian` | Five guardian cases, each loading both AUTO and MANUAL after two victories; unrelated counts remain zero, the next Boss has scaled/full HP and phase one. |
-| Icon rectangles fitting does not guarantee real text fits | `screen/PotionFontLayoutTest` | Reads LibGDX's actual default font metrics; measures x0–x999 and 999+ at five window aspect/size combinations. Texture coordinates are skipped; this is not GPU screenshot testing. |
-| Combined-key tests do not independently prove every advertised menu alias | `screen/MenuKeysTest` | Every direction/confirm alias separately; paging same-direction aliases step once, opposite directions cancel, P/J/K/L/O do not become menu actions. |
+| Admitted movement/travel | Prepare permission/route, then submit movement frames into a portal | Correct named spawn, same Player, correct collision world, one Boss or one Training target, no immediate return bounce |
+| Class battle completion | Select each class and A/B mode; arrange starting range; issue normal ability commands | Real Boss death, Hub return, one reward and closed successful permission |
+| Invalid admission | Enter without matching permission or attempt a locked route | Rejection/no unauthorized encounter |
+| Defeat and retry | Deliver lethal damage, including simultaneous Player/Boss death | Failure priority, full-HP Hub recovery, no victory reward/autosave, retained retry task |
+| Wall movement | Move/dash across a thin obstacle or beyond bounds in a test map | Body stays in walkable space; no tunnelling |
+| Attack obstruction | Fire projectiles or submit fixed attacks across explicit walls | Wall prevents delivery/attachment; equal-time projectile wall hit wins |
+| Potion use | Press P once/hold it, use bag stock, test full/dead/empty states | One eligible consumption, capped healing, refusals without consumption, no chest-stock consumption |
+| Upgrade rejection | Request unowned/capped gear or insufficient material | No item/material mutation; debug free upgrade still respects ownership/capacity/+2 |
+| Safe snapshot round trip | Save, mutate state, restore selected slot | Position/HP/class/equipment/chest/quest/win counts restored, other slot unchanged |
+| Illegal or corrupt load | Load during unsafe play or use malformed/inconsistent snapshot | Refusal before partial live mutation |
+| Debug victory | Enable cheat, settle success and request save | Reward/quest settlement still occurs, normal save files remain unchanged |
+| Ending | Complete five distinct targets and interact in Memorial Hall | Exactly five stones and one ending consumption; repeat wins do not add stones |
 
-These add 12 JUnit invocations including parameterized cases; each invocation may contain multiple
-assertions/scenarios. This is a source-level count, not an executed passing count.
+Concrete production scenario examples are in
+[CoreGameplayIntegrationTest](../core/src/test/java/au/edu/anu/comp2120/screen/CoreGameplayIntegrationTest.java):
+`admissionByMovementUsesCurrentMapCollisionAndOneTarget` and
+`actualCombatCompletesOneRewardAndClosesPermission`.
+The former sends `new PlayerCommand(1, 0, false, false, false, false)` in 0.1-second frames
+and asserts arrival/map/target state. The latter covers all six class/ultimate combinations
+using ordinary ability commands; it arranges starting position but does not set either actor's HP.
 
-## Recent regression coverage retained
+[GameplayIntegrationTest](../core/src/test/java/au/edu/anu/comp2120/screen/GameplayIntegrationTest.java)
+also uses an unrestricted component harness and direct travel fixtures. Its shortcuts are
+not production controls; production permission tests live in CoreGameplayIntegrationTest and
+the quest/portal suites. Built-in arenas are open, so wall scenarios deliberately construct
+obstacles instead of claiming visible campaign walls exist.
 
-- `player/PotionGameplayTest`: all classes, effective HP boundaries, no held-P repeated consumption,
-  stock isolation, map transitions, equipped maximum HP and unchanged class/cooldown/equipment state.
-- `screen/PotionFeedbackTest`: actual healing, exact remaining stock and distinct refusal reasons;
-  no double-consumption when stock reaches zero.
-- `screen/SaveMenuTest`: non-modal potion toast expires after four seconds without healing again;
-  existing menu input, safe-state, confirmation, deletion/restart and volume checks remain.
-- `screen/HudLayoutTest`: centered potion/optional-element slots, scale cap, visibility/recovery,
-  compact count thresholds and negative-count rejection.
-- `save/GameSavesTest`: manual/restart potion quantities, victory autosave and defeat/retry without refunds.
-- `screen/PortalGuideTrainingTest`: current NPC/skill instructions and save/load onboarding in both
-  Hub Old Sage and Notice Board; removed U/1/2/3 travel guidance stays absent.
+## Suite map
 
-## Broader suite map
-
-The existing suite already exercises the following areas; this map identifies relevant tests rather
-than implying perfect line/branch coverage or native-window acceptance.
-
-| Area | Representative tests |
+| Area | Representative test classes |
 | --- | --- |
-| Movement/world/navigation | PlayerTest, GameMapTest, CollisionSweepTest, AStarPathfinderTest, EnemyNavigationTest |
-| Travel/admission/outcomes | TravelSystemTest, QuestPortalFlowTest, CoreGameplayIntegrationTest, PlayerDefeatTest, BossQuestFlowTest |
-| Shared combat/health/occlusion | CombatSystemTest, HealthTest, HealthCapacityTest, ProjectileTest, CombatOcclusionTest, WorldOcclusionTest |
-| Classes/timing/statuses | PlayerAbilitiesTest, FinalClassSkillsTest, ElementClassIntegrationTest, PlayerControlEffectsTest |
-| Elements/derived safety | ElementRulesTest, ElementCombatTest, ReactionCompletionTest, CombatCapabilitiesTest |
-| Boss/traits/scaling | BossTest, BossAttackTest, BossTraitTest, BossScalingTest |
-| Inventory/merchant/upgrades | InventoryTest, EquipmentIntegrationTest, GearUpgradesTest, PotionSupplyTest, MerchantServicesTest |
-| Save parsing/atomicity/restoration | SaveStoreTest, InventorySnapshotTest, LocationSnapshotTest, SaveMetadataTest, GameSavesTest |
-| UI/audio/assets | DialogueLayoutTest, HudLayoutTest, DebugConsoleTest, SaveMenuTest, BackgroundMusicTest, MusicVolumeTest, ArtIntegrationTest, desktop RuntimeAssetsTest |
+| World/movement/navigation | PlayerTest, GameMapTest, MapCatalogTest, CollisionSweepTest, AStarPathfinderTest, EnemyNavigationTest |
+| Production travel/outcomes | CoreGameplayIntegrationTest, QuestPortalFlowTest, BossQuestFlowTest, PlayerDefeatTest, MemorialHallTest |
+| Health/combat/visibility | HealthTest, HealthCapacityTest, CombatSystemTest, ProjectileTest, CombatOcclusionTest, WorldOcclusionTest |
+| Classes and reactions | PlayerAbilitiesTest, FinalClassSkillsTest, ElementClassIntegrationTest, ReactionCompletionTest, CombatCapabilitiesTest, PlayerControlEffectsTest |
+| Boss mechanics | BossTest, BossAttackTest, BossTraitTest, BossScalingTest |
+| Items/services | InventoryTest, EquipmentIntegrationTest, GearUpgradesTest, PotionSupplyTest, MerchantServicesTest, PotionGameplayTest |
+| Save parsing/restoration | SaveFileTest, SaveStoreTest, InventorySnapshotTest, LocationSnapshotTest, SaveSelectionTest, GameSavesTest |
+| Menus/settings/objectives | MainMenuScreenTest, GameSettingsTest, GameScreenObjectiveTest, MenuKeysTest, SaveMenuTest, CreditsDialogueTest |
+| Training/debug/presentation models | PortalGuideTrainingTest, CombatDemoTest, DebugOptionsTest, DebugConsoleTest, HudLayoutTest, PotionFontLayoutTest, PotionFeedbackTest, StatusLabelsTest |
+| Audio and packaged resources | BackgroundMusicTest, MusicVolumeTest, ArtIntegrationTest, desktop RuntimeAssetsTest |
 
-## Gaps that still require native/manual QA
+Font-metric and layout assertions do not capture GPU output. Fake Music verifies selection,
+looping/gain/lifecycle calls without proving the actual audio device plays correctly.
+RuntimeAssetsTest checks packaged resource access, not visual appearance.
 
-1. At 640x360, 960x540 and 1920x1080, inspect all three class bars: P bottle, zero/ordinary/999+
-   counts, Mage element and cooldown labels. At widths/heights below detail thresholds the bar hides;
-   resizing back must restore it. Font metrics do not prove filtering, clipping, HiDPI or GPU state.
-2. Press P while injured, full and empty; confirm visible four-second feedback and one consumption.
-   Hold P; ensure no repeated use. Open/close bag, dialogue, map, console and Esc menu; their input
-   must not leak to movement, attacks or potion use on the consumed frame. Unit tests of adapters
-   are not full GameScreen keyboard/pointer integration tests.
-3. Read Old Sage/Notice Board pages at small windows; confirm wrapping and menu footer separation.
-   Follow the save instructions using both Esc menu and platform-appropriate Fn+F5/Fn+F9.
-4. Complete a real Boss victory, inspect automatic-save feedback, restart and load; verify rematch
-   difficulty and inventory. Automated fixtures settle Boss death directly, not through a full fight.
-5. Listen during Hub/Memorial travel and volume changes. Fake audio players do not validate devices.
+## Recorded result
 
-No screenshots or manual acceptance are claimed for this review. Do not launch an indefinitely
-blocking computer-use call or treat waiting for permission as completed work.
+The GitLab report inspected on **2026-10-02** for commit
+`1a2c60c2b7602e2501d86ac380c364b1d704b175` reports **1,302 passed, 0 failures,
+0 errors and 0 skipped tests** in
+[pipeline #1052082](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052082).
+[Build job #7716451](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7716451)
+ran `./gradlew clean build javadocAudit --no-daemon` in Activity_2 with the Docker executor,
+`eclipse-temurin:25-jdk` and Gradle 9.7.1. Both modules' tests and JavaDoc audits completed;
+the log ends `BUILD SUCCESSFUL`. This establishes expected results for the executed automated
+assertions at that source revision.
 
-## Documentation audit
+A Git comparison confirms that `1a2c60c..7fea86a` has only Markdown changes under Activity_2,
+with no source/assets/build or root CI changes. The later working-tree Training HUD fix is
+a source change; its separate local verification is recorded below, not attributed to this CI run.
+The CI result belongs to `1a2c60c`; it is not a new execution at `7fea86a`. The earlier local
+wrapper-cache lock failure was not a successful test run and no approval request remains
+pending for it. No fresh local Gradle result is claimed here.
 
-Completed read-only checks (rechecked 2026-10-01): all 89 local file links in the 17 Markdown files resolve;
-the art directory contains 232 PNGs and its manifest contains 233 lines including the header.
-This link check verifies target files, not Markdown heading anchors or external websites.
+The [Wiki tester page](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/wikis/game-tester)
+contains the previously captured CI screenshot. Passing all tests is not a measured line/branch
+coverage percentage, proof that every path is tested, or a native end-to-end playthrough.
 
-Reviewed Activity_2's project Markdown documents and `assets/art/README.txt`; build outputs and
-dependency caches are excluded. The game README and Architecture now describe current potion HUD,
-modal input, save teaching and Training behavior. Save/inventory/UI/art reports link to this execution
-status. Older combat, defeat, quest, class and element reports explicitly separate historical
-prototypes from current APIs. Asset documentation distinguishes imported raster images from
-procedural UI and corrects the pack's current count to 232 PNGs (233 CSV lines including the header).
-Audio behavior and attribution are unchanged. Existing authors and historical commit/MR references
-are preserved, not newly verified or invented by this audit.
+## Native execution record
 
-## Inspection cleanup — 2026-10-01
+On **2026-10-03**, the current native game at `1ae3c78` was launched and exercised through
+the desktop UI. The [dated playtest report](PLAYTEST_REPORT.md) records environment,
+position-only fixtures, steps, expected/actual results, observed issues and 41 real screenshots.
+Verified scenarios include New Game, keyboard settings/fullscreen, manual save/load/cancel,
+storage/equipment, full-health potion rejection, merchant guards, Fire quest/portal entry,
+all five guardian wins, reward/autosave restoration, relaunch/Continue, Training score/reset,
+Wind defeat/return, Hall guidance/ending and all five Credits pages. The user completed Wind
+without debug features; the agent performed the other recorded UI checks. These results are
+independent of the earlier CI report.
 
-Removed redundant GameScreen input branches, the unused Boss import, and already-disabled
-coordinate/weapon renderers with their unused weapon cache. Existing modal early returns remain.
-NPC label placement keeps paired integer steps above/below; no floating-point division is introduced.
-Removed two unused test IOException declarations and their obsolete JavaDoc tags. The deliberate
-null-player contract check is now its own test, with only that test's IDE data-flow warning suppressed.
-Asset documentation uses repository-relative path text for the two files outside IDEA's assets
-resource root. The 89 remaining local Markdown links resolve and `git diff --check` passes.
-The full `./gradlew test javadocAudit` attempt was again blocked at the wrapper cache lock;
-the elevated retry awaits authorization. Compilation, test success and a fresh IDEA inspection
-are not claimed for this cleanup.
+The session reached the ending using disclosed travel-position fixtures and user assistance
+for Wind. It does not establish exhaustive gameplay acceptance or a fresh full Gradle test execution. The Training overlap was subsequently fixed and verified in a freshly compiled native app;
+off-screen Mage targeting remains an observed balance issue. The
+[fix verification](PLAYTEST_REPORT.md#training-overlap-fix-and-verification) records 83 passing
+selected JUnit tests and strict JavaDoc for the changed file using local JDK tools. This was
+not a full Gradle-suite run.
+
+## Manual acceptance still needed
+
+Use the following remaining checks alongside the [executed N01–N16 results](PLAYTEST_REPORT.md#executed-checks):
+
+1. New Game, Continue and title settings/relaunch were checked in N01/N02/N10. Still compare
+   Esc session volume with title preferences and test physical mouse control.
+2. At 640 × 360, 960 × 540, 1920 × 1080 and a smaller window, check all three class bars,
+   potion counts, objective wrapping, dialogue and resized mouse hit areas. Detailed HUD should
+   hide/reappear at its threshold. Hall minimap/objective hiding and Sage marker were observed
+   at 960 × 540; still check their behavior across the resize matrix.
+3. Exercise NPC, bag/chest, map, console and pause menu with keyboard and mouse. Opening/closing
+   frames must not also move, attack or use P. Check potion feedback and held-key behavior.
+4. Five wins, Wind defeat/retry, Hall ending and Credits were checked in N07–N16. Still test
+   all class/guardian matchups, detailed warning/trait behavior, rematches and exact defeat
+   preservation boundaries. The fixed-position Mage approach does not cover normal dodging balance.
+5. Verify the Training upward shot, armour mitigation, five-second recovery and stable R reset;
+   pause mid-recovery to check simulation time stops.
+6. Listen across map changes, volume changes, lifecycle pause/resume and restart on a real device.
+7. Current title/settings, Hub, battle-state, Training, inventory and save screenshots are in
+   [the local gallery](ART_INTEGRATION.md#native-screenshot-gallery). Still capture visible
+   representative attacks/traits for the remaining guardians and classes. Hall ending and all
+   Credits pages are now captured. The Wiki is not updated.
+
+Record actual outcomes and defects after executing these checks; unchecked items remain evidence
+gaps, not fabricated passes or automatic declarations that the features are broken.
