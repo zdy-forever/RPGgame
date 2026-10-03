@@ -7,11 +7,11 @@ production-model integration scenarios and real screen/input integration tests.
 It checks command-to-state behavior, expected events and rejection of illegal actions.
 This report contains the **final full-suite result only**.
 
-The final local command completed with **BUILD SUCCESSFUL**: **1,449 core + 4 desktop =
-1,453 tests passed**, with **0 failures, 0 errors and 0 skipped tests**. Both modules
-built and both strict JavaDoc audits passed. The user ran Gradle in the local terminal;
-the generated XML was independently inspected. JUnit timestamps span
-**3 October 2026, 10:52:55–10:53:00 UTC** (20:52:55–20:53:00 Australia/Sydney).
+The verified full CI command completed with BUILD SUCCESSFUL: 1,454 core + 4 desktop =
+1,458 tests passed, with 0 failures and 0 skipped tests. Both modules built and both
+strict JavaDoc audits passed. These totals come from the original Gradle HTML reports
+in [job #7719170](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7719170), whose artifacts were created on
+4 October 2026 at 10:21:49 Australia/Sydney (UTC+11).
 
 The measurement includes **all compiled core production classes**, including screens,
 rendering and audio code. There are no custom coverage exclusions. Desktop launcher
@@ -20,9 +20,9 @@ full build. A test pass rate and code coverage measure different things.
 
 | Core metric | Covered / total | Coverage |
 | --- | ---: | ---: |
-| Lines | 5,681 / 5,819 | 97.63% |
-| Branches | 3,843 / 4,336 | 88.63% |
-| Instructions | 36,176 / 37,097 | 97.52% |
+| Lines | 5,683 / 5,822 | 97.61% |
+| Branches | 3,845 / 4,340 | 88.59% |
+| Instructions | 36,137 / 37,065 | 97.50% |
 | Methods | 1,020 / 1,024 | 99.61% |
 | Classes | 135 / 135 | 100.00% |
 
@@ -36,21 +36,18 @@ full build. A test pass rate and code coverage measure different things.
 | npc | 97.60% | 92.86% |
 | player | 99.23% | 92.34% |
 | quest | 100.00% | 94.44% |
-| save | 99.31% | 92.22% |
-| screen | 96.19% | 84.72% |
+| save | 99.08% | 91.91% |
+| screen | 96.20% | 84.69% |
 | world | 98.65% | 91.57% |
 
-Source base: `4030a7b3d49f91e4347519a9ede2625ce8540076`, with the submitted test/build
-changes applied. Production Java files were not changed by this testing pass. The
-archived manifest identifies the exact production/test/configuration files by SHA-256;
-the base commit alone does not identify the uncommitted test additions. The manifest also records a later
-declaration-only cleanup in the screen test (an unnecessary `throws Exception` and
-its JavaDoc), verified by compilation, 41 selected tests and strict core JavaDoc.
-The archived full-run XML and its original source hashes are preserved.
+Verified source: `4bb2a4f4ad523fb1ba481eb353146fa2e6ad54f8`. The archived manifest records
+SHA-256 hashes of the production/test Java sources and build configuration, verified
+against that commit. [Pipeline #1053155](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1053155) passed.
 
-Environment: macOS 27.0.1 ARM64, Oracle JDK 25.0.4.1, Gradle 9.7.1 and JaCoCo 0.8.15.
+Environment: the `eclipse-temurin:25-jdk` Docker image on the `ci-teach1` runner,
+Gradle 9.7.1 and JaCoCo 0.8.15. The exact image digest is recorded in the manifest.
 The project requires its configured JDK 25 toolchain and compiles Java sources with
-`--release 17`. These are local results, not a claim that a new GitLab pipeline passed.
+`--release 17`.
 
 ## What is tested
 
@@ -67,6 +64,8 @@ Test sources: [core tests](../../Activity_2/core/src/test/java/au/edu/anu/comp21
 | Real screen input | `ScreenFlowTest`: keyboard/pointer title and pause menus, settings, F5/F9, overwrite cancellation, direct slot loading, restart, debug-console input ownership and paused movement. |
 | NPCs and item panels | Keyboard and left/right clicks select/confirm dialogue options; invalid Battle travel is rejected. Tests exercise class selection, merchant upgrades, bag/chest actions, page controls, ordinary dialogue and repeat interaction. |
 | Rendered combat and completion | All three classes and both ultimate-mode configurations are selected and exercised with attack commands in Training, asserting real damage and target survival. Five arranged Boss defeats exercise settlement/autosave and unlock the Hall ending; every Credits page is checked, including reopening and closing. |
+| Quest completion layout | `ScreenFlowTest.questChecksAlignWithBossGlyphs`: check strokes align with the actual Boss-name glyphs at 960×540, 640×360, 1920×1080 and 1280×240. Empty, partial and complete victory sets draw only the appropriate checks. |
+| Post-ending objective | `GameScreenObjectiveTest.endingReplacesTasksWithFreeExploration`: ending state takes priority over earlier objectives. The screen campaign returns from the Hall to the Hub, checks `feel free to explore this game!` and the absence of a destination marker, then saves and reloads to verify persistence. |
 
 `ScreenFlowTest` executes real screen code, real fonts and image decoding. Recording
 proxies replace GPU/audio/platform devices and input is injected at the LibGDX boundary.
@@ -132,7 +131,7 @@ column is **instruction coverage**, not line coverage; use the labelled counters
 
 ## Why coverage can remain below 100%
 
-The final report leaves **138 lines** and **493 branch outcomes** uncovered.
+The final report leaves **139 lines** and **495 branch outcomes** uncovered.
 The largest missed-line groups are `GameScreen.java` (54), `SceneArt.java` (17), `PlaceholderRenderer.java` (16), `BossTraits.java` (7), `EnemyAI.java` (6).
 The evidence manifest lists every uncovered source line for review.
 
@@ -173,14 +172,23 @@ a main-branch commit triggers the job, subject to runner availability.
 The job retains core/desktop JUnit XML and HTML, plus core JaCoCo HTML/XML. GitLab
 receives both `junit` and `coverage_report` artifacts. Security jobs are separate.
 No test is disabled to obtain a green build, and no coverage threshold is claimed.
-The final submitted commit's pipeline must be checked separately from this local run.
+The verified job executed both test tasks and both JavaDoc audits; its three up-to-date
+actionable tasks were clean tasks, not reused test results.
+
+Test totals use the Gradle reports, counting each parameterized invocation. GitLab
+deduplicates imported cases with the same class and display name; its summary is not
+used as the execution total.
 
 ## Archived raw evidence and references
 
-[Download final raw evidence](coverage-evidence.zip). The archive contains one final
-JaCoCo XML report, both modules' final JUnit XML files, and a manifest recording the
-command, environment, timestamps, counters and SHA-256 hashes. It contains no baseline
-or intermediate coverage reports. The archive preserves evidence across `gradlew clean`.
+[Download final raw evidence](coverage-evidence.zip). The bundle contains the unchanged
+GitLab artifact download (`ci-artifacts.zip`), both modules' Gradle test HTML trees and
+core JaCoCo HTML/XML inside it, a convenient copy of the JaCoCo XML, a build-log excerpt,
+and a manifest recording the command, environment, totals and SHA-256 hashes. Extract
+both archives and open the HTML index files listed in the bundled README to inspect
+test cases and coverage locally. CI uploads JUnit XML separately; those XML files are
+not included in the downloaded archive, and the totals here are read from Gradle HTML.
+Only this verified run is included. The bundle preserves evidence across `gradlew clean`.
 
 - [Evidence summary](RESULTS.json): machine-readable final totals and source manifest.
 - [Test coverage review](../../Activity_2/docs/TEST_COVERAGE_REVIEW.md).
