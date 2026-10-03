@@ -299,6 +299,92 @@ final class ScreenFlowTest {
         assertEquals(PlayerClass.MAGE, state(screen).getPlayer().getPlayerClass());
     }
 
+    /** Records completion-check strokes while retaining the real shape-renderer lifecycle.
+     * @author Daoyan Zhu (u7782042)
+     */
+    private static final class QuestCheckShapes extends com.badlogic.gdx.graphics.glutils.ShapeRenderer {
+        /** Endpoint coordinates of green check strokes, in drawing order. */
+        private final List<float[]> strokes = new ArrayList<>();
+        /** Creates a renderer backed by the test's recording graphics device. */
+        private QuestCheckShapes() { }
+        /** Captures only the quest-completion colour before forwarding the real draw call.
+         * @param x first endpoint x
+         * @param y first endpoint y
+         * @param z first endpoint z
+         * @param x2 second endpoint x
+         * @param y2 second endpoint y
+         * @param z2 second endpoint z
+         * @param c1 first endpoint colour
+         * @param c2 second endpoint colour
+         */
+        @Override public void line(float x, float y, float z, float x2, float y2, float z2,
+                com.badlogic.gdx.graphics.Color c1, com.badlogic.gdx.graphics.Color c2) {
+            if (c1.r == 0.25f && c1.g == 1f && c1.b == 0.4f) {
+                strokes.add(new float[] {x, y, x2, y2});
+            }
+            super.line(x, y, z, x2, y2, z2, c1, c2);
+        }
+    }
+
+    /**
+     * Green checks align with the actual wrapped Boss-name glyph runs, including after resizing.
+     * Empty and partial completion sets must not draw checks beside unfinished guardians.
+     * @param windowWidth logical window width
+     * @param windowHeight logical window height
+     * @throws Exception if screen fields cannot be inspected
+     */
+    @ParameterizedTest(name = "questChecksAlignWithBossGlyphs [{index}] {0}x{1}")
+    @CsvSource({"960,540", "640,360", "1920,1080", "1280,240"})
+    void questChecksAlignWithBossGlyphs(int windowWidth, int windowHeight) throws Exception {
+        GameScreen screen = startGameplay();
+        var shapes = new QuestCheckShapes();
+        var shapesField = GameScreen.class.getDeclaredField("dialogueShapes");
+        shapesField.setAccessible(true);
+        field(screen, "dialogueShapes", com.badlogic.gdx.graphics.glutils.ShapeRenderer.class).dispose();
+        shapesField.set(screen, shapes);
+        approach(screen, GameConfig.QUEST_KEEPER); frame(0, Input.Keys.E);
+        width = windowWidth; height = windowHeight;
+        var quests = field(screen, "quests", BossQuests.class);
+        var targets = BossChallenge.values();
+        for (Set<BossChallenge> done : List.of(Set.<BossChallenge>of(),
+                Set.of(targets[0], targets[4]), EnumSet.allOf(BossChallenge.class))) {
+            quests.restoreProgress(done, null, false, false);
+            shapes.strokes.clear();
+            frame(0);
+            assertEquals(done.size() * 2, shapes.strokes.size());
+            var panel = field(screen, "hitLayout", DialogueLayout.class);
+            var font = field(screen, "dialogueFont", com.badlogic.gdx.graphics.g2d.BitmapFont.class);
+            var glyphs = new com.badlogic.gdx.graphics.g2d.GlyphLayout(font,
+                    field(screen, "hitBody", String.class), com.badlogic.gdx.graphics.Color.WHITE,
+                    panel.textWidth(), com.badlogic.gdx.utils.Align.left, true);
+            int stroke = 0;
+            for (BossChallenge target : targets) {
+                if (!done.contains(target)) { continue; }
+                Float nameTop = null;
+                float nameLeft = 0;
+                for (var run : glyphs.runs) {
+                    var text = new StringBuilder();
+                    for (var glyph : run.glyphs) { text.append((char) glyph.id); }
+                    if (text.toString().contains(target.displayName())) {
+                        nameTop = panel.bodyTop() + run.y;
+                        int firstLetter = text.indexOf(target.displayName());
+                        nameLeft = panel.x() + panel.padding() + run.x;
+                        for (int j = 0; j <= firstLetter; j++) { nameLeft += run.xAdvances.get(j); }
+                        nameLeft += run.glyphs.get(firstLetter).xoffset * font.getScaleX();
+                        break;
+                    }
+                }
+                assertNotNull(nameTop, "Boss name must be present in the rendered glyph layout");
+                float[] start = shapes.strokes.get(stroke);
+                assertEquals(nameTop - font.getCapHeight() / 2, start[1], 0.01f,
+                        "Check must align with " + target.displayName());
+                assertTrue(shapes.strokes.get(stroke + 1)[2] < nameLeft,
+                        "Check must leave a gap before the Boss name");
+                stroke += 2;
+            }
+        }
+    }
+
     /**
      * Five fixture victories exercise screen settlement, autosave, Hall ending and Credits navigation.
      * Boss HP is arranged directly here; model-level combat tests separately verify real attack victories.
@@ -326,6 +412,7 @@ final class ScreenFlowTest {
         assertEquals(5, quests.getCompleted().size());
         finishConversation(screen, GameConfig.HUB_GUIDE);
         assertTrue(quests.isMemorialPathRevealed());
+        assertObjective(screen, "Talk to Portal Guide and choose Memorial Hall", "portal_guide");
         selectPortal(screen, PortalGuide.Destination.MEMORIAL); enterPortal(screen);
         approach(screen, GameConfig.GUIDE); frame(0, Input.Keys.E);
         assertTrue(field(screen, "endingOpen", Boolean.class));
@@ -344,6 +431,33 @@ final class ScreenFlowTest {
         assertTrue(credits.isOpen(), "The completed Sage should offer Credits again");
         frame(0, Input.Keys.ESCAPE);
         assertFalse(credits.isOpen());
+        var returnPortal = field(screen, "travel", TravelSystem.class)
+                .getPortal(TravelCatalog.MEMORIAL_RETURN).trigger();
+        state(screen).getPlayer().enterArea(state(screen).getCurrentMap(), returnPortal.x(), returnPortal.y());
+        frame(0); frame(0);
+        assertEquals(MapCatalog.HUB, state(screen).getCurrentMap().getId());
+        assertObjective(screen, "feel free to explore this game!", null);
+        frame(0, Input.Keys.F5);
+        quests.restoreProgress(EnumSet.allOf(BossChallenge.class), null, false, true);
+        assertObjective(screen, "Talk to Portal Guide and choose Memorial Hall", "portal_guide");
+        screen.loadFrom(SaveSlot.MANUAL);
+        assertObjective(screen, "feel free to explore this game!", null);
+    }
+
+    /**
+     * Verifies the real screen's primary task, absent side task and world-space NPC marker.
+     * @param screen current gameplay screen
+     * @param primary expected primary text
+     * @param marker expected NPC id, or null for unrestricted exploration
+     * @throws Exception if private objective state cannot be inspected
+     */
+    private static void assertObjective(GameScreen screen, String primary, String marker) throws Exception {
+        var method = GameScreen.class.getDeclaredMethod("currentObjective");
+        method.setAccessible(true);
+        var objective = method.invoke(screen);
+        assertEquals(primary, field(objective, "primary", String.class));
+        assertNull(field(objective, "secondary", String.class));
+        assertEquals(marker, field(objective, "markerNpcId", String.class));
     }
 
     /**

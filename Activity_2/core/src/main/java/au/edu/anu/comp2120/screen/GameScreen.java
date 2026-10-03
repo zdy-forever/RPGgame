@@ -594,7 +594,8 @@ public final class GameScreen extends ScreenAdapter {
      * directed to the Quest Keeper; once a boss is chosen the defeat goal becomes the
      * primary task and talking to the Portal Guide becomes the side task. After all
      * five guardians fall the Old Sage reveals the Memorial Hall route, and the
-     * marker then moves to the Portal Guide.</p>
+     * marker then moves to the Portal Guide. Once the Hall ending has been triggered,
+     * the tracker invites free exploration and no longer marks an NPC.</p>
      *
      * @return current objective bundle; never null
      */
@@ -619,14 +620,16 @@ public final class GameScreen extends ScreenAdapter {
         boolean allCompleted = quests.allBossesDefeated();
         boolean memorialRevealed = quests.isMemorialPathRevealed();
 
-        List<String> tasks = buildObjectiveTasks(npcStep, npcName(npcStep), bossActive, bossName, allCompleted, memorialRevealed);
+        List<String> tasks = buildObjectiveTasks(npcStep, npcName(npcStep), bossActive, bossName, allCompleted, memorialRevealed, quests.hasEndingStarted());
         String primary = tasks.isEmpty() ? "Free explore: leave via Portal Guide" : tasks.get(0);
         String secondary = tasks.size() > 1 ? tasks.get(1) : null;
 
         String marker;
-        if (session.getCurrentMap().getType() == MapType.MEMORIAL) {
+        if (quests.hasEndingStarted()) {
+            marker = null;
+        } else if (session.getCurrentMap().getType() == MapType.MEMORIAL) {
             // Inside the Memorial Hall, point to the Old Sage until the ending has played.
-            marker = quests.hasEndingStarted() ? null : GameConfig.GUIDE.getId();
+            marker = GameConfig.GUIDE.getId();
         } else if (allCompleted && memorialRevealed) {
             marker = GameConfig.PORTAL_GUIDE.getId();
         } else if (allCompleted) {
@@ -1115,14 +1118,17 @@ public final class GameScreen extends ScreenAdapter {
      * @param bossDisplayName display name of the active boss challenge
      * @param allCompleted whether all five guardians have been defeated this session
      * @param memorialRevealed whether the Old Sage has already revealed the Memorial Hall route
+     * @param endingStarted whether the one-time Hall ending has been triggered, including restored saves
      * @return ordered objective lines; never empty
      */
     static java.util.List<String> buildObjectiveTasks(String npcStep, String npcName,
                                                       boolean bossActive, String bossDisplayName,
                                                       boolean allCompleted,
-                                                      boolean memorialRevealed) {
+                                                      boolean memorialRevealed, boolean endingStarted) {
         java.util.List<String> tasks = new java.util.ArrayList<>();
-        if (allCompleted) {
+        if (endingStarted) {
+            tasks.add("feel free to explore this game!");
+        } else if (allCompleted) {
             if (!memorialRevealed) {
                 tasks.add("Talk to Old Sage to learn the Memorial Hall path");
             } else {
@@ -1386,7 +1392,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueFont.draw(dialogueBatch, backHint, x + pad + layout.textWidth() / 2, layout.hintTop(), layout.textWidth() / 2, Align.right, true);
         dialogueBatch.end();
         if (isQuestDialogueOpen()) {
-            drawQuestChecks(x + pad, layout.bodyTop(), scale, body, layout.textWidth());
+            drawQuestChecks(x + pad, scale);
         }
     }
 
@@ -1404,25 +1410,20 @@ public final class GameScreen extends ScreenAdapter {
     }
 
     /**
-     * Draws actual green check marks before completed Boss names, without relying on font glyph coverage.
+     * Draws completion checks on the first text line of each matching Boss option.
+     * Reuses the measured option bounds so wrapped introductions and resized text cannot
+     * shift checks onto the instructions or completion count above the choice list.
      * @param x left edge of the menu text
-     * @param baseline baseline of the first text line (the completion count)
      * @param scale current dialogue font scale
-     * @param body menu text, used to account for wrapped rows before each check mark
-     * @param width body wrap width, identical to the actual drawing width
      */
-    private void drawQuestChecks(float x, float baseline, float scale, String body, float width) {
+    private void drawQuestChecks(float x, float scale) {
         dialogueShapes.begin(ShapeRenderer.ShapeType.Line);
         dialogueShapes.setColor(0.25f, 1f, 0.4f, 1);
         var targets = BossChallenge.values();
-        String[] rows = body.split("\n", -1);
-        for (int i = 0; i < targets.length; i++) {
-            if (quests.getCompleted().contains(targets[i])) {
-                String prefix = String.join("\n", java.util.Arrays.copyOfRange(rows, 0, i + 1));
-                float precedingHeight = measureDialogueText(prefix, scale, width)
-                        + dialogueFont.getLineHeight() - dialogueFont.getCapHeight();
-                float y = baseline - precedingHeight - dialogueFont.getCapHeight() / 2;
-                float left = x + 13f * scale;
+        for (var hit : dialogueHits) {
+            if (quests.getCompleted().contains(targets[hit.choice()])) {
+                float y = hit.top() - dialogueFont.getCapHeight() / 2;
+                float left = x + 10f * scale;
                 dialogueShapes.line(left, y, left + 4f * scale, y - 4f * scale);
                 dialogueShapes.line(left + 4f * scale, y - 4f * scale, left + 12f * scale, y + 5f * scale);
             }
