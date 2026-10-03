@@ -1,0 +1,1073 @@
+{
+  "scope": "Final full Gradle run only; all core production classes included, no custom exclusions.",
+  "source_base_commit": "4030a7b3d49f91e4347519a9ede2625ce8540076",
+  "source_state": "Base commit plus local test/build changes identified by source hashes; production Java unchanged by this pass.",
+  "command": "./gradlew clean build javadocAudit :core:jacocoTestReport --no-daemon",
+  "working_directory": "Activity_2",
+  "execution": "User ran Gradle in local terminal; agent independently parsed generated XML. Not a remote CI result.",
+  "reported_build_result": "BUILD SUCCESSFUL in 9s; 18 actionable tasks: 17 executed, 1 up-to-date",
+  "environment": {
+    "os": "macOS 27.0.1",
+    "architecture": "ARM64",
+    "jdk": "Oracle JDK 25.0.4.1",
+    "gradle": "9.7.1",
+    "jacoco": "0.8.15",
+    "java_release": 17
+  },
+  "javadoc_audit": "Both module audits included in the successful full build; generated indexes present.",
+  "tests": {
+    "core": {
+      "tests": 1449,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suites": 96,
+      "first_timestamp_utc": "2026-10-03T10:52:55.682Z",
+      "last_timestamp_utc": "2026-10-03T10:52:58.329Z"
+    },
+    "lwjgl3": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suites": 1,
+      "first_timestamp_utc": "2026-10-03T10:53:00.022Z",
+      "last_timestamp_utc": "2026-10-03T10:53:00.022Z"
+    }
+  },
+  "core_coverage": {
+    "INSTRUCTION": {
+      "covered": 36176,
+      "missed": 921,
+      "total": 37097,
+      "percent": 97.5173
+    },
+    "BRANCH": {
+      "covered": 3843,
+      "missed": 493,
+      "total": 4336,
+      "percent": 88.6301
+    },
+    "LINE": {
+      "covered": 5681,
+      "missed": 138,
+      "total": 5819,
+      "percent": 97.6285
+    },
+    "COMPLEXITY": {
+      "covered": 2759,
+      "missed": 473,
+      "total": 3232,
+      "percent": 85.3651
+    },
+    "METHOD": {
+      "covered": 1020,
+      "missed": 4,
+      "total": 1024,
+      "percent": 99.6094
+    },
+    "CLASS": {
+      "covered": 135,
+      "missed": 0,
+      "total": 135,
+      "percent": 100.0
+    }
+  },
+  "package_coverage": {
+    "au/edu/anu/comp2120/world": {
+      "INSTRUCTION": {
+        "covered": 2340,
+        "missed": 13,
+        "total": 2353,
+        "percent": 99.4475
+      },
+      "BRANCH": {
+        "covered": 326,
+        "missed": 30,
+        "total": 356,
+        "percent": 91.573
+      },
+      "LINE": {
+        "covered": 292,
+        "missed": 4,
+        "total": 296,
+        "percent": 98.6486
+      },
+      "COMPLEXITY": {
+        "covered": 195,
+        "missed": 30,
+        "total": 225,
+        "percent": 86.6667
+      },
+      "METHOD": {
+        "covered": 47,
+        "missed": 0,
+        "total": 47,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 11,
+        "missed": 0,
+        "total": 11,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/inventory": {
+      "INSTRUCTION": {
+        "covered": 1008,
+        "missed": 0,
+        "total": 1008,
+        "percent": 100.0
+      },
+      "BRANCH": {
+        "covered": 97,
+        "missed": 2,
+        "total": 99,
+        "percent": 97.9798
+      },
+      "LINE": {
+        "covered": 154,
+        "missed": 0,
+        "total": 154,
+        "percent": 100.0
+      },
+      "COMPLEXITY": {
+        "covered": 107,
+        "missed": 2,
+        "total": 109,
+        "percent": 98.1651
+      },
+      "METHOD": {
+        "covered": 58,
+        "missed": 0,
+        "total": 58,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 10,
+        "missed": 0,
+        "total": 10,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/combat": {
+      "INSTRUCTION": {
+        "covered": 3825,
+        "missed": 33,
+        "total": 3858,
+        "percent": 99.1446
+      },
+      "BRANCH": {
+        "covered": 449,
+        "missed": 40,
+        "total": 489,
+        "percent": 91.82
+      },
+      "LINE": {
+        "covered": 641,
+        "missed": 7,
+        "total": 648,
+        "percent": 98.9198
+      },
+      "COMPLEXITY": {
+        "covered": 373,
+        "missed": 40,
+        "total": 413,
+        "percent": 90.3148
+      },
+      "METHOD": {
+        "covered": 167,
+        "missed": 0,
+        "total": 167,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 20,
+        "missed": 0,
+        "total": 20,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/audio": {
+      "INSTRUCTION": {
+        "covered": 239,
+        "missed": 0,
+        "total": 239,
+        "percent": 100.0
+      },
+      "BRANCH": {
+        "covered": 27,
+        "missed": 1,
+        "total": 28,
+        "percent": 96.4286
+      },
+      "LINE": {
+        "covered": 53,
+        "missed": 0,
+        "total": 53,
+        "percent": 100.0
+      },
+      "COMPLEXITY": {
+        "covered": 29,
+        "missed": 1,
+        "total": 30,
+        "percent": 96.6667
+      },
+      "METHOD": {
+        "covered": 16,
+        "missed": 0,
+        "total": 16,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 2,
+        "missed": 0,
+        "total": 2,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/enemy": {
+      "INSTRUCTION": {
+        "covered": 3022,
+        "missed": 46,
+        "total": 3068,
+        "percent": 98.5007
+      },
+      "BRANCH": {
+        "covered": 320,
+        "missed": 39,
+        "total": 359,
+        "percent": 89.1365
+      },
+      "LINE": {
+        "covered": 555,
+        "missed": 16,
+        "total": 571,
+        "percent": 97.1979
+      },
+      "COMPLEXITY": {
+        "covered": 268,
+        "missed": 37,
+        "total": 305,
+        "percent": 87.8689
+      },
+      "METHOD": {
+        "covered": 122,
+        "missed": 0,
+        "total": 122,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 19,
+        "missed": 0,
+        "total": 19,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/player": {
+      "INSTRUCTION": {
+        "covered": 4037,
+        "missed": 35,
+        "total": 4072,
+        "percent": 99.1405
+      },
+      "BRANCH": {
+        "covered": 506,
+        "missed": 42,
+        "total": 548,
+        "percent": 92.3358
+      },
+      "LINE": {
+        "covered": 643,
+        "missed": 5,
+        "total": 648,
+        "percent": 99.2284
+      },
+      "COMPLEXITY": {
+        "covered": 380,
+        "missed": 42,
+        "total": 422,
+        "percent": 90.0474
+      },
+      "METHOD": {
+        "covered": 142,
+        "missed": 0,
+        "total": 142,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 19,
+        "missed": 0,
+        "total": 19,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/save": {
+      "INSTRUCTION": {
+        "covered": 2816,
+        "missed": 23,
+        "total": 2839,
+        "percent": 99.1899
+      },
+      "BRANCH": {
+        "covered": 249,
+        "missed": 21,
+        "total": 270,
+        "percent": 92.2222
+      },
+      "LINE": {
+        "covered": 429,
+        "missed": 3,
+        "total": 432,
+        "percent": 99.3056
+      },
+      "COMPLEXITY": {
+        "covered": 191,
+        "missed": 20,
+        "total": 211,
+        "percent": 90.5213
+      },
+      "METHOD": {
+        "covered": 76,
+        "missed": 0,
+        "total": 76,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 10,
+        "missed": 0,
+        "total": 10,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/quest": {
+      "INSTRUCTION": {
+        "covered": 257,
+        "missed": 0,
+        "total": 257,
+        "percent": 100.0
+      },
+      "BRANCH": {
+        "covered": 34,
+        "missed": 2,
+        "total": 36,
+        "percent": 94.4444
+      },
+      "LINE": {
+        "covered": 55,
+        "missed": 0,
+        "total": 55,
+        "percent": 100.0
+      },
+      "COMPLEXITY": {
+        "covered": 30,
+        "missed": 2,
+        "total": 32,
+        "percent": 93.75
+      },
+      "METHOD": {
+        "covered": 14,
+        "missed": 0,
+        "total": 14,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 1,
+        "missed": 0,
+        "total": 1,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120": {
+      "INSTRUCTION": {
+        "covered": 1199,
+        "missed": 10,
+        "total": 1209,
+        "percent": 99.1729
+      },
+      "BRANCH": {
+        "covered": 95,
+        "missed": 9,
+        "total": 104,
+        "percent": 91.3462
+      },
+      "LINE": {
+        "covered": 235,
+        "missed": 1,
+        "total": 236,
+        "percent": 99.5763
+      },
+      "COMPLEXITY": {
+        "covered": 95,
+        "missed": 9,
+        "total": 104,
+        "percent": 91.3462
+      },
+      "METHOD": {
+        "covered": 52,
+        "missed": 0,
+        "total": 52,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 7,
+        "missed": 0,
+        "total": 7,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/screen": {
+      "INSTRUCTION": {
+        "covered": 16859,
+        "missed": 748,
+        "total": 17607,
+        "percent": 95.7517
+      },
+      "BRANCH": {
+        "covered": 1675,
+        "missed": 302,
+        "total": 1977,
+        "percent": 84.7243
+      },
+      "LINE": {
+        "covered": 2502,
+        "missed": 99,
+        "total": 2601,
+        "percent": 96.1938
+      },
+      "COMPLEXITY": {
+        "covered": 1023,
+        "missed": 285,
+        "total": 1308,
+        "percent": 78.211
+      },
+      "METHOD": {
+        "covered": 292,
+        "missed": 4,
+        "total": 296,
+        "percent": 98.6486
+      },
+      "CLASS": {
+        "covered": 29,
+        "missed": 0,
+        "total": 29,
+        "percent": 100.0
+      }
+    },
+    "au/edu/anu/comp2120/npc": {
+      "INSTRUCTION": {
+        "covered": 574,
+        "missed": 13,
+        "total": 587,
+        "percent": 97.7853
+      },
+      "BRANCH": {
+        "covered": 65,
+        "missed": 5,
+        "total": 70,
+        "percent": 92.8571
+      },
+      "LINE": {
+        "covered": 122,
+        "missed": 3,
+        "total": 125,
+        "percent": 97.6
+      },
+      "COMPLEXITY": {
+        "covered": 68,
+        "missed": 5,
+        "total": 73,
+        "percent": 93.1507
+      },
+      "METHOD": {
+        "covered": 34,
+        "missed": 0,
+        "total": 34,
+        "percent": 100.0
+      },
+      "CLASS": {
+        "covered": 7,
+        "missed": 0,
+        "total": 7,
+        "percent": 100.0
+      }
+    }
+  },
+  "uncovered_source_lines": [
+    {
+      "source": "au/edu/anu/comp2120/world/AStarPathfinder.java",
+      "missed_lines": [
+        117,
+        170,
+        211,
+        214
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/combat/CombatSystem.java",
+      "missed_lines": [
+        197,
+        277,
+        580,
+        583,
+        615
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/combat/ReactionTimer.java",
+      "missed_lines": [
+        37
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/combat/Projectile.java",
+      "missed_lines": [
+        59
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/enemy/BossTraits.java",
+      "missed_lines": [
+        190,
+        191,
+        251,
+        252,
+        296,
+        297,
+        391
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/enemy/Boss.java",
+      "missed_lines": [
+        200,
+        277,
+        409
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/enemy/EnemyAI.java",
+      "missed_lines": [
+        214,
+        215,
+        250,
+        251,
+        257,
+        258
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/player/DebugOptions.java",
+      "missed_lines": [
+        59,
+        67
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/player/ClassSkills.java",
+      "missed_lines": [
+        186,
+        192,
+        227
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/save/GameSaves.java",
+      "missed_lines": [
+        277,
+        343
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/save/SaveFile.java",
+      "missed_lines": [
+        113
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/EncounterFlow.java",
+      "missed_lines": [
+        59
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/CombatDemo.java",
+      "missed_lines": [
+        357,
+        547
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/CameraFollow.java",
+      "missed_lines": [
+        59
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/GameScreen.java",
+      "missed_lines": [
+        349,
+        486,
+        512,
+        548,
+        549,
+        557,
+        558,
+        559,
+        604,
+        605,
+        606,
+        607,
+        637,
+        654,
+        697,
+        704,
+        733,
+        734,
+        735,
+        740,
+        748,
+        749,
+        776,
+        777,
+        784,
+        785,
+        800,
+        824,
+        837,
+        838,
+        839,
+        844,
+        846,
+        863,
+        864,
+        865,
+        869,
+        870,
+        936,
+        941,
+        944,
+        949,
+        951,
+        1000,
+        1217,
+        1305,
+        1306,
+        1307,
+        1343,
+        1527,
+        1528,
+        1529,
+        1530,
+        1861
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/SaveMenu.java",
+      "missed_lines": [
+        377,
+        400,
+        403,
+        418,
+        419
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/SceneArt.java",
+      "missed_lines": [
+        197,
+        265,
+        350,
+        351,
+        357,
+        358,
+        359,
+        360,
+        399,
+        400,
+        402,
+        403,
+        433,
+        434,
+        435,
+        436,
+        475
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/MainMenuScreen.java",
+      "missed_lines": [
+        123,
+        169
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/DialogueLayout.java",
+      "missed_lines": [
+        79
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/PlaceholderRenderer.java",
+      "missed_lines": [
+        97,
+        152,
+        153,
+        211,
+        212,
+        213,
+        215,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        353
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/screen/SettingsScreen.java",
+      "missed_lines": [
+        200
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/npc/PortalGuide.java",
+      "missed_lines": [
+        70,
+        93
+      ]
+    },
+    {
+      "source": "au/edu/anu/comp2120/npc/MerchantServices.java",
+      "missed_lines": [
+        58
+      ]
+    }
+  ],
+  "raw_report_sha256": {
+    "jacoco/jacocoTestReport.xml": "6549ddee3bf249f9ad90553174c8b144d24c095f9cd1f0884d06a4fe46bcba7c",
+    "junit/core/TEST-au.edu.anu.comp2120.ActiveEncounterTest.xml": "cffaef25cdc3ac1e96f188f5979c0f651a5b03bccb4191bd018ac56d357c0a7d",
+    "junit/core/TEST-au.edu.anu.comp2120.CoreSkeletonTest.xml": "be7d1550bed7f486ac6f9d23afc061c663786ffd86de5c1ad0e49f5912411ead",
+    "junit/core/TEST-au.edu.anu.comp2120.GameSessionTest.xml": "607795066433bf71044e38fd53e656449700b7a71dabfa3a54ca09e1da51457d",
+    "junit/core/TEST-au.edu.anu.comp2120.TravelSystemTest.xml": "6c79e169d9520b4240eb2275c698968b431341d598a996d4f06ff1da8f7fc53b",
+    "junit/core/TEST-au.edu.anu.comp2120.audio.BackgroundMusicTest.xml": "fa7d7f43e1fa34e7d48c80ffbeb3093bd94732f697102ed2ecb19c3c7fdad03f",
+    "junit/core/TEST-au.edu.anu.comp2120.audio.MusicVolumeTest.xml": "526d5e1b032f34debb7bf09b4cad17deade1078250286bc07931ee7928829dd4",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.CombatCapabilitiesTest.xml": "5b4cdf6e7a7928d9d723accef6bf624de3c2802c48ae30958e0b7dec0deffff4",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.CombatModelTest.xml": "982d2fc8bd936c82ee7d9f15fd2eac0e90eed15118dd8380c45bed646f5daf99",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.CombatOcclusionTest.xml": "be0c6bbfb5416b31ceae8982d381c9a8d886ff6a205dccf64e32657bed52979d",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.CombatStatusTest.xml": "f8be167cc9c68126652b8eba22343525f9346c25ef42c43305fb100400e43d53",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.CombatSystemTest.xml": "c63638b5ebcd4fbf9bb51c26817609fc8dbd1840aa586f6f884e578651eadcdd",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.ElementCombatTest.xml": "652ff6b33507168d86874de00657696f526c7196eaef45b4c8eaf5f4fde3a95f",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.ElementRulesTest.xml": "2e9b414a860cd75e02d8cf803a322e39a7f6b2bcda3c1385432c773e6dfb4509",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.EntityHealthTest.xml": "670953fa82bf1b4774ca0f20073be54790dee345ed7b4262d2835d8d3071dbec",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.HealthCapacityTest.xml": "c6063a55042775f7f87c8ddf22ca20277cb4626e2a387a2042f7afc24917ca1d",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.HealthTest.xml": "1a65f916a9b59c6b8d48075ace0bfcf623afd4ae257aa72c94ffc0158d714040",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.HitFeedbackTest.xml": "1f49bc02cf7a8ca2b7fd37a6fc8493814762eb4d44c2b51b642e0c47afe20421",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.ProjectileSpecTest.xml": "17c0a93fd7c09cdfd59852db25656ede8fb31306a5f045ac040b10d5acfec795",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.ProjectileTest.xml": "86fab690d4013c294f76081f17912259a086913d46bd8ae3773db35b90d10eed",
+    "junit/core/TEST-au.edu.anu.comp2120.combat.ReactionCompletionTest.xml": "9df5669901bddeb9fc4201e0bda6cdfbb218fba60b11bc35213c6d340932104b",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.BossAttackTest.xml": "251dc1dc606362efd80baeeaa33ec7e014f83ca0b67682b70bf07acd0dbc46ea",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.BossConfigTest.xml": "ad68500ea846f358e1a136782d2274748a70996e99c6ef96348b7ef5e10b84bf",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.BossScalingTest.xml": "876955ff2a8bc3d24c5ec10e1db639da8580b33ed837f162be1fa42cd22422b9",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.BossTest.xml": "109eb88da901db66c51eba48474c91cd5cb32426a6819616fc3be584ec632a5e",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.BossTraitTest.xml": "f79b23101aceb327897359d85aed842efb0c6661a19b9f1d5704add9e8e3e4fc",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.EnemyAITest.xml": "8a13cb6dad192900f38cd597f41dec00de5654235e870a45a8ef9c9cd38cf24d",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.EnemyConfigTest.xml": "b359e0942697add20b25039b0835017a8865a1f158f0569c57e4c5728a57d6d5",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.EnemyNavigationTest.xml": "d613e653825577f7a4f6f51db1e9120d604134a414735b39613c0242a23f6bfa",
+    "junit/core/TEST-au.edu.anu.comp2120.enemy.TrainingDummyTest.xml": "732345cc16013219591ec84251ee4fc5d20c8e7557699fdbb6daa63cb8ea8c29",
+    "junit/core/TEST-au.edu.anu.comp2120.inventory.EquipmentIntegrationTest.xml": "a5a033f26894a59b0702c3daae4d33313975ed42cc0f57480da92e7f364293d7",
+    "junit/core/TEST-au.edu.anu.comp2120.inventory.EquipmentTest.xml": "ecbcc11d667d50889a5aaaf94e55c74101661bd2fe7efc616523fbd07fbda9f8",
+    "junit/core/TEST-au.edu.anu.comp2120.inventory.GearUpgradesTest.xml": "1f42cd43bed1d81930e015eba932202cedfb03e9daa79c8eb05fc1bdee3ddcef",
+    "junit/core/TEST-au.edu.anu.comp2120.inventory.InventoryTest.xml": "efb356677b10ac1c59ff7087f54c419551cf398cb72f6996bd69bc89d790e8d5",
+    "junit/core/TEST-au.edu.anu.comp2120.inventory.ItemCatalogTest.xml": "62605d14c05685611cfe627282dfdf2ec455985aacaebdec3083575ddb8db86d",
+    "junit/core/TEST-au.edu.anu.comp2120.inventory.PotionSupplyTest.xml": "bb0bc40984fa60d732092b9800316edfeb177c7a0ad05e467b9894aea111fcf4",
+    "junit/core/TEST-au.edu.anu.comp2120.npc.MerchantServicesTest.xml": "e164db0467a9d86cf1927247b48801c07483b0715dc4845bad7443cf993b5aec",
+    "junit/core/TEST-au.edu.anu.comp2120.npc.NPCTest.xml": "81b8a3ba1caf42cf8954e958d99627351935f07f017060cf4e973c6f5379d25a",
+    "junit/core/TEST-au.edu.anu.comp2120.player.AbilityLoadoutTest.xml": "1b9e01a4816a591e5785b5247908519ebcabd512351571c09098b8b939146367",
+    "junit/core/TEST-au.edu.anu.comp2120.player.ArcherAbilitiesTest.xml": "03f699bd62f96c7b9c9856650996425b6c684ff2edfa00112fdc3e3a91d0a2b7",
+    "junit/core/TEST-au.edu.anu.comp2120.player.AttackShapeTest.xml": "65999d914cb235e3b2874be7598083f4110c2f462b7837b721dbf90dca9421a6",
+    "junit/core/TEST-au.edu.anu.comp2120.player.DebugOptionsTest.xml": "db77e51d38902142f134e2e2e69ba192da6748516f9e8083dc1ee578da16440a",
+    "junit/core/TEST-au.edu.anu.comp2120.player.ElementClassIntegrationTest.xml": "7320e6a22cd726647cbdc7bbe2c32f95dbec953e2c19298c2a00916f2fefe9ca",
+    "junit/core/TEST-au.edu.anu.comp2120.player.FinalClassSkillsTest.xml": "08933d9b96bdf54592dd3b592e4b6da182e4338cb217dd93592edbfa770a52e2",
+    "junit/core/TEST-au.edu.anu.comp2120.player.KatanaAbilitiesTest.xml": "1dd3214b7b884be1819c18e7f06287e0a0ccaf70b6e2d87263d6f344cce0fd26",
+    "junit/core/TEST-au.edu.anu.comp2120.player.MageAbilitiesTest.xml": "9dc3eb1d4a2afa82312712c7eac2f9c00338c74a0e30c2282b51067ed7b6a324",
+    "junit/core/TEST-au.edu.anu.comp2120.player.PlayerAbilitiesTest.xml": "76620c1d4201c5dca90bff94943a6bea17ec7f6cefd5b8d1641055825483d674",
+    "junit/core/TEST-au.edu.anu.comp2120.player.PlayerClassTest.xml": "31c3bb25bb240a0b750e47b7c457da7a6f36daf06c0bde33fb10c8e997ffda34",
+    "junit/core/TEST-au.edu.anu.comp2120.player.PlayerInputTest.xml": "4798f6969208fd3aa35054f2ae057681f575cb3afbb84d5d89b09cde6142473e",
+    "junit/core/TEST-au.edu.anu.comp2120.player.PlayerTest.xml": "f5a69fa10bccb5fadd771803aa2c34e63c139f30f2ff6c70190f44f854227925",
+    "junit/core/TEST-au.edu.anu.comp2120.player.PotionGameplayTest.xml": "4a8f0e74614bfa6b01cb1e6ee74f11430f5690028cc3db177d8dc3ef6ee16013",
+    "junit/core/TEST-au.edu.anu.comp2120.save.GameSavesTest.xml": "e297c8403b515df22478968776257f8d500dbf44001139234a5bcfa615db0d06",
+    "junit/core/TEST-au.edu.anu.comp2120.save.InventorySnapshotTest.xml": "a5b6d98dbb670473f8d938e792c28714e409d3762aa04bfa8db3c448d800f517",
+    "junit/core/TEST-au.edu.anu.comp2120.save.LocationSnapshotTest.xml": "fd04d70e45ca21511c7db0fc89a1d825a2ae4cf71b4889be5329783453e053e8",
+    "junit/core/TEST-au.edu.anu.comp2120.save.SaveFieldsTest.xml": "334047e1f1e00c79f82d3f3085601a7a60385c919de5ae5e60e6a4257a439bdf",
+    "junit/core/TEST-au.edu.anu.comp2120.save.SaveFileTest.xml": "dcddb7d3f9761498ff46ca1deb235aa2e58135b6008fa881c9b83b4ef1d12bfe",
+    "junit/core/TEST-au.edu.anu.comp2120.save.SaveMetadataTest.xml": "f551ebf152f9ae70a980a863a986cf41c23955f30d3b07cd9fefcdc87c25facb",
+    "junit/core/TEST-au.edu.anu.comp2120.save.SaveSelectionTest.xml": "cf52fb1fcc6b1f9c05fe025b9a048ead247a1ea3c0c41db16f859d4fd4eca4b8",
+    "junit/core/TEST-au.edu.anu.comp2120.save.SaveSlotTest.xml": "5cd3f4eedeca16f201a3d3ae28fe906bf1452e12ee33a976126831a18800d4b4",
+    "junit/core/TEST-au.edu.anu.comp2120.save.SaveStoreTest.xml": "9ff50fc12d86c9dfc969648d12e62c3e500fa809f8472b81f837e8d440f3dcc3",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.ArtIntegrationTest.xml": "3ec592263cc6bc7be09683b8d14bf914caa6a1bcad093690cc46c485a643d5a4",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.BossDemoTest.xml": "cbe7461f16650d099fe7d2177f1e28418eeb98790960e635d86dc55fd1099189",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.BossQuestFlowTest.xml": "a2a59c1686bd63f3c427cc99958c1e2ee46556b0b43a63fa4639e8acd5b61caf",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.CameraFollowTest.xml": "50cd075b142957c493111661eff8cfbff631747c6edf82a3a80673e83919d4d1",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.ClassTrainerTest.xml": "b76fa33338ae27277551723277173f4a2fc6e5608083bac50c82e8b8573e0830",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.CombatDemoTest.xml": "5d319b5fe6656ac116df0d6a4b93f33d46dcd4d482a7eb1275aa4de4bcb2611f",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.CoreGameplayIntegrationTest.xml": "701cc7c335843c00ce9c342fc1c29a67764feb421fbf300be2ddf58d061384ac",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.CreditsDialogueTest.xml": "3200e3b38df9604e29daf282e061e0e29d0e0964feec70787dfd03399c2238c8",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.DebugConsoleTest.xml": "f70d5523ff8bb0319d721728b3855614ecab995ef440f44a52f0c33f71a0e610",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.DialogueLayoutTest.xml": "395a56d803215ab143cecf7110605d2d33b097a0de1d9a8b18f87892abeb0894",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.GameScreenObjectiveTest.xml": "94ce600bfcaf1b89ed3b9984270dd2725567410aed6c26dd19731c7a81fdab94",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.GameSettingsTest.xml": "84eb3a16e59d95a5853775c9210a6da89cafc8b531fbc1a6d7955a9b1ae5124d",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.GameplayIntegrationTest.xml": "cb864bc69f91d962e4ca9b3cbea65da7e044e3924dbb849f3de0bf2b4e4f6724",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.HudLayoutTest.xml": "8986f7844c4b27c8ce55abcf32374f80acf0dfd6e18e7a8e216a77e92e51d51f",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.MainMenuScreenTest.xml": "2c96abf729ce255394504ec8592986b8778ba556e49ccf99ec67aad7145c2b88",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.MemorialHallTest.xml": "368f44b587f06929aa62841da9a4cb46c527b5256b69a87a6ab3f8b149d0a20f",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.MenuKeysTest.xml": "9113c70487bedfa9e5e5d13c4d94d59a5219dd88e995ba155de4a0d9c8e95663",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.OutcomeBannerTest.xml": "c1e9f2f12c2854a8526bb207e2ebaaf4fb444379000e3003f9b725afdc405d56",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.PlayerControlEffectsTest.xml": "696e6333c3e89adf3b0a7a2004477e089b313f778fb7ff63de2164289842d359",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.PlayerDefeatTest.xml": "d9256166d7dd855bf1c2b22005473071e5ceb48531c2f3a3b0255be113adf31d",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.PortalGuideTrainingTest.xml": "50c098bf90c9cf0ff1233f9ef4de38d27479f26a5d0abe1da4d7dd65aab34369",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.PotionFeedbackTest.xml": "6c04826644b8b173de3ffa5c113454c0c5eefbfa02c72b3a450ba3a5203d3bd6",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.PotionFontLayoutTest.xml": "4acb584101ad4b2bf9c017da8a721ae0fd2cf05d27a1fa8d2bdec653567dc2d4",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.QuestPortalFlowTest.xml": "02cfe6b0befcadcc8c5244287cecb74de768aa3347faf50b3560aa250ee81c58",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.SaveMenuTest.xml": "581c3b2476b6ab2e992911133a64a25dc85bccb7b3eed9092d5114b34b5f0fd6",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.ScreenFlowTest.xml": "362c08f61c198ab23c8819814298cf8db8b6e6956c8ec7331290e966f088444b",
+    "junit/core/TEST-au.edu.anu.comp2120.screen.StatusLabelsTest.xml": "703681a53079a3a278be1bc147dd7669719fdc9b1d399a8b075c71dbbd08c580",
+    "junit/core/TEST-au.edu.anu.comp2120.world.AStarPathfinderTest.xml": "5643a4d70fab97b5563843c0d473e65963771901d510c7ee275810fccb5368b5",
+    "junit/core/TEST-au.edu.anu.comp2120.world.CollisionBoxTest.xml": "363322749798c4a70517a7404f1eaeb97d5462bcb798d4628025b2dc8dcc0ba8",
+    "junit/core/TEST-au.edu.anu.comp2120.world.CollisionSweepTest.xml": "3c049218b075f29c0a7c9bef469d2b89906657bb760eeeb9e1300919c708726e",
+    "junit/core/TEST-au.edu.anu.comp2120.world.GameMapTest.xml": "5383b728078cb3f4461b0efce06cb397aee9de8f26235f1d8a6226c5b70d9a5c",
+    "junit/core/TEST-au.edu.anu.comp2120.world.MapCatalogTest.xml": "52c61a1ce4530991238bf385f1497b5f5b11f589ae152fe2502d396a75d7552c",
+    "junit/core/TEST-au.edu.anu.comp2120.world.MapDefinitionTest.xml": "d023209ecd118c21127ed8882ff953484810f0ca25145d2b0acccdf99fc9c729",
+    "junit/core/TEST-au.edu.anu.comp2120.world.PortalTest.xml": "15b4d195c0ad31e4748b8f0f4ae1aa88d4ab5e68f4d2d42a38ad5aeefc810f6c",
+    "junit/core/TEST-au.edu.anu.comp2120.world.SpawnPointTest.xml": "f54b16b942061ea0a10993f66393c7782d28bc9357752d2973997d47313ca067",
+    "junit/core/TEST-au.edu.anu.comp2120.world.TravelModelTest.xml": "04588aebe1bf1d9e60527cc2d3fcf4f6b773788773316e74bc505158548c2d33",
+    "junit/core/TEST-au.edu.anu.comp2120.world.WorldOcclusionTest.xml": "df1bd8bdb3b7920563b5cf8c623dccd0300065e8a229ef4df8781f6e165afb90",
+    "junit/lwjgl3/TEST-au.edu.anu.comp2120.lwjgl3.RuntimeAssetsTest.xml": "94cda30aeaa85bdc1705f1f62cbbdda5c1b2650da857ac3a552b4c11ec39dceb"
+  },
+  "source_sha256": {
+    ".gitlab-ci.yml": "c9c9f56356c7bd752064fada7fa88290be491a16ce97031e2e90a550bdbe9499",
+    "Activity_2/build.gradle": "208faa4ebef5517c1c6036c06bf16da3c521958471405911087a2306e4afb130",
+    "Activity_2/core/build.gradle": "a798af3d66008eadda13af49f2b3e6760667239686b65ea79afa63c7cccb5d76",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/ActiveEncounter.java": "5cf5ba850fc5055de9ea2444d25d5e1d086a73f202ca53927ec8410e28aea837",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/BattleResult.java": "629980dd89404660d5c6b38c80bf7632e83351523d54b23c827fdfa6d6116548",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/EncounterFlow.java": "165fa8f54a9d1fa16cef77df365357ca151985a4de164be56593ad62eb690327",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/GameSession.java": "09cbb69215a02ee056013414ea6861ac114df5926c1465ced4836bf66daf5573",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/MainGame.java": "13f6306abd7bf26260478a8e08eec016eb6f83fc5dc9f7c1472418ec7c6f7f56",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/TravelSystem.java": "bb6dd5142f22f1a1a406485f71e3ce316856662d576658f79863f9d0ea46719f",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/audio/BackgroundMusic.java": "e68a2eae563cdb4cc02a83c7d9d45258b6f742af58baa876f297281fc9f71033",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/Attack.java": "9fdc4bf254b7f3035588449e22978f3c8923f213c4ebe3f4821aa2d56e743063",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/AttackSpec.java": "33bc677deace43aff6e05fe298b075afec9604ec0ac0a7587e34a562492c7f40",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/CombatStatus.java": "bbea6694251953aed4cc28f5956334a2d0bb6cacbeb2a2138f47ae9810391a77",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/CombatSystem.java": "06384c4107a8cdd058f7513774b0961c17a56435aecc6ef602b32ea8f7d9d31d",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/Combatant.java": "09ce108668b9dde601ed0ed0ab7e37ed4a4484261cfc67ce3caf6310718b0d79",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/DamageType.java": "852467b42ea816abba33b178afcb7b5244e121672e0f8490cd976e3eec414960",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/Damageable.java": "b9f9c3f9c60c194923bd374e94336ad543190acb332d14b78bc73e7f8bd66b4c",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ElementField.java": "17595932d6425e6b349684fecf6a4cdbfef83c4b26550112d220781dcc4bbf43",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ElementRules.java": "7d65a839ad9f503f4fe93c3fa30e1fc0b751884635dfe6882b53f1c833039d57",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ElementStatus.java": "e53264fe65ebf3f1b5227dc32525d90929026e5b0f591405cc97c8b855e5413e",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ElementType.java": "8d0f6956af1ea06dfabc301daeba5d7e17158c62830e3a550f792145d039f72b",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/EquipmentModifiers.java": "b51ae99b7c1f6795f196a9a7ebd1075a21a595cd8f82db8d521a4d76050d84cd",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/Faction.java": "1a57a9c1865c9cc323df72b795f8dd877d031772f0006e494a8382f8ae3e6fc9",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/Health.java": "ffc882dac55a2b0dcd411de1dda0f76531cee43b50fbc7bfcb3713bc0a4d84bc",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/HitFeedback.java": "da8a9cc4d98d427ef16fb8fdc2ba23247b111eecda6d5a05b60ef77d921733fd",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/HitInterceptor.java": "759867812af2b4b288835b0ea082b8bc1f3579df79997b3c2914c43f63b0ed9b",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/Projectile.java": "e7c60694c79d8efac2f4e38799bf83caa5178c1192d9cdca66e86e61b2b68cc6",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ProjectileSpec.java": "119ae3f060c8fab2c0dcde861058fdf55ba6e9c315bd0548da19abcf607d3888",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ReactionTimer.java": "8168e4abe4ade3d6ca9f0d5e9e683a9639dbf06dcfd56247cc03c721216457fa",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/combat/ReactionTuning.java": "9b3343e8c1db22978b622059a9e96a7340020abe615941ab74e99127029f7708",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/Boss.java": "6733d85752e87df1480e0bda60d815430c579c8169bdbb3961d9b576a52ec795",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/BossChallenge.java": "8842e37ecb7dfb8efa246e3628849154f92065c9a971c5c6a2708500cb62966b",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/BossConfig.java": "ef979698ece70fe5eaff5a3b0a6f31d05613d0f4b7edf12f1a2acba545ec1eb2",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/BossScaling.java": "33d84bc626d54e767a5a1e4e45c1159bf10b6d209c1ab187ef92965ead32ec72",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/BossState.java": "ecdf33dd404ee2bf58a0bf68236864eb3a45d0e1ce58bbec406c0931b27a95b7",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/BossTrait.java": "d13a5b89f139fb2cfc3b531165b67443631c689af67b764ba5bbc89f8b83ac08",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/BossTraits.java": "e74ef2562f7fb51d28786b62f09526c107d2df43a95884534295cac0aa3b14a8",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/Enemy.java": "ead926f0a8b96c5d358406d30c1e5d3d60aec0b5c48ff14fcbe56b5ecd1571c6",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/EnemyAI.java": "221b06b3d840169c73b15d82f69661268502e854ef8008bd313da73921bfc614",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/EnemyConfig.java": "ada7702d98142dca20274fc676220383309b6f288638109ef01c96ddaf9b5dd4",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/EnemyState.java": "4f739f475e0379fed6bdf1864742496b0a476dd4050d53e4b232de7a5ade218d",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/enemy/TrainingDummy.java": "d9b1fc340aeba28e80f891638f606fa64c1df465cd004d7fc6eda8882307da91",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/Equipment.java": "dace78a371b3d5281542932853635a89548da592ae868dccd0816b0c18c61e06",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/EquipmentSlot.java": "342e0195f0ee98bdded0d5c700d50d3d7185c83d1a6ad0d235f58751af507281",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/GearUpgrades.java": "5f6fd46746817e6b367786fdd6208da017f87e89d22ae5ed1a6c80fb35d58b43",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/Inventory.java": "4cc1812f56c5074ecc4460581079cadee7116c2bf32fb459b2474b9c5d7e1783",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/InventoryRewards.java": "1379c1b9dfe184f860f3e135cee10c6fa9c9f91a809d8e39bb4830401270f15a",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/ItemCatalog.java": "6c4f6ad14e872e1e28b94f7b63783cde0d0a95c7ebde590762cce32d7b300be7",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/MaterialDrop.java": "3cb737a43e45509b1fcd6196d95a997895640f5418c40958b2ee0439163fe29a",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/inventory/PotionSupply.java": "4e457649b7fb89445071e8e3d8aa0eae85d80628bb1298cdf3abccb0060693de",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/npc/ClassTrainer.java": "44092d760a1956385d7daadbab21947e037137aff333d8002cbb08b52160a337",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/npc/MerchantServices.java": "16b5d4b842584f1f6d70bc82ca725ea87a9b53947e1dbad25cf2e0f6eebc0c5e",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/npc/NPC.java": "3abab9643e0f18e84b5dfbc48551fb6d00277b866c0924ca343455b4e1299a25",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/npc/PortalGuide.java": "251c379bac4fdaa1e51ac6ac10671770496a0ed146d9f706c5b9fcbd87d11f5c",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/AbilityLoadout.java": "bc011ebe2cceaeaaf1482b3145d8def8e706c25bee7468e79479bc04e7b36e08",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/AbilitySlot.java": "0fefc041ef66142e0ba375a46476cc8108bd4f42f78f28f8d9ae4238a2a4049a",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/AbilityState.java": "3de8faf32f3c38cdc6501b5674c11ad19e0199dbde066a38915f89206abfa0b7",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/AttackShape.java": "b8d18369994061bb0bcdc82357ae3cafaa08938ace77ec2e117f44223de34277",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/ClassDefinition.java": "ae95853c546787ac9909a6d18be16b0f9f1a707da589ab8da9586ccbd4b3170b",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/ClassSkills.java": "085ba4a05363f2c94d41bd13073231416612f55f40f3d374b85fda4e37484913",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/DebugOptions.java": "1c8ab869e0996f1518cbb0daf0b56442f0860f255cf65e4dcd408754ecb9cd5d",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/Player.java": "355e2e7bc3cfb43326dfb0191a7782bc04024581ff8cee94a2e769ec3ea77ba5",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/PlayerAbilities.java": "794d5a3d018a8b2f617f04354524ccb046a4103f5a2cfab36436d83aff1c26e8",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/PlayerClass.java": "6890126f1962620d3a4a4e2cfe1b8f739efcb99b06b36847620c8b455ee4f2cb",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/PlayerClasses.java": "769454eadb49531cb500534a248b6290b4cfe8cecf8e309080abf56ebc29b7c6",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/PlayerCommand.java": "84583d19c625b120311eef11ab0b33c1f0cdad4c7fc9be58aae05a09082c631d",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/PlayerInput.java": "433526594eee7da9ce12c9443bf1797fe395b32e6d607f52764fdb93e24d6936",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/SkillKind.java": "ab36b31d5e80d8317341f863527f7c9d061e80ede960e6d25e1b760aa79c9b74",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/SkillTuning.java": "a5c99773c26dacdf82bb8d81d7c25ef589e63819048d1bf83d7c78c050a212a8",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/player/UltimateMode.java": "d486ea8dcd5197ba06632a94021349e85afd50ac7bd498d5a4da7d51d0d8349f",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/quest/BossQuests.java": "f0213ceffa17a067fdcd07f3c07558c6599ee6885fcb8badce124888576045c2",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/GameSaves.java": "14faf2daa85d0e04dcc40624c925acf16fca702742f521318fd824590d8f2259",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/InventorySnapshot.java": "e0aa984e785d38bc1bed5639ab53c0fe0acb43b81c357544a065757dfdf9df5f",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/LocationSnapshot.java": "47019d54fb85ae4d87ea55bfcea1fea8698d2b1ef662f907516e981a60b33617",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveFields.java": "e291d2909b338853dfcd6e34aa551efb3296538b7572ba542bdff79088525aaf",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveFile.java": "3f137e1c54b5d9d6e2be5427a19483a53e5e3065e7c79e1d97e9a2edf5a92373",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveMetadata.java": "ccb2dfe32ffe7674b29bd9cfde312a1ea5d151bc3048b74f81822158733652f0",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveSelection.java": "5fab00a3984cfd73b267dd0c023dbd3be45b05ebecfe0ca176e76f7b54e3ba94",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveSlot.java": "0781414386f2715e1b398581d5438884d4fae15b845130487d41b925d6c5122f",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/save/SaveStore.java": "c9c931ae1bd3e79a2d0d8321d5a19fe1cf00c3cb0290f8b6815b016559e3c607",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/ArtAssets.java": "cb7b96d805b8413de85dff16a93efa1de91c86d56f16040b284741d7efd8a95f",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/CameraFollow.java": "c92c9836d09e815cbe2e4b7e43ca2fef335436c7296d9dc890efe19947e41842",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/CombatDemo.java": "7cf33f7b564071dddb0090d406e3f575dc4338e2f798121c180b366cf9da256c",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/CreditsDialogue.java": "8c1cc3420b7a2c794af48eac6395f556e83e286c3a54be9fb22591ee0c1f2b03",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/DebugConsole.java": "607acb28a677f280d4011cdaa952e39ff7415ed4307086308b8b2df976fd36f8",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/DialogueLayout.java": "885e5450e10f2e21cb2e75b9bbf9574f66baee2d4d9a812ac88baa2bd0b99a95",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameConfig.java": "62b0c6cea7ec85eb5298977cc4152b9b949f3c8f589acb18943e2045bb7e632f",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameScreen.java": "f558f7d4b0aecc9748b8ca2bf19f5f86f2efb932ed54d6fc4197b1635e05a329",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameSettings.java": "aa0f26e2f27ad7a63a9546e85616602630ee9510cba99fe93f2ddd5bd9179538",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/HudLayout.java": "61d98f1ce8716c90bb028f294c37de5ffe8c9425e9e750b3a41db2aed16345ce",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MainMenuScreen.java": "fcb96bdec0d9d1278f101314823753338b29c94348017ace35f9f3e210352535",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/MenuKeys.java": "b45bf9179f7b15a8a7619cfb08591f2068d247d6fe987441306553f87d03e127",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/PlaceholderRenderer.java": "81750e0b518d14b7f05f273a5a904ecd24e0e76716b768e5e115ced7b45fad82",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/SaveMenu.java": "2182dfab3e56fd7428143a5eca6d710077861b083edef994ada143d0163dbbea",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/SceneArt.java": "e43f8d15c090756b18e7290a8de6a7a47ccee30cf32873e89b5da084834d6fba",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/SettingsScreen.java": "c4efd83bed310f9e16e125594b67627a10d414a7d6894c887979ddfe2db27501",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/StatusLabels.java": "d030316ed4588c980327dd757d53663fd40c200fe2743c5f6514758078841cda",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/TrainingAppearance.java": "ab235d29d7bc9820d0f881d6b6e249f4b345aff72349b187172e19a9e326ba35",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/AStarPathfinder.java": "249ab7599c3da0fa311d8e8b8601b20668cd405f19d799dbd7290be26aab1078",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/CollisionBox.java": "421f36bcfc90083c24e31d0e33f0ab3efd51c1f58769bc8d3504385782481f2d",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/CollisionSweep.java": "408769f5a1b652c386cbea0dc1100028ffb12213365697c7d71324799f741262",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/FastTravelDestination.java": "dc4c858f228cac38cedaa4144c4ac96f03bc64bd15f0286a7af093eb36eec7ad",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/GameMap.java": "1920a1abc1bc63161462d613c001eef53e3dca0848873b0a7b6a9349377c46fd",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapCatalog.java": "3a83d5d787769a3b2e177cb7e450eb23ad269e35d21cf51b0b3533846d18bae6",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/MapType.java": "ab0c77a0cee1c7b37ec3e72cd184eb3729c9f77cadf19e8ec18a8db50c16f001",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/Portal.java": "80d9d3fdd7b4d8cc12da99b6a872f3b17efb5acf20dd39a6cba2f56376d7929a",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/SpawnPoint.java": "38e3464d666dd0a57abf8906062a4a61077514f964df815ac5fcf13ad9118329",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/TravelCatalog.java": "13b5dfbb4d9fcac901bb870bcada1b49a5b14618fe0c533f4e5ec585a151a375",
+    "Activity_2/core/src/main/java/au/edu/anu/comp2120/world/WalkableArea.java": "bf380b9e7ba85e6c852e10c60d027c4a8a6db941f33b0893aaea60aa8807c3d2",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/ActiveEncounterTest.java": "c4e78c74e69e754730de3bb8cf9519609e71967d16e260147320365ec3816821",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/CoreSkeletonTest.java": "bdaedec1829d1ba4205b7a9b8f9047ba26341abf646d85ec0340c64337ae1de8",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/GameSessionTest.java": "7bad991ac5476efc7aef6302654272c0c6231551530024ef16682b26604d72b7",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/TravelSystemTest.java": "2af6abfd2bed856767de0c036efbd538c4d287273aff76fb94dc61c5da72e84f",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/audio/BackgroundMusicTest.java": "3b39439df902958d3f27f74b378716aca8c901a5179aa29125daa34d2c460c26",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/audio/MusicVolumeTest.java": "0dd6342320c2330fdd2b9cae60086e7619fa6176d41f39be19319ab012f52b0c",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatCapabilitiesTest.java": "bb26cab1ff9fdde7ea3267932e5194de251b444d95ce07a61313f259d5ce120a",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatModelTest.java": "28ba4586b043a4f836b587dbe855cf23b4667c2fe29f1136a1650b04086187e9",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatOcclusionTest.java": "425e0c27479a9331c5efefc9e5b1a3d8084ba23562062eb82649ba2b33490719",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatStatusTest.java": "150a17288a512e7b18d74109d37d0c38d07f270340af8c98fff601412ad86d2e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/CombatSystemTest.java": "2ad9b519b32167cee25ef2f28067b1876b7af8ede5f247c66b8833f2c46900bc",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/ElementCombatTest.java": "64370e9eb67f320fa650c3b2a81ae861434a68721855784564707f9a03f7c46d",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/ElementRulesTest.java": "c631276b7d5d0af04c78179e2bf7a2c3d4ac3e2313626cd419f8482d5a92817d",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/EntityHealthTest.java": "5ad68fbf0bea078fe5ec3c827b7d581109282150c13ec7c73a7b0b298669ffb9",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/HealthCapacityTest.java": "e0bdb51c9cd4d64ba7f5d708f6199b917dc0698615af07d38d6262a3a21974e4",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/HealthTest.java": "a6f52b3c9d9d0a5f04d183a0c928a8cd972c4ee5a8eecb27e41cbe8a5954f091",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/HitFeedbackTest.java": "30d313d21a17f4bedb78b52f312e108626d78512fb3bd1ed0edc88ce22272a67",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/ProjectileSpecTest.java": "fcda8022cb4a9073764fdcf4019761e9d9981af4e7d1367a923046acdb962459",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/ProjectileTest.java": "7de2c174bfa9fc7d814e767d30fabf7c9731561995cb8f01f7936d839a1cf339",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/combat/ReactionCompletionTest.java": "bfb5a5ca2b134b135c1725631d63284d31ebd42104c222bae858d9d741153122",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/BossAttackTest.java": "c45e33bafb7802e4679188c23471244f1984150a58555568cdd79019956b0c92",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/BossConfigTest.java": "be67bd111155653363c72369308a754325861383362c21b4c05c6a572d07bc31",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/BossScalingTest.java": "ba86fa0d594175f6db8617d23d7e76259fc9815f86fb09b8c0692955ffb33617",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/BossTest.java": "c5aa51cc5c3d6b81882775828aed53668edd7ea8e0747d5cd16dafca372a102d",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/BossTraitTest.java": "9b5b579719cb5d8f7511984b34d78b305a0d1e1d707fbf85f5f6e8f78d6fbf16",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/EnemyAITest.java": "c41eed4d05d19b90dc583207dcda3505ab853d377cc2c908bc6e247ed637fb8c",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/EnemyConfigTest.java": "414ca7bc90321eb861f861bf2b7438d175fd8f357f28da8302ab2a6f4992a70e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/EnemyNavigationTest.java": "5e648baeead790ce95fb13ad24751eb0f96221c5a6819a0cef0e3638e953fd6e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/enemy/TrainingDummyTest.java": "9f0e11d649e6421228709b5d8793a59fa6323f0558fe2e6f59fdac7407a5f04c",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/EquipmentIntegrationTest.java": "08c199f8513c6b8453852de6562c1c4b4409ca8918b794a85bf5ffe9f23aaa6f",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/EquipmentTest.java": "d5f72d1249a49319df493a648586937762239098ad320bf2c5a4a1f3f64680e9",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/GearUpgradesTest.java": "4d691195337b238cf880176373c99aa110e1db7f308340463edd3af21cbd4eff",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/InventoryTest.java": "6a25f9b80509143bc154ef78c3b3cef689c1be79887636b596a672b1c1220507",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/ItemCatalogTest.java": "0ea84c7054ec9f5a401c284b39e7782e072ae260db00afd27005ffdc3e466d5e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/inventory/PotionSupplyTest.java": "d6395e1bbe6d801e7864e08462a7a8737622611b940a52ca8e8e13cb399f7b27",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/npc/MerchantServicesTest.java": "68a4b17f2ec75d2c1efaa388d78bb2016bf20ac98a1a17a19fc6caad017af58e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/npc/NPCTest.java": "04d9d864a6a6a4b873631bafd4f94980b590f4550c4cd384b5c073a3d0ef9258",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/AbilityLoadoutTest.java": "73d1836a2e81c16605c93ffc8cc9692087115874311a1310378a09da53d7528f",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/ArcherAbilitiesTest.java": "c15627570d85c0993275776693fed0b8ac74ddf07bf0c8e31e04204681bb8351",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/AttackShapeTest.java": "690a5922939702871be914ee17f69cdf1db6b3523c4760d557fbb212da925079",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/DebugOptionsTest.java": "7e58aa12109827416ab75e74e3404cc909dc2e788b078a6e798c5b19f0d9f2d9",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/ElementClassIntegrationTest.java": "0554ffce859e189309d6816795d4a69f59c636177a0a9d3a3c316fac4216f3bb",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/FinalClassSkillsTest.java": "58fb9fda1b0895154230e5fabdf5dea5b65d882a084c4ef9ccf6e26bbda3edb3",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/KatanaAbilitiesTest.java": "562bac034f56cf31fdcb7360373c730a82df02d2e2b9bdfabb4c1ab96fd097d1",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/MageAbilitiesTest.java": "59e6277438ac06922e3696f2d383836709ecbf3e2756f78ac3ce8bd227d3a75f",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PlayerAbilitiesTest.java": "d3a67595b3fb2470aea111e5b0734ad2cf37d77f2cb09c4c562c5f085ccdc343",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PlayerClassTest.java": "33521df1eb23ba47eb12df11c2da66c19fa4c5f7556090c7692ed4499c6dfb25",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PlayerInputTest.java": "df07af439f52eb87e0d0e615f1537f553f8c95e84dd16c26988bb557be40cae5",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PlayerTest.java": "8c433414e9565b925a6078cac7256085e2d28d48f9ee49dfdc17fde759b06518",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/player/PotionGameplayTest.java": "46e794bfd1e49c86e744aefc90a27f59620ada3b5ff79d1f6891f5db0cb9d0a6",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/GameSavesTest.java": "706dee4a3122a127744bbd8c5b3044746b680cbdf3579247db6406a6d9a1dcc3",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/InventorySnapshotTest.java": "24d68a2e8c005f95994437052e0561babf23a6fd5ae9e386d9b3e44db44c8254",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/LocationSnapshotTest.java": "44f9e2137d682ce6c33b888b0b485192015d404bcba9a5f538ba41e673a1600f",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/SaveFieldsTest.java": "d7230724b64057338750d7c0955392f27f6373abb64ee99cda178140fa0b7d1c",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/SaveFileTest.java": "1df65a2e66941be163f4c6eac8a584d7117a501499b82ea4bb402d2bb25e19e2",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/SaveMetadataTest.java": "5651e057ff02aa30282b17f52b44547485979e96a9f4ddc9c554216e69f7ef21",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/SaveSelectionTest.java": "3897e01c99710a80b528911e0d941c66814b5a912d28c0316d619dfb763bc2ad",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/SaveSlotTest.java": "b079e759d305e2a65c885bf56ab2d2b12d938857441fb1d8c4ece374d64df90a",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/save/SaveStoreTest.java": "16b51e38c30364a36c7ddf643b853f49126583f47cb20fb08c89d7e839ea6925",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/ArtIntegrationTest.java": "83461e63bc30395ba2f60f4a75f3bcb30f2288438730ef4f289a68c4c9ede864",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/BossDemoTest.java": "8fe33e94e11b2202ea17779484e74c01519d809e5ab1c35171613c13b0e146f5",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/BossQuestFlowTest.java": "fa099c01cf0937ec607a82ce053b4afa8dd602db61040554b0da5a717c25438e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/CameraFollowTest.java": "4643622a371a8082cbc21cbdc9107c4517ad523fb8f78be642c7ee388347cd9f",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/ClassTrainerTest.java": "8626b5f8baa2bcc550dc198fb7446814c0fee59cc6e1ddd9c7a30e5bbed1ab63",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/CombatDemoTest.java": "58a8732032d347379c7f2fad478a9953a65103faaab2a25cc8d69e146eefbb26",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/CoreGameplayIntegrationTest.java": "71c82e891349f62084760646620ddfeb8b2aab3d5d4f9b168260091facd12e35",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/CreditsDialogueTest.java": "f6254b174daf241af05ae7fb78e9193868b4f172f434655533e68b4350cff62b",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/DebugConsoleTest.java": "4ca92b8d96e04a8a8024f08902455581234372545184799eff02a2ce347e54bc",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/DialogueLayoutTest.java": "5b039f33d02b7195ebb0c6c313085da8d96a490986ba14a02e6efb24e2273b89",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/GameScreenObjectiveTest.java": "61c0baede2af9cc3728e0561865cd066677ed52360ed49c7c158f2ea94ffdaa7",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/GameSettingsTest.java": "039822dc289458da4bddfb138fa70cf75fb778e783485c15ff60bfb6334a9999",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/GameplayIntegrationTest.java": "ce1882d9b8ce996dcc81612cb2456a6781265a6da8adee01c6e21ef10e90d7ac",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/HudLayoutTest.java": "c7feb7814405b68cd3a7c4f7c0d3acdcfa68b4d5d12ca6e949cbd9cadd578d7d",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/MainMenuScreenTest.java": "bcebe094ca076c0585f7a4c033f4f6c77f4eb0e5fe52728b76b2afc6cfd051cf",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/MemorialHallTest.java": "1016d704a81d833f3c99ffa843b07ff7adaa3e15810e2c9cab840b3da2589377",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/MenuKeysTest.java": "bcdd7e5b3a60f14eee875a1e985e149d6f854a199c5d4d0ade13da7f46efbcd2",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/OutcomeBannerTest.java": "b23f33b02b4f8dc878ef342ee909d753b55eecc6d769ff6d662e31ecf81bfca1",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/PlayerControlEffectsTest.java": "d880409683e6f09e534151b0dab5a6975b7cbd9f3e8374ccf6717215e65f722e",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/PlayerDefeatTest.java": "8e0ec89f57c5857fcca7789fca0b81ee8119ae6e9bcc782b51f7ff13f77ebe8b",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/PortalGuideTrainingTest.java": "51b63a28ab5b50864103cce7fc5772180b10b878e9ab5599e6a34c6201ec4e19",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/PotionFeedbackTest.java": "1e4597f30fe3c6c4741f0522d15f9aceb6779928a3aa80c86e6bb9114620856c",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/PotionFontLayoutTest.java": "97118f127c6b29b1038beeef216b3925c51dce0b28946c57e00b503a97e6f110",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/QuestPortalFlowTest.java": "854c6bc2edaed6b47ce613421426425568e94fa1d56659827934f8637bf352b0",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/SaveMenuTest.java": "adbda1befd65a064fdf773a182aee2e8e577dc29ba00c29d4373a1f00cc38308",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/ScreenFlowTest.java": "d8b2d5ce5e652142b8c1750e6c0fee3bf8aa34a51e83cf26ef59678748880eec",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/StatusLabelsTest.java": "86cf4d5345c513c54dafb6541596105bca4dc851bf0ceb81e492c74f484997fa",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/AStarPathfinderTest.java": "97107993c059bcfb244d4f3b79a82fca4bb6ce46e77d604d7eb459563942370a",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/CollisionBoxTest.java": "a36acaad11cd30f6db006398357ba003526a7e6f776d40f541737a93409df3cc",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/CollisionSweepTest.java": "b9578c729219e79782e36081cb2e2d9699e4953513e3a8de3e118992d6e12c28",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/GameMapTest.java": "0e97730e84b28918c05d9634dd21418f88205528ae58e00d8fd49b6215ae77d8",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/MapCatalogTest.java": "8f2e5a68f1d978dba3db62bfb97ece55ccaae9fd1bbf61f45737eed1e46d1510",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/MapDefinitionTest.java": "a99934e6c49b3a7e72c9340b9e5c88256a3e09c3b99ad6f5cd3046180631aeb4",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/PortalTest.java": "b771280bfe3cc427c311450d0aa8238147eac122bec18e79f47bd71aa9468616",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/SpawnPointTest.java": "d377da545647f86e06707926029999c1953d37f6f9ab0a1644e86a300aa32c60",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/TestMaps.java": "c3dc11beb6a4924b24c3e321de8d09f5ee364486c733e297ff9616529dbb1c79",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/TravelModelTest.java": "33cda1aee0ba75c8468822ee5477bc112ba3d9536d865e1019388b4cca491d96",
+    "Activity_2/core/src/test/java/au/edu/anu/comp2120/world/WorldOcclusionTest.java": "0f7429af9515a2f9417c9ecb9f8e64f595541933838d080c288ed09a7990e45c",
+    "Activity_2/gradle/wrapper/gradle-wrapper.properties": "ddbd34fc09dd7f9f8fd07659fea56fed344f080b8e3fe15d64a9af1f0b2c606f",
+    "Activity_2/gradle.properties": "4cfbdc9bfd2c6cd660e1c7e5622df5aff6f38570b60dc2fcade01e2869b3659b",
+    "Activity_2/lwjgl3/build.gradle": "ef04e63157fbafa0343b1a502b5f490dc2332d66dce45f65440c5249f17e4ad1",
+    "Activity_2/lwjgl3/src/main/java/au/edu/anu/comp2120/lwjgl3/Lwjgl3Launcher.java": "09687abcbbfdde924911e5f4203acf02db391a8e670a4973d3e039b9c3aad57c",
+    "Activity_2/lwjgl3/src/test/java/au/edu/anu/comp2120/lwjgl3/RuntimeAssetsTest.java": "6d27fdf19741ed57b7e7a00279ebf79c32c8ed79daf04c1d176b9406841afb34"
+  },
+  "post_run_source_notes": [
+    {
+      "file": "Activity_2/core/src/test/java/au/edu/anu/comp2120/screen/ScreenFlowTest.java",
+      "change": "Removed an unnecessary throws Exception declaration and its @throws JavaDoc from installDevices; test statements and production code unchanged.",
+      "recorded_run_sha256": "d8b2d5ce5e652142b8c1750e6c0fee3bf8aa34a51e83cf26ef59678748880eec",
+      "current_sha256": "8855ead35334919dc25f801ccda68be7f80e6ec3dbe03a14c1f7a106fcbd8f64",
+      "verification": "Fresh direct JDK compilation; 41 ScreenFlowTest/GameSettingsTest invocations passed with zero failures/skips; strict core JavaDoc audit passed. The archived full Gradle XML remains unchanged."
+    }
+  ]
+}

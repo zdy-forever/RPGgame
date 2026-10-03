@@ -1,5 +1,18 @@
 plugins {
     id 'java-library'
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = '0.8.15'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 dependencies {
@@ -8,4 +21,13 @@ dependencies {
     testImplementation platform("org.junit:junit-bom:${junitVersion}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Decode real textures/fonts while screen integration tests replace GPU and audio devices.
+    testRuntimeOnly "com.badlogicgames.gdx:gdx-platform:${gdxVersion}:natives-desktop"
+}
+
+tasks.named('test') {
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    def testHome = layout.buildDirectory.dir('tmp/test-home')
+    systemProperty 'user.home', testHome.get().asFile.absolutePath
+    doFirst { testHome.get().asFile.mkdirs() }
 }

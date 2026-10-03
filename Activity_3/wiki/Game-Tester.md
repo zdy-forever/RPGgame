@@ -6,7 +6,38 @@
 
 The automatic game tester is the Gradle-run JUnit suite, including scripted integration scenarios that exercise the production gameplay models and coordinators. It sends `PlayerCommand` inputs, advances bounded simulation steps and asserts the resulting state or event. This follows the assignment examples of command-to-state testing, action-to-event testing and rejection of illegal operations. The assignment description supplied for this project does not require a separate interactive executable.
 
-The suite runs without opening the game window. It does not automate desktop pixels or mouse clicks. Training and the debug console are additional manual testing aids; the tutor can separately play the graphical game using the User Manual.
+The suite runs without opening the game window. It does not automate a native desktop window; screen tests inject keyboard/pointer input through recording device boundaries. Training and the debug console are additional manual testing aids; the tutor can separately play the graphical game using the User Manual.
+
+## Activity 3.3 testing and coverage report
+
+[Activity 3.3 — automated testing and code coverage](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_3/3.3/REPORT.md)
+records final core coverage, test commands, CI configuration, raw XML evidence and
+specific reasons for remaining coverage gaps. This reference follows `main`; the
+historical source and pipeline links below remain pinned to their recorded commits.
+
+The suite includes real screen/input integration with recording GPU/audio boundaries:
+keyboard and mouse menus, save/load, inventory/storage, NPC services, all six class/mode
+combinations in Training, five-victory settlement, Hall ending and Credits. Graphics
+and sound calls are recorded; this does not establish native pixels or audible output.
+See the report for the final counts and coverage. All core production classes remain
+included, and local results are not represented as a new remote CI pass.
+
+The final local Gradle run on 3 October 2026 passed **1,449 core + 4 desktop tests**
+with zero failures/errors/skips, including both JavaDoc audits. Core coverage is
+**97.63% lines, 88.63% branches and 97.52% instructions**.
+[Final raw XML evidence](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/main/Activity_3/3.3/coverage-evidence.zip)
+preserves the measured run and source hashes.
+
+Run the complete core coverage measurement from `Activity_2`:
+
+```sh
+./gradlew :core:test :core:jacocoTestReport --rerun-tasks --no-daemon
+```
+
+Open `core/build/reports/jacoco/test/html/index.html`. The report includes all core
+production classes, including rendering code, with no custom exclusions. Line/branch
+coverage differs from the percentage of tests that passed. Selected `--tests` runs do
+not represent full-suite coverage; regenerate the full report after focused debugging.
 
 ## Run the automatic tester
 
@@ -29,7 +60,7 @@ Install the JDK and clone the project as described in [Installation and Setup](i
 From `Activity_2`, with JDK 25:
 
 ```bash
-./gradlew clean build javadocAudit --no-daemon
+./gradlew clean build javadocAudit :core:jacocoTestReport --no-daemon
 ```
 
 Use `./gradlew.bat` on Windows. `test` alone runs JUnit; the full command also compiles/builds the modules and performs the strict JavaDoc audit. Reports are in each module's `build/reports/tests/test/index.html` and `build/test-results/test/`.
@@ -49,6 +80,7 @@ Use `./gradlew.bat` on Windows. `test` alone runs JUnit; the full command also c
 | Test group | Expected behavior checked |
 | --- | --- |
 | `CoreGameplayIntegrationTest` | Portal admission through movement; actual combat victory/reward settlement; defeat, return and retry; map-local ability cleanup |
+| `ScreenFlowTest` | Real screen input, save/load, NPC menus, bag/chest, class combat and ending/Credits; recording GPU/audio boundaries |
 | World collision and combat occlusion tests | Movement respects geometry; blocked attacks do not damage through walls |
 | `BossTraitTest` and Boss tests | Guardian-specific mechanics, phases and encounter rules |
 | `EquipmentIntegrationTest`, `GearUpgradesTest` | Ownership, stat effects, material consumption and +2 cap |
@@ -61,7 +93,7 @@ A passing test means its assertions hold for the scenario tested. For example, t
 
 ## Assignment examples mapped to real tests
 
-Source references below are fixed at `59de4e6`. The current CI result for that commit is recorded below.
+Source references in the table below are fixed at `59de4e6`. The historical CI result for that commit is recorded below.
 
 | Requirement | Input/actions performed | Expected state/event | Test evidence |
 | --- | --- | --- | --- |
@@ -88,11 +120,11 @@ The test then checks the selected map, named spawn and encounter state. These co
 - Core report: `core/build/reports/tests/test/index.html`; desktop report: `lwjgl3/build/reports/tests/test/index.html`; machine-readable results: each module's `build/test-results/test/`.
 - Record the source commit, date, OS/JDK, exact command and result together. Attach a report/pipeline screenshot for that run; a screenshot of Training alone does not prove automated tests passed.
 
-The current CI result below establishes that the suite passed for the identified commit. Native input, audio, rendering and a complete human playthrough remain separate checks.
+The historical CI result below establishes that the suite passed for the identified commit. Native input, audio, rendering and a complete human playthrough remain separate checks.
 
 ## Recorded results and coverage
 
-### Current CI evidence — 3 October 2026
+### Historical CI evidence — 3 October 2026
 
 | Item | Observed result |
 | --- | --- |
@@ -104,7 +136,7 @@ The current CI result below establishes that the suite passed for the identified
 | JUnit report | **1,302 passed; 0 failures; 0 errors; 0 skipped** |
 | Build/JavaDoc | Both modules compiled and tested; `core:javadocAudit` and `lwjgl3:javadocAudit` completed; log ends `BUILD SUCCESSFUL` |
 
-**Observed outcome:** the automatic tests met their assertions for this commit. GitLab reports the same 1,302-test result for the latest pipeline. The screenshot below was captured from pipeline #1052082 on 2 October 2026 and shows that report format and count; the links above are the authoritative evidence for the later `59de4e6` run. The displayed 100% is the test success rate, not source-code line/branch coverage. This CI result does not establish manual desktop, audio or complete campaign acceptance.
+**Observed outcome:** the automatic tests met their assertions for this commit. The linked pipeline reports the 1,302-test result for that revision. The screenshot below was captured from pipeline #1052082 on 2 October 2026 and shows that report format and count; the links above are the authoritative evidence for the later `59de4e6` run. The displayed 100% is the test success rate, not source-code line/branch coverage. This CI result does not establish manual desktop, audio or complete campaign acceptance.
 
 ![GitLab pipeline 1052082: 1302 tests passed, zero failures, errors or skipped tests](uploads/55b3cca95fa485eda6abad6b996ff2a2/clipboard.jpeg){width=900}
 
@@ -114,11 +146,17 @@ The Training fix was also checked locally with direct JDK compilation, 83 select
 
 The documented full validation on 28 September 2026 passed 1,237 core tests and four desktop tests, with zero failures/errors, plus JavaDoc audits and desktop compilation. This is dated evidence, not a claim that every later revision has been rerun. Consult the pipeline for the exact submitted commit.
 
-No measured line/branch coverage percentage is available in the inspected build configuration. Test counts and feature-to-test mappings must not be presented as a coverage percentage. A measured coverage report remains a verification improvement.
+The later Activity 3.3 pass adds JaCoCo line/branch measurement and regression tests. Its report above records the newer local results separately; they are not attributed to this historical pipeline. Test counts must not be presented as coverage percentages.
 
 ## CI and JavaDoc
 
-The repository's [CI configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/.gitlab-ci.yml) defines `gradle-build` using `eclipse-temurin:25-jdk` and the teaching runner tag `comp2120`. It runs `clean build javadocAudit --no-daemon` and uploads JUnit XML even when the job fails. The job has no branch filter excluding main; verify the resulting main pipeline at submission.
+The repository's [CI configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/.gitlab-ci.yml) defines `gradle-build`
+using `eclipse-temurin:25-jdk` and runner tag `comp2120`. It runs
+`clean build javadocAudit :core:jacocoTestReport --no-daemon`, executing both modules'
+tests and retaining JUnit XML, test HTML and core JaCoCo HTML/XML. The job has no branch
+filter excluding main pushes. The coverage configuration is part of the Activity 3.3
+change; verify the resulting pipeline for the submitted commit rather than treating
+local results as a remote CI pass.
 
 [View pipelines](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines). Open the relevant commit's job for its log and test report. Security jobs are separate from gameplay tests.
 

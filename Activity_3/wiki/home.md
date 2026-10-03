@@ -40,6 +40,7 @@ Docker is not required to play or test locally. The [Docker page](Docker) explai
 - [Documentation Index and References](Documentation-Index)
 - [Game Engine](game-engine)
 - [Game Tester](game-tester)
+- [Activity 3.3: tests and coverage report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_3/3.3/REPORT.md)
 - [User Manual](User-Manual)
 - [User Stories](User-Stories)
 - [Planning and Schedule](Planning-and-Schedule)

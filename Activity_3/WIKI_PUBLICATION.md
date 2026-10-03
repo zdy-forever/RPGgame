@@ -1,5 +1,15 @@
 # Wiki publication record
 
+## Pending Activity 3.3 update
+
+Local `Game-Tester.md`, `Documentation-Index.md`, `home.md` and `_sidebar.md` now reference the
+Activity 3.3 report and coverage workflow. These edits have not yet been published to
+the live Wiki. Publish the repository report and CI/test changes first, then synchronize
+these pages so their new `main/Activity_3/3.3/REPORT.md` link resolves. The publication record
+below describes the earlier published versions, not the new local drafts.
+
+## Earlier publication
+
 Published to the team GitLab Wiki on **3 October 2026**, reviewed against main
 `59de4e66120654605150c8baad4ca49dea39224f`. The English files in `wiki/` match the
 published Markdown. Existing live pages were read before editing; teammate changes

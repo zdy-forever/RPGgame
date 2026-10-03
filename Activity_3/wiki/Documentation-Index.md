@@ -4,9 +4,19 @@
 
 ## How to use these references
 
-The Wiki provides a tutor-facing overview and runnable instructions. Activity 2 contains detailed implementation contracts, scenario records and the original screenshots. All repository links below are pinned to **main `59de4e6`**, reviewed 3 October 2026. Historical execution dates/commits inside a report still describe that particular run; they are not new tests of the pinned revision.
+The Wiki provides a tutor-facing overview and runnable instructions. Activity 2 contains detailed implementation contracts, scenario records and the original screenshots. Activity 2 catalogue links below are pinned to **main `59de4e6`**, reviewed 3 October 2026. The later Activity 3.3 report and CI links follow `main`. Historical execution dates/commits inside a report still describe that particular run; they are not new tests of the pinned revision.
 
 [Activity 2 documentation index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/README.md) · [Game README](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/README.md)
+
+## Activity 3.3 — automated testing and coverage
+
+- [JUnit additions, measured coverage and tester instructions](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_3/3.3/REPORT.md)
+- [Final raw coverage and JUnit XML evidence](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/raw/main/Activity_3/3.3/coverage-evidence.zip)
+- [Current CI configuration](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/.gitlab-ci.yml)
+- [Game Tester overview](Game-Tester)
+
+The report distinguishes local test/coverage results from historical GitLab pipeline
+results and explains what still requires manual gameplay verification.
 
 ## Assignment requirements to evidence
 
@@ -15,7 +25,7 @@ The Wiki provides a tutor-facing overview and runnable instructions. Activity 2 
 | Project summary and game description | [Home](home), [User Manual](User-Manual) | Game README, quest/portal report |
 | Game features, examples and screenshots | [Features](features), [Playtest and Screenshots](Playtest-and-Screenshots) | Feature reports, 41 dated native captures |
 | Engine features and examples | [Game Engine](game-engine) | Architecture, configuration example, collision/combat/integration reports |
-| Automatic tester: running, functionality and expected results | [Game Tester](game-tester) | Commands, real test-method mapping, pipeline #1052436, coverage review |
+| Automatic tester: running, functionality and expected results | [Game Tester](game-tester) | Activity 3.3 final coverage and XML, commands, real test-method mapping, historical pipeline #1052436 |
 | Planned but unimplemented work and reasons | [Known Issues](Known-Issues-and-Future-Work) | Architecture scope decisions; achievements depended on late save/load |
 | Planning, scheduling and roles | [Planning and Schedule](Planning-and-Schedule), [User Stories](User-Stories) | Activity 1 plan, milestones, real issues/commits and contribution records |
 | Installation, build, run and test | [Installation and Setup](installation-and-setup) | Game README, wrapper/toolchain/module build files |
@@ -48,7 +58,7 @@ The Wiki provides a tutor-facing overview and runnable instructions. Activity 2 
 
 [Native test report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/PLAYTEST_REPORT.md) records expected versus actual outcomes, preparation, versions and incomplete checks. [Screenshot index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/README.md) lists every capture and its dimensions; [SHA256SUMS](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/screenshots/SHA256SUMS.txt) identifies the original files. Wiki images use the repository's pinned raw URLs; they are not separately edited copies.
 
-The latest reviewed full build/test result is [pipeline #1052436](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052436), [job #7717341](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7717341): 1,302 passed, zero failures/errors/skips, build and strict JavaDoc successful at `59de4e6`. Earlier CI records in Activity 2 remain dated historical evidence. A 100% test success rate is not line/branch coverage.
+The historical full build/test result recorded here is [pipeline #1052436](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/pipelines/1052436), [job #7717341](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/jobs/7717341): 1,302 passed, zero failures/errors/skips, build and strict JavaDoc successful at `59de4e6`. Earlier CI records in Activity 2 remain dated historical evidence. A 100% test success rate is not line/branch coverage.
 
 ## Maintenance
 

@@ -193,6 +193,46 @@ final class FinalClassSkillsTest {
         assertEquals(10000 - SkillTuning.FIELD_TICKS * 25, zero.health().getCurrentHp());
     }
 
+    /** Damage between frames cancels casting before a large update can emit a field wave. */
+    @Test void circleInterruptedBeforeUpdateNeverEmitsDelayedDamage() {
+        Fixture f = fixture(PlayerClass.MAGE, UltimateMode.A, List.of(), 1);
+        f.step(0, command(AbilitySlot.ULTIMATE));
+        f.player().takeDamage(1);
+        f.step(5, PlayerCommand.NONE);
+        assertEquals("NONE", f.abilities().getSkillStatus());
+        assertEquals(10000, f.health().getCurrentHp());
+        assertTrue(f.combat().getActiveAttacks().isEmpty());
+    }
+
+    /**
+     * Rejected cooldown restoration must leave every existing timer unchanged.
+     * @param invalid invalid finite/NaN/infinite saved time
+     */
+    @ParameterizedTest @ValueSource(doubles = {-1, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY})
+    void invalidCooldownRestoreIsAtomic(double invalid) {
+        Fixture f = fixture(PlayerClass.ARCHER, UltimateMode.A, List.of(), 1);
+        f.step(0, command(AbilitySlot.LIGHT));
+        var before = new java.util.EnumMap<AbilitySlot, Double>(AbilitySlot.class);
+        for (var slot : AbilitySlot.values()) { before.put(slot, f.abilities().getCooldownRemaining(slot)); }
+        var corrupt = new java.util.EnumMap<>(before); corrupt.put(AbilitySlot.ULTIMATE, invalid);
+        assertThrows(IllegalArgumentException.class, () -> f.abilities().restoreCooldowns(corrupt));
+        assertThrows(IllegalArgumentException.class, () -> f.abilities().restoreCooldowns(Map.of()));
+        for (var slot : AbilitySlot.values()) { assertEquals(before.get(slot), f.abilities().getCooldownRemaining(slot)); }
+    }
+
+    /** Incomplete profession choices and NONE elements cannot partly replace existing player selections. */
+    @Test void invalidSelectionRestoreIsAtomic() {
+        Fixture f = fixture(PlayerClass.MAGE, UltimateMode.B, List.of(), 1);
+        var before = f.player().savedModes();
+        assertThrows(IllegalArgumentException.class,
+                () -> f.player().restoreSelections(PlayerClass.KATANA, ElementType.NONE, before));
+        assertThrows(IllegalArgumentException.class,
+                () -> f.player().restoreSelections(PlayerClass.KATANA, ElementType.ICE, Map.of()));
+        assertEquals(PlayerClass.MAGE, f.player().getPlayerClass());
+        assertEquals(ElementType.FIRE, f.player().getMageElement());
+        assertEquals(before, f.player().savedModes());
+    }
+
     /** Fixed Magic Circle centres use the same blocker query for every finite wave. */
     @Test
     void circleCannotTickAcrossWall() {

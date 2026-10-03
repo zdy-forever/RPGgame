@@ -34,9 +34,15 @@ gradle-build:
       - .gradle-cache/wrapper
   script:
     - cd Activity_2
-    - ./gradlew clean build javadocAudit --no-daemon
+    - ./gradlew clean build javadocAudit :core:jacocoTestReport --no-daemon
   artifacts:
     when: always
+    paths:
+      - "Activity_2/*/build/reports/tests/test/"
+      - "Activity_2/core/build/reports/jacoco/test/"
     reports:
       junit:
         - "Activity_2/*/build/test-results/test/*.xml"
+      coverage_report:
+        coverage_format: jacoco
+        path: "Activity_2/core/build/reports/jacoco/test/jacocoTestReport.xml"
