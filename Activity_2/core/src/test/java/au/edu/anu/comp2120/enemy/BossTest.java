@@ -58,6 +58,23 @@ final class BossTest {
         assertEquals(400, boss.getHealth().getCurrentHp());
     }
 
+    /** Freeze outranks stagger, expiry reveals the remaining lock, and death outranks both. */
+    @Test void controlStatePriorityAndExpiryAreExplicit() {
+        var status = boss.getCombatant().getStatus();
+        status.applyStagger(2);
+        assertEquals(BossState.STAGGERED, boss.getState());
+        status.applyFreeze(1);
+        assertEquals(BossState.FROZEN, boss.getState());
+        tick(1);
+        assertEquals(BossState.STAGGERED, boss.getState());
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        boss.getHealth().takeDamage(400);
+        assertEquals(BossState.DEAD, boss.getState());
+        boss.synchronizeOutcome();
+        assertTrue(boss.claimDrop().isPresent());
+        assertTrue(boss.claimDrop().isEmpty());
+    }
+
     /** A player attack damages Boss HP through the existing pipeline exactly once. */
     @Test
     void playerDamageUsesCombatAndHitLedger() {

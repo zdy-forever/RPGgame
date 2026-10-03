@@ -1,7 +1,9 @@
 # Automated game tester and verification
 
-Reviewed against `7fea86a` on 2026-10-02. This page explains how to run the tester,
-what it checks and which results have actually been observed.
+Tester instructions updated on 2026-10-03 for the additional coverage pass based on
+`4030a7b`. Historical results below retain their original revisions and dates.
+See [Activity 3.3 — automated testing and coverage](../../Activity_3/3.3/REPORT.md) for the
+test scenarios, final measured coverage and archived execution evidence.
 
 ## What the tester is
 
@@ -15,6 +17,11 @@ parsing or arithmetic methods, although both use the Gradle/JUnit runner. There 
 native window-driving executable or standalone smoke-test application. The console is a manual
 debug tool; it does not assert outcomes or replace the tester.
 
+`ScreenFlowTest` also runs real screens with injected keyboard/pointer events, real
+font/image decoding and recording GPU/audio devices. It covers menus, settings,
+NPCs, bag/chest actions, save/load, Training combat and the Hall/Credits sequence.
+These checks validate application state and device calls, not native pixels or sound.
+
 Some fixtures arrange an initial position or directly settle a Boss for a focused persistence
 check. Other scenarios use real attacks to complete fights. A direct death fixture must not
 be described as a full mouse/keyboard playthrough.
@@ -27,7 +34,7 @@ Run the following from `Activity_2`. On Windows substitute `./gradlew.bat`.
 Full build, both test modules and strict JavaDoc audit (same command as CI):
 
 ```sh
-./gradlew clean build javadocAudit --no-daemon
+./gradlew clean build javadocAudit :core:jacocoTestReport --no-daemon
 ```
 
 Force both test tasks to execute again:
@@ -120,7 +127,29 @@ Font-metric and layout assertions do not capture GPU output. Fake Music verifies
 looping/gain/lifecycle calls without proving the actual audio device plays correctly.
 RuntimeAssetsTest checks packaged resource access, not visual appearance.
 
-## Recorded result
+## Measured core coverage
+
+JaCoCo now reports all core production classes, including rendering code, without
+custom exclusions. From `Activity_2`, regenerate the complete core measurement with:
+
+```sh
+./gradlew :core:test :core:jacocoTestReport --rerun-tasks --no-daemon
+```
+
+Open `core/build/reports/jacoco/test/html/index.html`; the corresponding XML is
+`core/build/reports/jacoco/test/jacocoTestReport.xml`. Filtered test runs cover only their
+selected scenarios, so rerun the full command before comparing results.
+[Activity 3.3](../../Activity_3/3.3/REPORT.md) records the final measurement and regression/integration
+scenarios. CI retains JUnit and coverage reports; manual input, graphics and sound still
+need separate checks.
+
+The final local full build on 3 October 2026 passed **1,449 core and 4 desktop tests**,
+with zero failures/errors/skips and both strict JavaDoc audits successful. All-core
+coverage was **5,681/5,819 lines (97.63%)**, **3,843/4,336 branches (88.63%)** and
+**36,176/37,097 instructions (97.52%)**. This is local execution evidence, not a new
+remote pipeline result. [Final raw XML archive](../../Activity_3/3.3/coverage-evidence.zip).
+
+## Historical CI result
 
 The GitLab report inspected on **2026-10-02** for commit
 `1a2c60c2b7602e2501d86ac380c364b1d704b175` reports **1,302 passed, 0 failures,
@@ -137,7 +166,7 @@ with no source/assets/build or root CI changes. The later working-tree Training 
 a source change; its separate local verification is recorded below, not attributed to this CI run.
 The CI result belongs to `1a2c60c`; it is not a new execution at `7fea86a`. The earlier local
 wrapper-cache lock failure was not a successful test run and no approval request remains
-pending for it. No fresh local Gradle result is claimed here.
+pending for it. The newer local coverage run is recorded separately in Activity 3.3.
 
 The [Wiki tester page](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/wikis/game-tester)
 contains the previously captured CI screenshot. Passing all tests is not a measured line/branch

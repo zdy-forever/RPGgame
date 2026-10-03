@@ -17,6 +17,37 @@ final class GearUpgradesTest {
     /** Creates a fixture. */
     GearUpgradesTest() { }
 
+    /** Unworn candidates use the highest owned level in the requested slot, ignoring materials and other slots. */
+    @Test void unwornCandidateUsesHighestMatchingLevelWithoutMutation() {
+        var bag = new Inventory(); var worn = new Equipment(bag);
+        bag.addItem("sentinel-core", 3);
+        bag.addItem("guardian_coat+2");
+        assertEquals("", GearUpgrades.candidate(EquipmentSlot.HEAD, bag, worn));
+        bag.addItem("guardian_hood+1");
+        bag.addItem("guardian_hood");
+        bag.addItem("guardian_hood+2");
+        var before = bag.entries();
+        assertEquals("guardian_hood+2", GearUpgrades.candidate(EquipmentSlot.HEAD, bag, worn));
+        assertEquals(before, bag.entries());
+        assertEquals("", worn.itemAt(EquipmentSlot.HEAD));
+        worn.toggle("guardian_hood");
+        assertEquals("guardian_hood", GearUpgrades.candidate(EquipmentSlot.HEAD, bag, worn));
+    }
+
+    /** Shared storage and unknown equipment are rejected even with free upgrades, without spending or equipping. */
+    @Test void invalidUpgradeInputsPreserveInventoryAndEquipment() {
+        var bag = new Inventory(); var chest = new Inventory(); var worn = new Equipment(bag);
+        bag.addItem("guardian_hood"); bag.addItem("sentinel-core", 2);
+        worn.toggle("guardian_hood");
+        var before = bag.entries();
+        assertTrue(GearUpgrades.upgrade("guardian_hood", bag, bag, worn, true).contains("blocked"));
+        assertTrue(GearUpgrades.upgrade("unknown-equipment", bag, chest, worn, true).contains("blocked"));
+        assertThrows(IllegalArgumentException.class, () -> GearUpgrades.level("unknown-equipment"));
+        assertEquals(before, bag.entries());
+        assertTrue(chest.isEmpty());
+        assertEquals("guardian_hood", worn.itemAt(EquipmentSlot.HEAD));
+    }
+
     /** All five pieces upgrade twice, remain worn, retain set bonuses and reject further spending. */
     @Test void allSlotsUseSharedCoresAndStopAtTwo() {
         var bag = new Inventory(); var chest = new Inventory(); var worn = new Equipment(bag);

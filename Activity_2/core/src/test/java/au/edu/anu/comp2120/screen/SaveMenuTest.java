@@ -14,6 +14,10 @@ import java.nio.file.*;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Exercises real pause-menu input and persistence without OpenGL.
@@ -40,6 +44,98 @@ final class SaveMenuTest {
 
     /** Creates independent test state. */
     SaveMenuTest() { }
+
+    /**
+     * Selecting either load row requires confirmation and restores HP without rewriting either file.
+     * @param slot selected saved timeline
+     * @throws IOException if isolated fixture files cannot be read or written
+     */
+    @ParameterizedTest @EnumSource(SaveSlot.class)
+    void loadRowsRequireConfirmationAndPreserveFiles(SaveSlot slot) throws IOException {
+        var menu = menu();
+        assertTrue(saves.saveManual());
+        var automatic = new java.util.HashMap<>(store.load(SaveSlot.MANUAL));
+        automatic.put("metadata.slot", SaveSlot.AUTO.name());
+        store.save(SaveSlot.AUTO, automatic);
+        byte[] manualBefore = Files.readAllBytes(store.path(SaveSlot.MANUAL));
+        byte[] autoBefore = Files.readAllBytes(store.path(SaveSlot.AUTO));
+        session.getPlayer().takeDamage(30);
+        press(menu, Input.Keys.F9, false);
+        if (slot == SaveSlot.MANUAL) {
+            press(menu, Input.Keys.DOWN, false); press(menu, Input.Keys.DOWN, false);
+        }
+        press(menu, Input.Keys.ENTER, false);
+        assertTrue(menu.isOpen());
+        assertEquals(70, session.getPlayer().getHealth().getCurrentHp());
+        press(menu, Input.Keys.ENTER, false);
+        assertFalse(menu.isOpen());
+        assertTrue(menu.notification().startsWith("Loaded " + slot.name()), menu.notification());
+        assertEquals(100, session.getPlayer().getHealth().getCurrentHp());
+        assertArrayEquals(manualBefore, Files.readAllBytes(store.path(SaveSlot.MANUAL)));
+        assertArrayEquals(autoBefore, Files.readAllBytes(store.path(SaveSlot.AUTO)));
+    }
+
+    /** Slot Back returns to Home, and Resume consumes its frame without a persistence or exit operation. */
+    @Test void backRowAndResumeReturnInputWithoutSideEffects() {
+        var menu = menu();
+        press(menu, Input.Keys.F9, false);
+        press(menu, Input.Keys.UP, false);
+        press(menu, Input.Keys.ENTER, false);
+        assertTrue(menu.isOpen());
+        press(menu, Input.Keys.UP, false); press(menu, Input.Keys.UP, false);
+        assertTrue(press(menu, Input.Keys.ENTER, false));
+        assertFalse(menu.isOpen());
+        assertFalse(press(menu, -1, false));
+        assertEquals(0, restarts); assertEquals(0, exits);
+        assertFalse(Files.exists(store.path(SaveSlot.MANUAL)));
+        assertFalse(Files.exists(store.path(SaveSlot.AUTO)));
+    }
+
+    /**
+     * Clicks outside both confirmation buttons cannot accidentally confirm or cancel Quit.
+     * @param localX pointer x in reference panel coordinates
+     * @param localY pointer y in reference panel coordinates
+     */
+    @ParameterizedTest
+    @CsvSource({"-1,60", "23,60", "245,60", "255,60", "477,60", "300,39", "300,85", "100,100"})
+    void confirmationIgnoresClicksOutsideButtons(float localX, float localY) {
+        var menu = menu();
+        press(menu, Input.Keys.ESCAPE, false);
+        press(menu, Input.Keys.UP, false); press(menu, Input.Keys.ENTER, false);
+        var box = SaveMenu.layout(960, 540);
+        frame(menu, -1, false, 960, 540, Math.round(box.x() + localX * box.scale()),
+                Math.round(540 - box.y() - localY * box.scale()), true, false);
+        assertTrue(menu.isOpen());
+        assertEquals(0, exits);
+        press(menu, Input.Keys.ENTER, false);
+        assertEquals(1, exits);
+        assertFalse(menu.isOpen());
+    }
+
+    /** A minimized window cannot turn a pointer click into a volume or menu action. */
+    @Test void minimizedWindowIgnoresPointerAndKeepsKeyboardResume() {
+        var menu = menu();
+        press(menu, Input.Keys.ESCAPE, false);
+        assertTrue(frame(menu, -1, false, 0, 0, 100, 100, true, true));
+        assertTrue(menu.isOpen()); assertEquals(50, volume);
+        assertEquals(0, restarts); assertEquals(0, exits);
+        press(menu, Input.Keys.ENTER, false);
+        assertFalse(menu.isOpen());
+    }
+
+    /**
+     * Save/load shortcuts cannot steal input from an existing gameplay panel or create files.
+     * @param key persistence shortcut pressed while another panel owns input
+     */
+    @ParameterizedTest @ValueSource(ints = {Input.Keys.F5, Input.Keys.F9})
+    void persistenceShortcutsRespectOtherPanel(int key) {
+        var menu = menu();
+        assertTrue(press(menu, key, true));
+        assertFalse(menu.isOpen());
+        assertTrue(menu.notification().contains("Close the current panel"));
+        assertFalse(Files.exists(store.path(SaveSlot.MANUAL)));
+        assertFalse(Files.exists(store.path(SaveSlot.AUTO)));
+    }
 
     /** Potion feedback uses the non-modal four-second toast without pausing or changing HP again. */
     @Test void potionFeedbackExpiresWithoutOpeningMenuOrRepeatingHealing() {

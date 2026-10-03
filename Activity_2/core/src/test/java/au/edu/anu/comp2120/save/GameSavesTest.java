@@ -15,6 +15,7 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,6 +28,137 @@ final class GameSavesTest {
     @TempDir Path directory;
     /** Creates a test fixture. */
     GameSavesTest() { }
+
+    /**
+     * Forged permissions, completion identities and portal routes cannot partially restore a valid live game.
+     * @param corruption one independently malformed relationship
+     * @throws IOException if isolated fixture files cannot be read or written
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"permission-map", "permission-portal", "active-missing", "active-wrong",
+            "permission-missing", "completed-blank", "completed-duplicate", "completed-active",
+            "element-none", "portal-map", "portal-no-permission"})
+    void rejectsInconsistentProgressWithoutPartialRestore(String corruption) throws IOException {
+        var game = new Game(directory);
+        game.win(BossChallenge.FIRE);
+        game.quests.accept(BossChallenge.ICE);
+        assertTrue(game.saves.saveManual(), game.saves.status());
+        var fields = new HashMap<>(game.store.load(SaveSlot.MANUAL));
+        String route = "portal." + TravelCatalog.QUEST_PORTAL_ID + ".";
+        String expected = switch (corruption) {
+            case "permission-map" -> {
+                fields.put("quest.permission.map", MapCatalog.HUB);
+                yield "Invalid Boss permission";
+            }
+            case "permission-portal" -> {
+                fields.put("quest.permission.portal", "unknown-portal");
+                yield "Invalid Boss permission";
+            }
+            case "active-missing", "active-wrong", "permission-missing" -> {
+                if (corruption.equals("permission-missing")) { fields.put("quest.permission", "false"); }
+                else { fields.put("quest.active", corruption.equals("active-missing") ? "" : "FIRE"); }
+                yield "Quest permission mismatch";
+            }
+            case "completed-blank", "completed-duplicate", "completed-active" -> {
+                if (corruption.equals("completed-duplicate")) {
+                    fields.put("encounter.count", "2"); fields.put("encounter.1", fields.get("encounter.0"));
+                } else {
+                    fields.put("encounter.0", corruption.equals("completed-blank") ? " " : fields.get("quest.permission.id"));
+                }
+                yield "Invalid completed encounter identity";
+            }
+            case "element-none" -> {
+                fields.put("player.element", "NONE");
+                yield "Invalid Mage element";
+            }
+            case "portal-map", "portal-no-permission" -> {
+                fields.put(route + "enabled", "true");
+                fields.put(route + "map", BossChallenge.FIRE.mapId());
+                fields.put(route + "spawn", "entry");
+                if (corruption.equals("portal-no-permission")) {
+                    fields.put("quest.active", ""); fields.put("quest.permission", "false");
+                    fields.keySet().removeIf(key -> key.startsWith("quest.permission."));
+                }
+                yield "Open battle portal has no matching quest";
+            }
+            default -> throw new AssertionError(corruption);
+        };
+        assertRejectedSnapshotPreservesState(game, fields, expected);
+    }
+
+    /**
+     * Pending rewards must refer to a completed, winning, unique encounter with a valid version.
+     * @param corruption invalid reward relationship
+     * @throws IOException if isolated fixture files cannot be read or written
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"negative-version", "uncompleted", "duplicate", "no-win"})
+    void rejectsForgedPendingRewards(String corruption) throws IOException {
+        var game = new Game(directory);
+        game.enter(BossChallenge.FIRE);
+        game.combat.getBoss().orElseThrow().getHealth().takeDamage(Integer.MAX_VALUE);
+        game.combat.update(0, PlayerCommand.NONE, false);
+        game.quests.synchronize();
+        assertEquals(1, game.flow.getPendingRewards().size());
+        assertTrue(game.saves.saveManual(), game.saves.status());
+        var fields = new HashMap<>(game.store.load(SaveSlot.MANUAL));
+        switch (corruption) {
+            case "negative-version" -> fields.put("reward.0.version", "-1");
+            case "uncompleted" -> fields.put("reward.0.id", "never-completed");
+            case "duplicate" -> {
+                fields.put("reward.count", "2");
+                for (var entry : new HashMap<>(fields).entrySet()) {
+                    if (entry.getKey().startsWith("reward.0.")) {
+                        fields.put(entry.getKey().replace("reward.0.", "reward.1."), entry.getValue());
+                    }
+                }
+            }
+            case "no-win" -> fields.put("reward.0.map", BossChallenge.ICE.mapId());
+            default -> throw new AssertionError(corruption);
+        }
+        assertRejectedSnapshotPreservesState(game, fields, "Invalid pending reward identity");
+    }
+
+    /**
+     * Verifies rejection at the named domain guard and preservation of files and live ownership.
+     * @param game real gameplay and persistence fixture
+     * @param fields malformed on-disk snapshot
+     * @param expected diagnostic identifying the intended rejection
+     * @throws IOException if isolated fixture IO fails
+     */
+    private void assertRejectedSnapshotPreservesState(Game game, Map<String, String> fields,
+            String expected) throws IOException {
+        game.store.save(SaveSlot.MANUAL, fields);
+        byte[] manual = Files.readAllBytes(game.store.path(SaveSlot.MANUAL));
+        boolean hasAuto = Files.exists(game.store.path(SaveSlot.AUTO));
+        byte[] automatic = hasAuto ? Files.readAllBytes(game.store.path(SaveSlot.AUTO)) : null;
+        var player = game.session.getPlayer();
+        player.takeDamage(12); player.getInventory().addItem("ore", 9);
+        game.chest.addItem("ore", 4); game.npc.setInteracted();
+        var location = LocationSnapshot.capture(game.session);
+        var inventory = InventorySnapshot.capture(player, game.chest);
+        var permission = game.flow.getActiveEncounter();
+        var completed = Set.copyOf(game.flow.getCompletedEncounterIds());
+        var rewards = Map.copyOf(game.flow.getPendingRewards());
+        var quest = game.quests.getActive();
+        var portal = game.travel.getPortal(TravelCatalog.QUEST_PORTAL_ID);
+        long transition = game.session.getTransitionVersion();
+        assertFalse(game.saves.load(SaveSlot.MANUAL));
+        assertTrue(game.saves.status().contains(expected), game.saves.status());
+        assertSame(player, game.session.getPlayer());
+        assertEquals(location, LocationSnapshot.capture(game.session));
+        assertEquals(inventory, InventorySnapshot.capture(player, game.chest));
+        assertEquals(permission, game.flow.getActiveEncounter());
+        assertEquals(completed, game.flow.getCompletedEncounterIds());
+        assertEquals(rewards, game.flow.getPendingRewards());
+        assertEquals(quest, game.quests.getActive());
+        assertEquals(portal, game.travel.getPortal(TravelCatalog.QUEST_PORTAL_ID));
+        assertEquals(transition, game.session.getTransitionVersion());
+        assertTrue(game.npc.hasInteracted());
+        assertArrayEquals(manual, Files.readAllBytes(game.store.path(SaveSlot.MANUAL)));
+        if (hasAuto) { assertArrayEquals(automatic, Files.readAllBytes(game.store.path(SaveSlot.AUTO))); }
+        else { assertFalse(Files.exists(game.store.path(SaveSlot.AUTO))); }
+    }
 
     /**
      * Each guardian's restored repeat-win count changes a newly admitted Boss, not just a UI field.

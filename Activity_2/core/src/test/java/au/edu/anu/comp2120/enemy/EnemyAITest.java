@@ -46,6 +46,48 @@ final class EnemyAITest {
         combat.register(target);
     }
 
+    /**
+     * Freeze and stagger stop pursuit and attacks until the shared combat clock expires the lock.
+     * @param freeze whether to use freeze rather than stagger
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void controlLockStopsChaseAndAttackThenExpires(boolean freeze) {
+        ai.update(target, 0.1);
+        assertEquals(EnemyState.CHASE, ai.getState());
+        CollisionBox before = ai.getBounds();
+        if (freeze) { ai.getCombatant().getStatus().applyFreeze(0.5); }
+        else { ai.getCombatant().getStatus().applyStagger(0.5); }
+        ai.update(target, 0.1);
+        assertEquals(EnemyState.IDLE, ai.getState());
+        assertEquals(before, ai.getBounds());
+        target.setHurtbox(new CollisionBox(before.x() + 30, before.y(), 20, 20));
+        ai.update(target, 0.1);
+        assertTrue(combat.getActiveAttacks().isEmpty());
+        assertEquals(100, player.getHealth().getCurrentHp());
+        combat.update(0.5);
+        assertFalse(ai.getCombatant().getStatus().blocksActions());
+        ai.update(target, 0);
+        assertEquals(EnemyState.ATTACK, ai.getState());
+        assertEquals(1, combat.getActiveAttacks().size());
+        combat.update(0);
+        assertEquals(90, player.getHealth().getCurrentHp());
+    }
+
+    /** A restored enemy exposes IDLE instead of stale DEAD state, then reacquires a valid target. */
+    @Test
+    void restoredEnemyReacquiresTargetAfterDeath() {
+        enemy.getHealth().takeDamage(Integer.MAX_VALUE);
+        ai.update(target, 0);
+        assertEquals(EnemyState.DEAD, ai.getState());
+        enemy.getHealth().restoreFull();
+        assertEquals(EnemyState.IDLE, ai.getState());
+        CollisionBox before = ai.getBounds();
+        ai.update(target, 0.1);
+        assertEquals(EnemyState.CHASE, ai.getState());
+        assertTrue(ai.getBounds().x() > before.x());
+    }
+
     /** Boss composition can reuse attack readiness without submitting a hidden basic attack or consuming cooldown. */
     @Test
     void decisionOnlyModePreservesBasicEnemyBehavior() {
