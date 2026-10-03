@@ -7,7 +7,7 @@
 - [User Manual](User-Manual)
 - [Game Engine](game-engine)
 - [Game Tester](game-tester)
-- [Activity 3.3 Test Report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/main/Activity_3/3.3/REPORT.md)
+- [Activity 3.3 Test Report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_3/3.3/REPORT.md)
 - [User Stories](User-Stories)
 - [Planning and Schedule](Planning-and-Schedule)
 - [License](License)

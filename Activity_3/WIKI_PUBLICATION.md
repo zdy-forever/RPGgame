@@ -1,17 +1,54 @@
 # Wiki publication record
 
-## Pending Activity 3.3 update
+## Latest synchronization — 3 October 2026
 
-Local `Game-Tester.md`, `Documentation-Index.md`, `home.md` and `_sidebar.md` now reference the
-Activity 3.3 report and coverage workflow. These edits have not yet been published to
-the live Wiki. Publish the repository report and CI/test changes first, then synchronize
-these pages so their new `main/Activity_3/3.3/REPORT.md` link resolves. The publication record
-below describes the earlier published versions, not the new local drafts.
+Compared all 14 content pages and the custom sidebar with the live GitLab Wiki,
+then published 13 updated content pages and the sidebar. Reflection already matched
+and was retained unchanged. The published pages were read back through their editors
+and matched `Activity_3/wiki/` (ignoring leading/trailing blank space).
+
+The reviewed source baseline is main `64310bfa5869a213c6e9025bc6eff2d45effcc3e`.
+Current source/document links are pinned to that commit. Historical screenshot URLs,
+capture versions, earlier pipeline results and the Activity 3.3 raw evidence archive
+retain their original provenance.
+
+Changes published:
+
+- Linked the Activity 3.3 report and raw evidence from the tester, index, Home and sidebar.
+- Published only the latest main CI test/coverage results in the Wiki; removed older
+  CI tables, the old CI screenshot and local-versus-CI comparisons. Original evidence
+  archives are preserved. Explained parameterized test-name deduplication without
+  presenting competing totals in the Wiki.
+- Added the Activity 3.2 JavaDoc evidence mapping, coverage commands and report paths.
+- Synchronized persisted-settings instructions and corrected the user-manual review date.
+- Added directory-safe Docker launch instructions and Activity 4 source/verification links.
+- Updated current repository references across the Wiki while preserving teammate content.
+
+Verification:
+
+- Pipeline #1052939 at `64310bf` passed. Job #7718629 ran
+  `./gradlew clean build javadocAudit :core:jacocoTestReport --no-daemon` with JDK 25;
+  both modules' audits and the build passed.
+- Downloaded job artifacts contain 1,449 core + 4 desktop tests, zero failures/skips.
+  GitLab's summary displays 1,383 tests and zero failures/errors/skips. Inspection of the CI HTML reports and local JUnit XML identified exactly 70
+  duplicate class/display-name entries across 15 parameterized test classes. GitLab
+  deduplicates those identities; no executions were missing from the Gradle reports.
+- The job's core JaCoCo XML records 5,682/5,821 lines (97.61%), 3,844/4,338 branches
+  (88.61%) and 36,158/37,084 instructions (97.50%). This task inspected existing CI
+  evidence; it did not run a new local test suite or native playtest.
+- All 66 distinct pinned repository file/image targets exist at their referenced commits.
+  Internal page targets resolve to the published Wiki slugs; code fences and whitespace
+  checks passed.
+- All 15 live Markdown sources matched the local copies after publication.
+- This synchronization used English page content and explicit English Wiki commit messages.
+
+The Wiki is already published. The local Wiki source copies and this publication record
+remain uncommitted in the main code repository for the user's normal commit/MR workflow.
 
 ## Earlier publication
 
 Published to the team GitLab Wiki on **3 October 2026**, reviewed against main
-`59de4e66120654605150c8baad4ca49dea39224f`. The English files in `wiki/` match the
+`59de4e66120654605150c8baad4ca49dea39224f`. At that time, the English files in `wiki/` matched the
 published Markdown. Existing live pages were read before editing; teammate changes
 were retained. The Docker page was reviewed and already matched its local copy.
 
@@ -19,7 +56,7 @@ were retained. The Docker page was reviewed and already matched its local copy.
 - [Playtest and Screenshots](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/wikis/Playtest-and-Screenshots)
 - [Documentation Index](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/wikis/Documentation-Index)
 
-## Published changes
+## Earlier published changes
 
 - Refreshed the existing overview, features, engine, tester, installation, player guide,
   user stories, planning, known issues, reflection and license references.
@@ -37,9 +74,9 @@ were retained. The Docker page was reviewed and already matched its local copy.
 Images use absolute GitLab raw URLs pinned to `59de4e6`; they do not depend on local
 filesystem paths or duplicate Wiki uploads. Detailed source/document links use the same
 commit. The old CI screenshot on Game Tester remains explicitly labelled as pipeline
-#1052082 from 2 October; the current result is linked separately.
+#1052082 from 2 October; the then-current result was linked separately.
 
-## Verification
+## Earlier verification
 
 - All 14 content pages were read back through their editors and matched the local drafts.
 - The custom sidebar was published with both new navigation links.

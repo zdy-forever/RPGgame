@@ -22,7 +22,7 @@ These are explicit evidence/delivery gaps, not assertions that all gameplay is b
 - **Open presentation issue:** unavailable-slot diagnostics containing long paths are very small.
 - **Not established:** physical held-key movement and mouse dragging were inconclusive through the desktop tool. Broader classes/traits, audio, exact 640 × 360/HiDPI layout and packaged distribution acceptance remain to be checked.
 
-See [the native playtest report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/PLAYTEST_REPORT.md) for observed versus untested behavior. No uninterrupted walking campaign or exhaustive manual regression pass is claimed.
+See [the native playtest report](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/PLAYTEST_REPORT.md) for observed versus untested behavior. No uninterrupted walking campaign or exhaustive manual regression pass is claimed.
 
 ## Planned scope that changed
 
@@ -53,7 +53,7 @@ Priorities are keeping test evidence aligned with the final submission commit, m
 
 ## Supporting records
 
-- [Architecture: original plan and delivered status](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/ARCHITECTURE.md). The original smoke-tester row is historical planning; the current automated verification entry point is documented in Game Tester.
-- [Save/load scope and limits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/SAVE_LOAD_REPORT.md).
-- [Test review and 1 October cleanup](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/docs/TEST_COVERAGE_REVIEW.md).
-- [Persisted title-menu settings](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameSettings.java) and [gameplay volume callback](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/59de4e66120654605150c8baad4ca49dea39224f/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameScreen.java).
+- [Architecture: original plan and delivered status](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/ARCHITECTURE.md). The original smoke-tester row is historical planning; the current automated verification entry point is documented in Game Tester.
+- [Save/load scope and limits](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/SAVE_LOAD_REPORT.md).
+- [Test review and 1 October cleanup](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/docs/TEST_COVERAGE_REVIEW.md).
+- [Persisted title-menu settings](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameSettings.java) and [gameplay volume callback](https://gitlab.comp.anu.edu.au/u7782042/comp2120-fri11_a3_u7782042_u7998420_u7851266_u8350466/-/blob/64310bfa5869a213c6e9025bc6eff2d45effcc3e/Activity_2/core/src/main/java/au/edu/anu/comp2120/screen/GameScreen.java).
