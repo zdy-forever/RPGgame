@@ -1,0 +1,18 @@
+# This Dockerfile-specific ignore file applies to the repository-root build context.
+**
+!Activity_2/
+!Activity_2/**
+!Activity_4/
+!Activity_4/Dockerfile
+!Activity_4/start-game.sh
+!Activity_4/healthcheck.sh
+!Activity_4/autostart.sh
+!Activity_4/init-game.sh
+Activity_2/**/build/
+Activity_2/**/.gradle/
+Activity_2/**/.idea/
+Activity_2/**/.DS_Store
+Activity_2/docs/
+Activity_2/assets/art_resources/
+Activity_2/**/*.log
+Activity_2/**/*.tmp
