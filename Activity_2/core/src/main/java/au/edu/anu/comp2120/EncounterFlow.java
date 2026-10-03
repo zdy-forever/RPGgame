@@ -199,7 +199,7 @@ public final class EncounterFlow {
     /**
      * Reads successful returns for a Boss arena, without counting failed attempts or result polls.
      * Counts advance only after a successful Hub transition, once per fresh acceptance.
-     * One guardian owns each campaign arena; counts are in memory and are not save data.
+     * One guardian owns each campaign arena; GameSaves captures and restores these counts for rematch scaling.
      * @param mapId stable Boss arena ID
      * @return non-negative success count, saturated at Integer.MAX_VALUE
      * @throws NullPointerException if mapId is null

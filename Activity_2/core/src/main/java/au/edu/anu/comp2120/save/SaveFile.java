@@ -3,6 +3,7 @@ package au.edu.anu.comp2120.save;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.Serial;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -50,7 +51,7 @@ public final class SaveFile {
     /** Encodes a detached snapshot and atomically replaces the slot after a complete write.
      * Unsupported atomic replacement is reported as failure; the previous slot is retained.
      * @param fields validated gameplay fields without reserved save markers
-     * @throws IOException if encoding, syncing or atomic replacement fails
+     * @throws IOException if encoding, writing, syncing or atomic replacement fails
      * @throws IllegalArgumentException if fields are oversized, blank or use reserved keys
      * @throws NullPointerException if fields or an entry is null
      */
@@ -75,7 +76,11 @@ public final class SaveFile {
         try {
             try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
                 ByteBuffer data = ByteBuffer.wrap(bytes);
-                while (data.hasRemaining()) { channel.write(data); }
+                while (data.hasRemaining()) {
+                    if (channel.write(data) == 0) {
+                        throw new IOException("Save write made no progress");
+                    }
+                }
                 channel.force(true);
             }
             Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -117,9 +122,12 @@ public final class SaveFile {
         return Map.copyOf(fields);
     }
 
-    /** Rejects ambiguous duplicate fields instead of silently accepting the last value. */
+    /** Rejects ambiguous duplicate fields instead of silently accepting the last value.
+     * @author Hao Liu (u7998420)
+     */
     private static final class UniqueProperties extends Properties {
         /** Serialization identifier inherited from Properties; object serialization is not used. */
+        @Serial
         private static final long serialVersionUID = 1L;
 
         /** Creates an empty duplicate-checking property set. */

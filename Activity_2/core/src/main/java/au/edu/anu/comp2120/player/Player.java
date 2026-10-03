@@ -14,7 +14,8 @@ import au.edu.anu.comp2120.combat.ElementType;
 
 /**
  * Holds player geometry and health, with time-based eight-direction movement independent of graphics.
- * Damage delegates to the shared health model; death consequences are a future gameplay policy.
+ * Owns inventory, equipment and class choices, and applies training-specific damage and recovery rules.
+ * Battle defeat and return to Hub are coordinated by {@link au.edu.anu.comp2120.screen.CombatDemo}.
  *
  * @author Hao Liu (u7998420)
  * @author Daoyan Zhu (u7782042)
@@ -82,8 +83,10 @@ public final class Player implements Damageable, EquipmentModifiers {
                 && map.getType() == au.edu.anu.comp2120.world.MapType.TRAINING;
     }
 
-    /** Advances practice recovery using simulation time; menus therefore pause the timer.
+    /** Restores full health after five simulation seconds without a positive training hit.
+     * Menus pause the timer; dead players and players outside training are unchanged.
      * @param delta finite non-negative elapsed seconds
+     * @throws IllegalArgumentException if delta is negative or non-finite
      */
     public void updateTrainingRecovery(double delta) {
         if (!Double.isFinite(delta) || delta < 0) { throw new IllegalArgumentException("Invalid recovery time"); }

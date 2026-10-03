@@ -10,7 +10,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Tests the complete ordered first-version element-pair matrix and immutable rule/status validation.
+ * Tests the complete built-in ordered element-pair matrix and immutable rule/status validation.
  * @author Daoyan Zhu (u7782042)
  */
 final class ElementRulesTest {
@@ -37,7 +37,7 @@ final class ElementRulesTest {
         }
     }
 
-    /** Rule tables are copied and can be replaced or empty without altering the prototype table. */
+    /** Rule tables are copied and can be replaced or empty without altering the built-in table. */
     @Test
     void rulesAreConfigurableAndDefensivelyCopied() {
         var custom = new ElementRules.Reaction("custom", ElementType.ICE, ElementType.WIND, 7, null);

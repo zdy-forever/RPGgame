@@ -6,9 +6,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/** Slot identity and UTC creation time for future save selection UI.
- * Metadata does not rank progress or choose a newer slot automatically. A future coordinator
- * must include it in the same write as gameplay data and validate it before restoration.
+/** Slot identity and UTC creation time stored alongside gameplay fields by {@link GameSaves}.
+ * {@link SaveSelection} compares timestamps for Continue; this component validates slot identity
+ * and timestamp syntax without ranking gameplay progress or restoring state.
  * @param slot slot that created this snapshot
  * @param savedAt UTC timestamp of snapshot creation, not a gameplay timer
  * @author Hao Liu (u7998420)

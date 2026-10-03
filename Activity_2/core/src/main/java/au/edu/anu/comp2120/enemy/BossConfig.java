@@ -14,7 +14,7 @@ import java.util.Objects;
  * @param transitionSeconds positive finite one-time positioning/attack pause
  * @param phaseOne non-empty ordered attack cycle for phase one
  * @param phaseTwo non-empty ordered attack cycle for phase two
- * @param materialId stable non-blank material identifier for future inventory integration
+ * @param materialId stable non-blank material identifier included in the encounter reward
  * @param materialQuantity positive quantity dropped once per encounter
  * @author Daoyan Zhu (u7782042)
  */

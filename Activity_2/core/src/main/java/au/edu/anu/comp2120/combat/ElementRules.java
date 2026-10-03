@@ -12,12 +12,12 @@ import java.util.Optional;
  * @author Daoyan Zhu (u7782042)
  */
 public record ElementRules(double attachmentSeconds, List<Reaction> reactions) {
-    /** Agreed first-version ordered reaction table; numeric balance remains provisional. */
+    /** Built-in ordered reaction table shared by all elemental combat sources. */
     public static final ElementRules DEFAULT = standard();
 
     /**
      * Builds the small ordered table without string-based pair dispatch.
-     * @return immutable first-version rules
+     * @return immutable built-in rules
      */
     private static ElementRules standard() {
         java.util.ArrayList<Reaction> rules = new java.util.ArrayList<>();

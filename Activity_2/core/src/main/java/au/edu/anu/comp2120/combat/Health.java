@@ -133,7 +133,7 @@ public final class Health implements Damageable {
     /**
      * Explicitly resets HP to its maximum, reviving a dead entity if necessary.
      * Repeated calls are harmless. This does not move an entity, change maps, or reset other state;
-     * a future respawn coordinator must perform those operations separately.
+     * the gameplay coordinator performs those operations separately during a defeat return or load.
      */
     public void restoreFull() {
         currentHp = maxHp;

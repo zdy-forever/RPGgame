@@ -28,7 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /**
- * Tests the real debug adapter, map/travel cleanup, and shared player/enemy health without graphics.
+ * Tests the gameplay coordinator in unrestricted fixtures, map/travel cleanup and shared health without graphics.
  *
  * @author Daoyan Zhu (u7782042)
  */

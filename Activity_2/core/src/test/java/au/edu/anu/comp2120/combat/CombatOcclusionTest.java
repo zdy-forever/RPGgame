@@ -26,7 +26,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Verifies world obstruction at the shared damage boundary using real classes and generic receivers.
- * Arrow Rain/ElementField are contract fixtures: those concrete skills do not exist in this checkout.
+ * Effect-centred fixtures isolate the occlusion contract; concrete skills and reaction fields are
+ * exercised separately by FinalClassSkillsTest and ReactionCompletionTest.
  * @author Daoyan Zhu (u7782042)
  */
 final class CombatOcclusionTest {
@@ -114,7 +115,7 @@ final class CombatOcclusionTest {
     }
 
     /**
-     * The future ElementField adapter can submit its own centre and must use ordinary settlement.
+     * An effect-centred attack, as used by ElementField, must still use ordinary settlement.
      * @param blocked whether the fixed field centre is separated from the target
      */
     @ParameterizedTest

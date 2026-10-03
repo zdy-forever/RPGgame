@@ -36,7 +36,7 @@ public final class PortalGuide {
         /** Peaceful room showing guardian stones and the final Sage conversation. */
         MEMORIAL("Memorial Hall");
 
-        /** Built-in-font-compatible name for the placeholder dialogue. */
+        /** Built-in-font-compatible destination label for the travel dialogue. */
         private final String label;
 
         /**
@@ -48,7 +48,7 @@ public final class PortalGuide {
         }
 
         /**
-         * Gets the placeholder dialogue label.
+         * Gets the destination label shown in the travel dialogue.
          * @return readable destination name
          */
         public String label() { return label; }

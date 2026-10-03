@@ -1,7 +1,7 @@
 package au.edu.anu.comp2120.player;
 
 /**
- * Central adjustable timing/geometry for first-version class behaviours, not final balance.
+ * Central adjustable timing and geometry for the built-in class skills.
  * Damage, slot cooldowns and ordinary projectiles remain in PlayerClasses.
  * @author Daoyan Zhu (u7782042)
  */

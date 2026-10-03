@@ -8,7 +8,8 @@ import au.edu.anu.comp2120.combat.Combatant;
  * Health, damage settlement, collision, navigation, phases, death and rewards stay in Boss and
  * the shared combat pipeline; a trait only observes those events and applies its own extra effect.
  * Implementations are stateful for one encounter, so create a fresh instance per Boss.
- * All methods run on the game-loop thread from Boss.update, never inside a damage callback.
+ * Hit observations and timer updates run from {@link Boss#update(Combatant, double)}, outside damage callbacks.
+ * Tuning runs during construction; presentation reads status separately on the game-loop thread.
  * @author Daoyan Zhu (u7782042)
  */
 public interface BossTrait {
@@ -17,8 +18,8 @@ public interface BossTrait {
 
     /**
      * Adjusts the shared encounter template before rematch scaling is applied.
-     * Implementations must keep health, reward and attack data identical so that one balance
-     * change still reaches every guardian; only movement-feel tuning belongs here.
+     * Built-in traits preserve shared health, rewards, phase timing and attack geometry.
+     * They adjust navigation and, for Fire, reduce direct melee damage to accompany burning damage.
      * @param base shared unscaled definition
      * @return this guardian's definition, or base when it uses the template unchanged
      */

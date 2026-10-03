@@ -8,10 +8,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Central first-version behaviour definitions for Archer, Mage and Katana.
- * No Player subclasses or asset lookups are needed.
- * Behaviour is specified; numerical tuning remains provisional. Execution composes shared
- * attacks, projectiles, health and collision-safe movement, never assets or Player subclasses.
+ * Built-in skill definitions and adjustable balance values for Archer, Mage and Katana.
+ * Execution composes shared attacks, projectiles, health and collision-safe movement;
+ * class differences are data and skill kinds rather than Player subclasses or asset lookups.
  * @author Daoyan Zhu (u7782042)
  */
 public final class PlayerClasses {

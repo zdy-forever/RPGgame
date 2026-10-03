@@ -418,7 +418,7 @@ final class ClassSkills {
      * @param before start body
      * @param after resolved end body
      * @param expansion contact margin
-     * @return rectangular swept placeholder
+     * @return axis-aligned rectangle spanning the start and end bodies
      */
     private static CollisionBox swept(CollisionBox before, CollisionBox after, double expansion) {
         double x = Math.min(before.x(), after.x());

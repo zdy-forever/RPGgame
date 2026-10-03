@@ -531,6 +531,7 @@ final class BossTraitTest {
      * @param boss tested encounter
      * @param victim health-owning target
      * @param target registered adapter
+     * @author Daoyan Zhu (u7782042)
      */
     private record Fixture(GameMap map, CombatSystem combat, Boss boss, Enemy victim, Combatant target) { }
 }

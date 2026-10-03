@@ -44,6 +44,10 @@ public final class SettingsScreen extends ScreenAdapter {
     /** Builds the settings panel. */
     public SettingsScreen() { }
 
+    /**
+     * Processes preference controls and draws the volume, fullscreen and back options.
+     * @param delta elapsed frame seconds; menu input and layout do not use this value
+     */
     @Override
     public void render(float delta) {
         update();
@@ -72,14 +76,14 @@ public final class SettingsScreen extends ScreenAdapter {
         shapes.end();
 
         batch.begin();
-        label(layout, "SETTINGS", 24, 434, 452, 28, 1.55f, Color.WHITE);
+        label(layout, "SETTINGS", 24, 434, 1.55f, Color.WHITE);
         label(layout, (focus == 0 ? "> " : "") + "Music volume  " + GameSettings.musicVolume() + " / 100",
-                36, 392, 428, 20, 1.1f, Color.WHITE);
+                36, 392, 1.1f, Color.WHITE);
         label(layout, (focus == 1 ? "> " : "") + "Fullscreen: " + (GameSettings.fullscreen() ? "On" : "Off"),
-                36, 330, 428, 20, 1.1f, Color.WHITE);
+                36, 330, 1.1f, Color.WHITE);
         label(layout, (focus == 2 ? "> " : "") + "Back",
-                36, 276, 428, 20, 1.1f, Color.WHITE);
-        label(layout, "W/S or Up/Down: select | E/Enter: confirm | Mouse: click", 24, 46, 452, 34, 0.85f, Color.LIGHT_GRAY);
+                36, 276, 1.1f, Color.WHITE);
+        label(layout, "W/S or Up/Down: select | E/Enter: confirm | Mouse: click", 24, 46, 0.85f, Color.LIGHT_GRAY);
         batch.end();
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -177,13 +181,11 @@ public final class SettingsScreen extends ScreenAdapter {
      * @param value text to draw
      * @param x left edge in reference coordinates
      * @param top baseline y in reference coordinates
-     * @param width unused horizontal bound
-     * @param height unused vertical bound
      * @param size font scale
      * @param color text color
      */
     private void label(SaveMenu.Layout layout, String value, float x, float top,
-                       float width, float height, float size, Color color) {
+                       float size, Color color) {
         font.getData().setScale(size * layout.scale());
         font.setColor(color);
         font.draw(batch, value, layout.x() + x * layout.scale(), layout.y() + top * layout.scale());

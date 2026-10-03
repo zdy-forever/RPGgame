@@ -10,7 +10,7 @@ import au.edu.anu.comp2120.combat.Health;
  * @author Daoyan Zhu (u7782042)
  */
 public final class Enemy implements Damageable {
-    /** Default placeholder HP capacity, overridable per enemy through its constructor. */
+    /** Default HP capacity, overridable per enemy through its constructor. */
     public static final int DEFAULT_MAX_HP = 100;
     /** Independent health owned by this enemy. */
     private final Health health;

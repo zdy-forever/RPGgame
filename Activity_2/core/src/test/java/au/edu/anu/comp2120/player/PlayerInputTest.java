@@ -15,7 +15,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies actual WASD mapping and key cancellation with a fake keyboard source.
+ * Verifies movement, ability, potion and selection key mappings and edge handling with a fake keyboard.
  *
  * @author Daoyan Zhu (u7782042)
  */

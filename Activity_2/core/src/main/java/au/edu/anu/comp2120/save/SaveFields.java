@@ -14,6 +14,7 @@ final class SaveFields {
     private final Set<String> used = new HashSet<>();
     /** Creates a strict reader.
      * @param fields complete decoded file
+     * @throws NullPointerException if fields or any key or value is null
      */
     SaveFields(Map<String, String> fields) { this.fields = Map.copyOf(fields); }
     /** Reads one required value.

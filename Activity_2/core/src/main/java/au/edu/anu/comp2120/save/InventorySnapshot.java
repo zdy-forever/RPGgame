@@ -16,8 +16,8 @@ import java.util.Set;
 
 /** Validated, immutable bag/chest/equipment state from one point in gameplay.
  * Preserves acquisition order and permits unknown material IDs, but worn items must exist
- * in the equipment catalogue and belong to the bag. This is one part of a future full save:
- * the coordinator must validate all other parts before applying any live-state changes.
+ * in the equipment catalogue and belong to the bag. {@link GameSaves} combines this component
+ * with the other snapshot namespaces and validates them before applying live-state changes.
  * @param bag ordered player stacks
  * @param chest ordered chest stacks
  * @param worn occupied equipment slots; items remain counted in the bag
@@ -27,7 +27,7 @@ public record InventorySnapshot(List<ItemStack> bag, List<ItemStack> chest,
                                 Map<EquipmentSlot, String> worn) {
     /** File parsing bound, not an in-game inventory capacity. */
     private static final int MAX_STACKS = 4096;
-    /** Namespace prevents collision with future player/quest snapshot fields. */
+    /** Namespace separates inventory fields from player, location and quest snapshot fields. */
     private static final String PREFIX = "inventory.";
 
     /** Copies and validates every field without changing any game object.

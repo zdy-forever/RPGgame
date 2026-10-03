@@ -10,7 +10,7 @@ import java.util.Objects;
  * @author Daoyan Zhu (u7782042)
  */
 public final class Projectile {
-    /** Current square collision geometry, also usable by a placeholder renderer. */
+    /** Current square collision geometry, also exposed for projectile presentation. */
     private CollisionBox bounds;
     /** Unit horizontal flight direction. */
     private final double directionX;

@@ -255,6 +255,7 @@ public final class GameSaves {
      * @param f strict reader
      * @param p key prefix
      * @return valid battle permission
+     * @throws IllegalArgumentException if fields, challenge identity, portal or spawn are invalid
      */
     private ActiveEncounter permission(SaveFields f, String p) {
         var value = new ActiveEncounter(f.text(p + "id"), f.text(p + "map"), f.text(p + "spawn"), f.text(p + "portal"));
@@ -268,6 +269,8 @@ public final class GameSaves {
     /** Checks an entire body at a named spawn without entering it.
      * @param mapId registered map
      * @param spawnId registered spawn
+     * @throws NullPointerException if either identity is null
+     * @throws IllegalArgumentException if the map or spawn is missing or the full body cannot fit
      */
     private void validateSpawn(String mapId, String spawnId) {
         var map = session.getMap(mapId);
@@ -282,6 +285,8 @@ public final class GameSaves {
      * @param fields decoded snapshot
      * @param slot selected slot
      * @return game-loop restoration operation, to run only after validation succeeds
+     * @throws NullPointerException if fields or slot is null
+     * @throws IllegalArgumentException if fields are malformed, unknown or inconsistent with the session
      */
     private Runnable prepare(Map<String, String> fields, SaveSlot slot) {
         var f = new SaveFields(fields);

@@ -7,8 +7,10 @@ import java.util.Optional;
 
 /**
  * Picks which save slot a "Continue" action should restore, based solely on on-disk metadata.
- * Neither slot is a fallback for the other; the newest valid snapshot wins. Corrupt or missing
- * slots are skipped so the caller can disable Continue when nothing is readable.
+ * Files with unreadable contents or invalid slot/timestamp metadata are skipped.
+ * The newest remaining timestamp wins; ties keep the first slot in enum order.
+ * Full gameplay validation is deferred to {@link GameSaves}: selection alone does not prove
+ * that a snapshot can be restored, and a failed restoration does not retry the other slot.
  *
  * @author Daoyan Zhu (u7782042)
  * @author Jiaqi Chen (u7851266)
@@ -20,7 +22,7 @@ public final class SaveSelection {
 
     /** Reads both slots and returns the one with the newest creation timestamp.
      * @param directory directory holding the two slot files
-     * @return the newest valid slot, or empty when neither slot is present or readable
+     * @return the newest readable slot with valid metadata, or empty when neither qualifies
      * @throws NullPointerException if directory is null
      */
     public static Optional<SaveSlot> latestValid(Path directory) {

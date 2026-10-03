@@ -32,7 +32,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Verifies single-portal NPC selection, non-hostile training scores and unchanged Boss outcomes.
+ * Verifies single-portal NPC selection, training scores and practice health safeguards and unchanged Boss outcomes.
  * Exercises real session/travel/combat coordinators without graphics, Quest or Inventory substitutes.
  * @author Daoyan Zhu (u7782042)
  */

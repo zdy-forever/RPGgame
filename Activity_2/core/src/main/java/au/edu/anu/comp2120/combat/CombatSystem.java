@@ -211,8 +211,8 @@ public final class CombatSystem {
      * @param attack shared damage/type/source-cooldown specification
      * @param flight validated flight and volley configuration
      * @param range positive finite maximum range per arrow
-     * @param directionX horizontal nonzero direction component
-     * @param directionY vertical nonzero direction component
+     * @param directionX finite horizontal direction component
+     * @param directionY finite vertical component; the combined direction must be nonzero
      * @param area current collision environment
      * @return immutable accepted volley; empty for dead/cooling source or exhausted projectile capacity
      * @throws NullPointerException if a required argument is null

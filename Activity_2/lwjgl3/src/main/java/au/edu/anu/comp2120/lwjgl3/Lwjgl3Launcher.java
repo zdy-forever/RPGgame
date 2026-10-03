@@ -11,9 +11,9 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
  */
 public final class Lwjgl3Launcher {
 
-    /** Initial placeholder window width in screen units. */
+    /** Initial desktop window width in logical screen units. */
     private static final int WINDOW_WIDTH = 960;
-    /** Initial placeholder window height in screen units. */
+    /** Initial desktop window height in logical screen units. */
     private static final int WINDOW_HEIGHT = 540;
     /** Explicit initial offset avoids backend auto-centering through a possibly missing primary monitor handle. */
     private static final int WINDOW_OFFSET = 80;

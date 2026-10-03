@@ -32,7 +32,7 @@ final class BossTest {
     private final Player player = new Player(new CollisionBox(290, 220, 20, 20), 100, map, 1000);
     /** Canonical registered player hurtbox. */
     private final Combatant target = new Combatant(player, Faction.PLAYER, player.getBounds());
-    /** Real encounter using production placeholder tuning. */
+    /** Real encounter using the production Sentinel configuration. */
     private final Boss boss = new Boss("test-boss", "Test Boss", new CollisionBox(200, 200, 64, 64),
             map, GameConfig.SENTINEL, combat);
 

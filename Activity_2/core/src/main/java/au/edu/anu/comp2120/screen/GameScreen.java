@@ -51,7 +51,7 @@ public final class GameScreen extends ScreenAdapter {
     private final SaveMenu saveMenu;
     /** Portal trigger/unlock state; delegates every map transition to the existing session. */
     private final TravelSystem travel;
-    /** Graphics-independent debug adapter; all damage goes through the shared combat pipeline. */
+    /** Graphics-independent gameplay coordinator; all damage goes through the shared combat pipeline. */
     private final CombatDemo combatDemo;
     /** Stable external acceptance/result/reward boundary; contains no Quest or Inventory logic. */
     private final EncounterFlow encounterFlow;
@@ -176,18 +176,20 @@ public final class GameScreen extends ScreenAdapter {
      * @param pad    inner padding
      * @param lineH  height of one item row
      * @param scale  font scale factor
+     * @author Jiaqi Chen (u7851266)
      */
     private record PanelLayout(float x, float y, float boxW, float boxH,
                                float pad, float lineH, float scale) {
     }
     /**
-     * Creates the demo models and drawing resources after graphics initialization.
+     * Creates a fresh gameplay session and drawing resources after graphics initialization.
      */
     public GameScreen() { this(BackgroundMusic.VOLUME, false); }
 
     /** Creates fresh gameplay while preserving application music preferences.
      * @param volume initial music gain between zero and one
      * @param restarted whether to display the confirmed restart notification
+     * @throws IllegalArgumentException if volume is non-finite or outside zero through one
      */
     public GameScreen(float volume, boolean restarted) {
         session = new GameSession(MapCatalog.createMaps(), MapCatalog.HUB,
@@ -579,6 +581,7 @@ public final class GameScreen extends ScreenAdapter {
      * @param primary human-readable main objective
      * @param secondary human-readable side objective, or null
      * @param markerNpcId NPC to highlight, or null
+     * @author Jiaqi Chen (u7851266)
      */
     private record Objective(String primary, String secondary, String markerNpcId) { }
 
@@ -1484,7 +1487,7 @@ public final class GameScreen extends ScreenAdapter {
         dialogueBatch.end();
     }
     /**
-     * Draws a minimap in the bottom-right corner, or an enlarged centred map when M is held open.
+     * Draws a minimap in the bottom-right corner, or an enlarged centred map toggled with M.
      * Screen-space only; the expanded panel follows window size while text stays readable.
      * Memorial Hall fits one view and omits the minimap so that all five stones remain visible.
      * A living Boss or training target is marked with a red square;
@@ -1630,6 +1633,7 @@ public final class GameScreen extends ScreenAdapter {
      * @param lineH  height of one item row
      * @param scale  font scale factor
      * @param colW   width of one of the two columns
+     * @author Jiaqi Chen (u7851266)
      */
     private record ChestLayout(float x, float y, float boxW, float boxH,
                                float pad, float lineH, float scale, float colW) {
