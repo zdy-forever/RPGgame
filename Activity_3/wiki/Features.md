@@ -6,7 +6,7 @@
 
 Movement supports eight directions with normalized diagonals, so diagonal travel is not faster than horizontal or vertical travel. Swept collision makes the player slide along walls rather than pass through or stick to them. L performs the class-specific collision-safe dash.
 
-The Hub uses a road, boundary fence, huts, trees, water and name tags to make its services readable. Interaction prompts change with the target, such as talking, reading and opening. Its NPCs cover quests, portal destinations, class/ultimate selection, merchant services, guidance and the ending flow; the storage chest is a separate item interface.
+The Hub uses a road, boundary fence, huts, trees, water and name tags to make its services readable. Interaction prompts change with the target, such as talking, reading and opening. Its NPCs cover quests, portal destinations, class/ultimate selection, merchant services, guidance and the ending flow; the storage chest is a separate item interface. A Notice Board adds the onboarding reference: it repeats controls, save/load steps, class abilities and Hub directions as short grouped sections shown one section at a time, so no scripted tutorial is needed.
 
 ## Campaign and exploration
 
@@ -51,6 +51,12 @@ Manual and automatic slots are independent. Manual saving and loading require a 
 The Esc menu provides saving, slot loading/deletion, restarting and music volume. Confirmations protect overwrite, load, deletion and restart operations. Slot times are displayed in Australia/Sydney, including AEST/AEDT; stored timestamps remain UTC.
 
 Short-lived translucent notifications appear centrally and fade away. The enlarged map identifies NPCs and live targets; the minimap marks the player and Boss/Training target. Bag, storage, dialogue and pause interfaces stop simulation. Keyboard and mouse options share the same item/menu actions.
+
+## Objectives and HUD scaling
+
+A persistent objectives panel shows the current goal while playing. It lists one primary task and, where relevant, one secondary task, and marks the next objective NPC with an interaction marker. Onboarding follows Old Sage → Class Master → Quest Keeper → Portal Guide. Once a guardian is accepted, the primary task becomes defeating that guardian and the secondary task becomes talking to the Portal Guide to enter the battle. After all five guardians fall, the panel points to the Old Sage and then to the Portal Guide for the Memorial Hall. It is hidden inside the Memorial Hall. Objective text is plain English: a regression test fails if any line reintroduces characters the UI bitmap font cannot draw.
+
+Persistent HUD elements scale with the window up to a 960 × 540 reference size and never grow beyond it. Below 640 × 360 the coordinate readout, minimap and weapon HUD are hidden; below 320 × 180 even the health bar is hidden. The objectives panel is drawn beneath the health bar, and the class/ability/potion quickbar uses its own scale so it stays usable on large windows.
 
 ## Testing tools
 
